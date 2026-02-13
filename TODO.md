@@ -30,7 +30,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 
 - [x] Add interface layer for OS services (path/file, clipboard, timers, subprocess).
 - [x] Port file and path handling to UTF-8-first Linux behavior.
-- [ ] Implement XDG config/data/cache directory handling.
+- [x] Implement XDG config/data/cache directory handling.
 - [ ] Implement Linux crash logging and diagnostics path.
 - [ ] Replace direct Win32 calls incrementally behind interfaces.
 
