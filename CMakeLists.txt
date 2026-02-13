@@ -17,6 +17,20 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+set(NPP_APP_VERSION "dev")
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -C "${CMAKE_CURRENT_SOURCE_DIR}" describe --tags --always --dirty
+        OUTPUT_VARIABLE NPP_APP_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT NPP_APP_VERSION)
+        set(NPP_APP_VERSION "dev")
+    endif()
+endif()
+
 add_library(npp_language_detection STATIC
     ui/qt/LanguageDetection.cpp
 )
@@ -212,6 +226,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
                 Qt${QT_VERSION_MAJOR}::Gui
                 Qt${QT_VERSION_MAJOR}::Widgets
         )
+        target_compile_definitions(npp_linux_shell PRIVATE NPP_APP_VERSION="${NPP_APP_VERSION}")
 
         if(TARGET npp_lexilla)
             target_compile_definitions(npp_linux_shell PRIVATE NPP_HAVE_LEXILLA=1)

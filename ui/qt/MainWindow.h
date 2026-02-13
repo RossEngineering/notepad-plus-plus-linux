@@ -122,6 +122,7 @@ private:
 	void OnOpenHelpWiki();
 	void OnReportBug();
 	void OnRequestFeature();
+	void OnAboutDialog();
 	void OnInstallExtensionFromDirectory();
 	void OnManageExtensions();
 	void OnAutoDetectLanguage();

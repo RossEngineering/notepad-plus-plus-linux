@@ -15,6 +15,7 @@
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QColor>
+#include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -38,6 +39,7 @@
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStatusBar>
+#include <QSysInfo>
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QTimer>
@@ -431,6 +433,8 @@ void MainWindow::BuildMenus() {
     helpMenu->addSeparator();
     helpMenu->addAction(_actionsById.at("help.reportBug"));
     helpMenu->addAction(_actionsById.at("help.requestFeature"));
+    helpMenu->addSeparator();
+    helpMenu->addAction(_actionsById.at("help.about"));
 }
 
 void MainWindow::BuildStatusBar() {
@@ -508,6 +512,7 @@ void MainWindow::BuildActions() {
     registerAction("help.wiki", tr("Open Project Wiki"), [this]() { OnOpenHelpWiki(); });
     registerAction("help.reportBug", tr("Report Bug..."), [this]() { OnReportBug(); });
     registerAction("help.requestFeature", tr("Request Feature..."), [this]() { OnRequestFeature(); });
+    registerAction("help.about", tr("About Notepad++ Linux"), [this]() { OnAboutDialog(); });
 }
 
 void MainWindow::BuildTabs() {
@@ -1234,6 +1239,64 @@ void MainWindow::OnRequestFeature() {
     OpenExternalLink(
         RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml")),
         tr("feature request form"));
+}
+
+void MainWindow::OnAboutDialog() {
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("About Notepad++ Linux"));
+    dialog.resize(480, 320);
+
+    auto *layout = new QVBoxLayout(&dialog);
+
+    auto *titleLabel = new QLabel(tr("<h3>Notepad++ Linux</h3>"), &dialog);
+    titleLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(titleLabel);
+
+    QString version = QCoreApplication::applicationVersion().trimmed();
+    if (version.isEmpty()) {
+        version = QStringLiteral("dev");
+    }
+
+    auto *detailsLabel = new QLabel(
+        tr("Version: %1\nQt: %2\nPlatform: %3\nBuilt: %4 %5")
+            .arg(version)
+            .arg(QString::fromLatin1(qVersion()))
+            .arg(QSysInfo::prettyProductName())
+            .arg(QStringLiteral(__DATE__))
+            .arg(QStringLiteral(__TIME__)),
+        &dialog);
+    detailsLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    detailsLabel->setWordWrap(true);
+    layout->addWidget(detailsLabel);
+
+    auto *linksLabel = new QLabel(
+        tr("<p><a href=\"%1\">Help and Support</a><br/>"
+           "<a href=\"%2\">Project Wiki</a><br/>"
+           "<a href=\"%3\">Report Bug</a> | "
+           "<a href=\"%4\">Request Feature</a></p>")
+            .arg(RepositoryUrl(QStringLiteral("/blob/master/docs/help-and-support.md")))
+            .arg(RepositoryUrl(QStringLiteral("/wiki")))
+            .arg(RepositoryUrl(QStringLiteral("/issues/new?template=1-bug.yml")))
+            .arg(RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml"))),
+        &dialog);
+    linksLabel->setTextFormat(Qt::RichText);
+    linksLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    linksLabel->setOpenExternalLinks(true);
+    layout->addWidget(linksLabel);
+
+    auto *licenseLabel = new QLabel(
+        tr("License: GPL\nProject: https://github.com/RossEngineering/notepad-plus-plus-linux"),
+        &dialog);
+    licenseLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    licenseLabel->setWordWrap(true);
+    layout->addWidget(licenseLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(buttons);
+
+    dialog.exec();
 }
 
 void MainWindow::OpenExternalLink(const QString &url, const QString &label) {
