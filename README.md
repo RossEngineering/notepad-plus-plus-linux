@@ -13,7 +13,7 @@ Current state:
 - Packaging and release automation foundation is implemented (Phase 6).
 - Upstream codebase heritage remains Windows-centric; migration is ongoing.
 - `v0.8.0-beta.1` and `v0.9.0-beta.2` are published.
-- RC1 (`v0.9.3-rc.1`) is the active stabilization target.
+- RC1 (`v0.9.3-rc.1`) is published.
 
 Planned state:
 

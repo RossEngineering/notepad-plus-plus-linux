@@ -11,8 +11,8 @@ Beta 2 is complete and published. The project now moves through three RC cuts be
 | M1: Developer UX Baseline | Completed | Phase 8 complete (Linux-first docs, migration issue workflows, dashboard). | Done |
 | M2: Beta 1 (`v0.8.0-beta.1`) | Completed | Phase 9 complete (automatic language detection + stable auto-highlighting behavior). | Done |
 | M3: Beta 2 (`v0.9.0-beta.2`) | Completed | Phases 10-12 complete (skinning, extension platform, hardening/language intelligence). | Done |
-| M4: RC1 (`v0.9.3-rc.1`) | Next | Correctness/stability pass, distro matrix baseline, extension permission hardening. | Planned |
-| M5: RC2 (`v0.9.6-rc.2`) | After RC1 | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Planned |
+| M4: RC1 (`v0.9.3-rc.1`) | Completed | Correctness/stability pass, distro matrix baseline, extension permission hardening. | Done |
+| M5: RC2 (`v0.9.6-rc.2`) | Next | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Planned |
 | M6: RC3 (`v0.9.9-rc.3`) | After RC2 | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Planned |
 | M7: General Availability (`v1.0.0`) | After satisfactory RC3 | Final go/no-go and production release. | Planned |
 

@@ -9,7 +9,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete Phase 9 and cut `v0.8.0-beta.1`.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
 - [x] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
-- [ ] Complete RC1 scope and cut `v0.9.3-rc.1`.
+- [x] Complete RC1 scope and cut `v0.9.3-rc.1`.
 - [ ] Complete RC2 scope and cut `v0.9.6-rc.2`.
 - [ ] Complete RC3 scope and cut `v0.9.9-rc.3`.
 - [ ] Promote `v1.0.0` after RC3 validation.
@@ -23,7 +23,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete first-pass distro matrix validation (Arch derivatives, Ubuntu LTS, Fedora stable).
 - [x] Harden extension permissions UX and denial-path behavior.
 - [x] Add in-app Help menu entries for docs/wiki plus bug and feature submission links.
-- [ ] Cut and validate `v0.9.3-rc.1`.
+- [x] Cut and validate `v0.9.3-rc.1`.
 
 ### RC2 program (`v0.9.4` to `v0.9.6-rc.2`)
 
