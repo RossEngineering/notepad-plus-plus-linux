@@ -7,7 +7,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Tag current fork baseline commit.
 - [x] Document current build status on Manjaro (what compiles, what fails, error logs).
 - [x] Inventory Win32 API usage in `PowerEditor/src`.
-- [ ] Identify modules that are already cross-platform (or mostly portable).
+- [x] Identify modules that are already cross-platform (or mostly portable).
 - [ ] Define compatibility target: feature parity scope for first Linux release.
 
 ## Phase 1: Architecture boundaries
