@@ -6,7 +6,8 @@ This document proposes post-Phase-8 priorities aligned with `TODO.md` and `docs/
 
 ## Goal
 
-Deliver Beta 1 by completing Phase 9 (automatic language detection + syntax highlighting quality gate).
+Phase 9 is complete and shipped as `v0.8.0-beta.1`.
+Next goal is Beta 2, defined as completion of Phases 10-12.
 
 ## Workstream 1: Automatic language detection and highlighting (Phase 9)
 
@@ -30,7 +31,7 @@ Deliver Beta 1 by completing Phase 9 (automatic language detection + syntax high
 3. Publish ADR for VS Code compatibility scope and non-goals.
 4. Build targeted compatibility path for VS Code language assets (TextMate + language configs).
 
-## Workstream 4: Hardening recommendations (Phase 12+)
+## Workstream 4: Hardening recommendations (Phase 12)
 
 1. Add LSP client foundation.
 2. Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
@@ -41,4 +42,5 @@ Deliver Beta 1 by completing Phase 9 (automatic language detection + syntax high
 ## Release strategy note
 
 - No further alpha releases are planned after `v0.7.0-alpha.1`.
-- Next planned release target is `v0.8.0-beta.1`.
+- `v0.8.0-beta.1` is complete.
+- Next planned release target is `v0.9.0-beta.2` after Phases 10-12.

@@ -15,7 +15,8 @@ This repository is in pre-1.0 migration status.
 
 - Final alpha release: `v0.7.0-alpha.1`
 - No further alpha releases planned.
-- Next target release: `v0.8.0-beta.1` after Phase 9 completion.
+- Latest beta release: `v0.8.0-beta.1` (Phase 9 complete).
+- Next target release: `v0.9.0-beta.2` after Phases 10-12 completion.
 
 ## Version increment rules
 

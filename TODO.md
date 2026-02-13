@@ -7,6 +7,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 - [x] Complete Phase 9 and cut `v0.8.0-beta.1`.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
+- [ ] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
 
 ## Phase 9: Automatic language detection and highlighting
 
@@ -24,7 +25,14 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 - [x] Validate release artifacts and checksums for Beta 1.
 - [x] Publish `v0.8.0-beta.1` notes and milestone summary.
 
-## Post-Beta backlog: Phase 10 UI skinning support
+## Beta 2 release gate
+
+- [ ] Freeze Beta 2 scope to Phase 10-12 deliverables.
+- [ ] Run full Linux CI + sanitizer lane green for Beta 2 candidate tag.
+- [ ] Validate release artifacts and checksums for Beta 2.
+- [ ] Publish `v0.9.0-beta.2` notes and milestone summary.
+
+## Beta 2 scope: Phase 10 UI skinning support
 
 - [ ] Define skin/theme format covering app chrome + editor + dialogs.
 - [ ] Ship first-party skin set (light, dark, and high-contrast).
@@ -32,7 +40,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 - [ ] Ensure full visual consistency across tabs, menus, status bar, and dialogs.
 - [ ] Add accessibility checks for contrast/focus visibility in CI.
 
-## Post-Beta backlog: Phase 11 extensions and VS Code compatibility strategy
+## Beta 2 scope: Phase 11 extensions and VS Code compatibility strategy
 
 - [ ] Define Linux extension API v1 boundaries and security model.
 - [ ] Build extension lifecycle support (discover/install/enable/disable/remove).
@@ -41,7 +49,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 - [ ] Implement targeted compatibility path for VS Code language assets (TextMate grammars + language configs).
 - [ ] Validate compatibility with at least 3 popular VS Code language extensions.
 
-## Post-Beta backlog: Phase 12 suggested hardening work (recommended)
+## Beta 2 scope: Phase 12 hardening and language intelligence
 
 - [ ] Add LSP client foundation for richer language intelligence.
 - [ ] Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
