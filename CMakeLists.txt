@@ -4,6 +4,7 @@ project(notepad_plus_plus_linux LANGUAGES CXX)
 
 option(NPP_BUILD_SCINTILLA "Build Scintilla core static library" ON)
 option(NPP_BUILD_LEXILLA "Build Lexilla static library" ON)
+option(NPP_BUILD_PLATFORM_LINUX "Build Linux platform service implementations" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -87,6 +88,23 @@ if(NPP_BUILD_LEXILLA)
     )
 endif()
 
+if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
+    add_library(npp_platform_linux STATIC
+        platform/linux/LinuxDiagnosticsService.cpp
+        platform/linux/LinuxFileSystemService.cpp
+        platform/linux/LinuxPathService.cpp
+        platform/linux/LinuxProcessService.cpp
+    )
+    add_library(npp::platform_linux ALIAS npp_platform_linux)
+
+    target_include_directories(npp_platform_linux
+        PUBLIC
+            "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
+        PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+    )
+endif()
+
 include(CTest)
 
 if(BUILD_TESTING AND TARGET npp_lexilla)
@@ -107,4 +125,14 @@ if(BUILD_TESTING AND TARGET npp_scintilla)
     )
     target_link_libraries(scintilla_document_smoke_test PRIVATE npp_scintilla)
     add_test(NAME scintilla_document_smoke_test COMMAND scintilla_document_smoke_test)
+endif()
+
+if(BUILD_TESTING AND TARGET npp_platform_linux)
+    add_executable(platform_linux_services_smoke_test tests/platform/linux_services_smoke.cpp)
+    target_include_directories(platform_linux_services_smoke_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+    )
+    target_link_libraries(platform_linux_services_smoke_test PRIVATE npp_platform_linux)
+    add_test(NAME platform_linux_services_smoke_test COMMAND platform_linux_services_smoke_test)
 endif()

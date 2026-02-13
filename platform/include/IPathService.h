@@ -11,6 +11,7 @@ enum class PathScope {
     kConfig,
     kData,
     kCache,
+    kState,
     kTemp,
 };
 
