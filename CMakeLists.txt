@@ -178,6 +178,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
 
         target_include_directories(npp_linux_shell
             PRIVATE
+                "${CMAKE_CURRENT_SOURCE_DIR}/lexilla/include"
                 "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
                 "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
@@ -194,6 +195,11 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
                 Qt${QT_VERSION_MAJOR}::Gui
                 Qt${QT_VERSION_MAJOR}::Widgets
         )
+
+        if(TARGET npp_lexilla)
+            target_compile_definitions(npp_linux_shell PRIVATE NPP_HAVE_LEXILLA=1)
+            target_link_libraries(npp_linux_shell PRIVATE npp::lexilla)
+        endif()
     else()
         message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")
     endif()

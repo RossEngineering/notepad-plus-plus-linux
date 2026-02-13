@@ -1,12 +1,15 @@
 #include "MainWindow.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <map>
 #include <sstream>
 
 #include <QAction>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QColor>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -32,6 +35,12 @@
 
 #include "Scintilla.h"
 #include "ScintillaEditBase.h"
+#include "SciLexer.h"
+
+#if defined(NPP_HAVE_LEXILLA) && NPP_HAVE_LEXILLA
+#include "ILexer.h"
+#include "Lexilla.h"
+#endif
 
 namespace {
 
@@ -133,12 +142,67 @@ std::string AsciiLower(std::string value) {
     return value;
 }
 
+std::string LexerNameFromPath(const std::string &pathUtf8) {
+    const std::string extension = AsciiLower(std::filesystem::path(pathUtf8).extension().string());
+    if (extension == ".c" || extension == ".cc" || extension == ".cpp" ||
+        extension == ".cxx" || extension == ".h" || extension == ".hpp" ||
+        extension == ".hh" || extension == ".hxx" || extension == ".java") {
+        return "cpp";
+    }
+    if (extension == ".py" || extension == ".pyw") {
+        return "python";
+    }
+    if (extension == ".js" || extension == ".jsx" || extension == ".ts" || extension == ".tsx") {
+        return "cpp";
+    }
+    if (extension == ".json") {
+        return "json";
+    }
+    if (extension == ".xml" || extension == ".xsd" || extension == ".xsl" ||
+        extension == ".html" || extension == ".htm") {
+        return "xml";
+    }
+    if (extension == ".md" || extension == ".markdown") {
+        return "markdown";
+    }
+    if (extension == ".sh" || extension == ".bash" || extension == ".zsh") {
+        return "bash";
+    }
+    if (extension == ".yaml" || extension == ".yml") {
+        return "yaml";
+    }
+    if (extension == ".sql") {
+        return "sql";
+    }
+    if (extension == ".toml" || extension == ".ini" || extension == ".cfg" || extension == ".conf") {
+        return "props";
+    }
+    if (extension == ".make" || extension == ".mk") {
+        return "makefile";
+    }
+    return "null";
+}
+
+int ParseThemeColor(const QJsonObject &obj, const char *key, int fallback) {
+    const QJsonValue value = obj.value(QString::fromLatin1(key));
+    if (!value.isString()) {
+        return fallback;
+    }
+    const QColor color(value.toString());
+    if (!color.isValid()) {
+        return fallback;
+    }
+    return color.blue() << 16 | color.green() << 8 | color.red();
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), _diagnosticsService(_pathService, _fileSystemService) {
     BuildUi();
     LoadEditorSettings();
+    EnsureThemeFile();
+    LoadTheme();
     EnsureShortcutConfigFile();
     LoadShortcutOverrides();
     ApplyShortcuts();
@@ -291,6 +355,8 @@ ScintillaEditBase *MainWindow::CreateEditor() {
         UpdateCursorStatus();
     });
 
+    ApplyTheme(editor);
+    ApplyLexerForPath(editor, std::string{});
     ApplyEditorSettings(editor);
 
     return editor;
@@ -982,6 +1048,7 @@ bool MainWindow::LoadFileIntoEditor(ScintillaEditBase *editor, const std::string
     state.dirty = false;
     state.encoding = encoding;
     state.eolMode = eolMode;
+    ApplyLexerForPath(editor, pathUtf8);
     UpdateTabTitle(editor);
     statusBar()->showMessage(
         tr("Encoding: %1, EOL: %2")
@@ -1020,6 +1087,7 @@ bool MainWindow::SaveEditorToFile(ScintillaEditBase *editor, const std::string &
     state.filePathUtf8 = pathUtf8;
     state.dirty = false;
     editor->send(SCI_SETSAVEPOINT);
+    ApplyLexerForPath(editor, pathUtf8);
     UpdateTabTitle(editor);
     return true;
 }
@@ -1201,12 +1269,186 @@ void MainWindow::ApplyEditorSettings(ScintillaEditBase *editor) {
     editor->send(SCI_SETMARGINWIDTHN, 0, _editorSettings.showLineNumbers ? LineNumberMarginWidth(editor) : 0);
 }
 
+void MainWindow::ApplyTheme(ScintillaEditBase *editor) {
+    if (!editor) {
+        return;
+    }
+
+    editor->send(SCI_STYLESETFORE, STYLE_DEFAULT, _themeSettings.foreground);
+    editor->send(SCI_STYLESETBACK, STYLE_DEFAULT, _themeSettings.background);
+    editor->send(SCI_STYLECLEARALL);
+
+    editor->send(SCI_STYLESETFORE, STYLE_LINENUMBER, _themeSettings.lineNumberForeground);
+    editor->send(SCI_STYLESETBACK, STYLE_LINENUMBER, _themeSettings.lineNumberBackground);
+    editor->send(SCI_SETCARETFORE, _themeSettings.foreground);
+    editor->send(SCI_SETCARETLINEBACK, _themeSettings.caretLineBackground);
+    editor->send(SCI_SETSELBACK, 1, _themeSettings.selectionBackground);
+    editor->send(SCI_SETSELFORE, 1, _themeSettings.selectionForeground);
+}
+
+void MainWindow::ApplyLexerForPath(ScintillaEditBase *editor, const std::string &pathUtf8) {
+    if (!editor) {
+        return;
+    }
+
+    const std::string lexerName = LexerNameFromPath(pathUtf8);
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt != _editorStates.end()) {
+        stateIt->second.lexerName = lexerName;
+    }
+
+#if defined(NPP_HAVE_LEXILLA) && NPP_HAVE_LEXILLA
+    auto *lexer = CreateLexer(lexerName.c_str());
+    editor->send(SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(lexer));
+#else
+    static_cast<void>(lexerName);
+    editor->send(SCI_SETILEXER, 0, 0);
+#endif
+
+    if (lexerName == "cpp") {
+        editor->sends(
+            SCI_SETKEYWORDS,
+            0,
+            "alignas alignof and and_eq asm auto bitand bitor bool break case catch char class "
+            "const constexpr const_cast continue decltype default delete do double dynamic_cast "
+            "else enum explicit export extern false float for friend goto if inline int long "
+            "mutable namespace new noexcept not not_eq nullptr operator or or_eq private "
+            "protected public register reinterpret_cast return short signed sizeof static "
+            "static_assert static_cast struct switch template this thread_local throw true try "
+            "typedef typeid typename union unsigned using virtual void volatile wchar_t while xor xor_eq");
+    } else if (lexerName == "python") {
+        editor->sends(
+            SCI_SETKEYWORDS,
+            0,
+            "False None True and as assert async await break class continue def del elif else "
+            "except finally for from global if import in is lambda nonlocal not or pass raise "
+            "return try while with yield");
+    }
+
+    ApplyTheme(editor);
+    ApplyLexerStyles(editor, lexerName);
+    editor->send(SCI_COLOURISE, 0, -1);
+}
+
+void MainWindow::ApplyLexerStyles(ScintillaEditBase *editor, const std::string &lexerName) {
+    if (!editor) {
+        return;
+    }
+
+    if (lexerName == "cpp" || lexerName == "json") {
+        editor->send(SCI_STYLESETFORE, SCE_C_COMMENT, _themeSettings.comment);
+        editor->send(SCI_STYLESETFORE, SCE_C_COMMENTLINE, _themeSettings.comment);
+        editor->send(SCI_STYLESETFORE, SCE_C_COMMENTDOC, _themeSettings.comment);
+        editor->send(SCI_STYLESETFORE, SCE_C_NUMBER, _themeSettings.number);
+        editor->send(SCI_STYLESETFORE, SCE_C_WORD, _themeSettings.keyword);
+        editor->send(SCI_STYLESETBOLD, SCE_C_WORD, 1);
+        editor->send(SCI_STYLESETFORE, SCE_C_STRING, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_C_CHARACTER, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_C_OPERATOR, _themeSettings.operatorColor);
+        editor->send(SCI_STYLESETFORE, SCE_C_PREPROCESSOR, _themeSettings.keyword);
+    } else if (lexerName == "python") {
+        editor->send(SCI_STYLESETFORE, SCE_P_COMMENTLINE, _themeSettings.comment);
+        editor->send(SCI_STYLESETFORE, SCE_P_NUMBER, _themeSettings.number);
+        editor->send(SCI_STYLESETFORE, SCE_P_WORD, _themeSettings.keyword);
+        editor->send(SCI_STYLESETBOLD, SCE_P_WORD, 1);
+        editor->send(SCI_STYLESETFORE, SCE_P_STRING, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_P_CHARACTER, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_P_OPERATOR, _themeSettings.operatorColor);
+        editor->send(SCI_STYLESETFORE, SCE_P_DEFNAME, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_P_CLASSNAME, _themeSettings.keyword);
+    } else if (lexerName == "bash") {
+        editor->send(SCI_STYLESETFORE, SCE_SH_COMMENTLINE, _themeSettings.comment);
+        editor->send(SCI_STYLESETFORE, SCE_SH_NUMBER, _themeSettings.number);
+        editor->send(SCI_STYLESETFORE, SCE_SH_WORD, _themeSettings.keyword);
+        editor->send(SCI_STYLESETBOLD, SCE_SH_WORD, 1);
+        editor->send(SCI_STYLESETFORE, SCE_SH_STRING, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_SH_OPERATOR, _themeSettings.operatorColor);
+    }
+}
+
 void MainWindow::EnsureConfigRoot() {
     const std::string root = ConfigRootPath();
     if (root.empty()) {
         return;
     }
     _fileSystemService.CreateDirectories(root);
+}
+
+void MainWindow::EnsureThemeFile() {
+    EnsureConfigRoot();
+    const auto exists = _fileSystemService.Exists(ThemeFilePath());
+    if (exists.ok() && *exists.value) {
+        return;
+    }
+
+    QJsonObject themeJson;
+    themeJson.insert(QStringLiteral("background"), QStringLiteral("#FFFFFF"));
+    themeJson.insert(QStringLiteral("foreground"), QStringLiteral("#1A1A1A"));
+    themeJson.insert(QStringLiteral("lineNumberBackground"), QStringLiteral("#F2F2F2"));
+    themeJson.insert(QStringLiteral("lineNumberForeground"), QStringLiteral("#616161"));
+    themeJson.insert(QStringLiteral("caretLineBackground"), QStringLiteral("#F7FAFF"));
+    themeJson.insert(QStringLiteral("selectionBackground"), QStringLiteral("#CFE8FF"));
+    themeJson.insert(QStringLiteral("selectionForeground"), QStringLiteral("#000000"));
+    themeJson.insert(QStringLiteral("comment"), QStringLiteral("#6A9955"));
+    themeJson.insert(QStringLiteral("keyword"), QStringLiteral("#005FB8"));
+    themeJson.insert(QStringLiteral("number"), QStringLiteral("#9A3E9D"));
+    themeJson.insert(QStringLiteral("stringColor"), QStringLiteral("#B34100"));
+    themeJson.insert(QStringLiteral("operatorColor"), QStringLiteral("#1A1A1A"));
+
+    const QJsonDocument doc(themeJson);
+    const QByteArray json = doc.toJson(QJsonDocument::Indented);
+
+    npp::platform::WriteFileOptions options;
+    options.atomic = true;
+    options.createParentDirs = true;
+    _fileSystemService.WriteTextFile(
+        ThemeFilePath(),
+        std::string(json.constData(), static_cast<size_t>(json.size())),
+        options);
+}
+
+void MainWindow::LoadTheme() {
+    EnsureThemeFile();
+    const auto themeJson = _fileSystemService.ReadTextFile(ThemeFilePath());
+    if (!themeJson.ok()) {
+        return;
+    }
+
+    QJsonParseError parseError{};
+    const QByteArray bytes(themeJson.value->c_str(), static_cast<int>(themeJson.value->size()));
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return;
+    }
+
+    const QJsonObject obj = doc.object();
+    _themeSettings.background = ParseThemeColor(obj, "background", _themeSettings.background);
+    _themeSettings.foreground = ParseThemeColor(obj, "foreground", _themeSettings.foreground);
+    _themeSettings.lineNumberBackground = ParseThemeColor(
+        obj,
+        "lineNumberBackground",
+        _themeSettings.lineNumberBackground);
+    _themeSettings.lineNumberForeground = ParseThemeColor(
+        obj,
+        "lineNumberForeground",
+        _themeSettings.lineNumberForeground);
+    _themeSettings.caretLineBackground = ParseThemeColor(
+        obj,
+        "caretLineBackground",
+        _themeSettings.caretLineBackground);
+    _themeSettings.selectionBackground = ParseThemeColor(
+        obj,
+        "selectionBackground",
+        _themeSettings.selectionBackground);
+    _themeSettings.selectionForeground = ParseThemeColor(
+        obj,
+        "selectionForeground",
+        _themeSettings.selectionForeground);
+    _themeSettings.comment = ParseThemeColor(obj, "comment", _themeSettings.comment);
+    _themeSettings.keyword = ParseThemeColor(obj, "keyword", _themeSettings.keyword);
+    _themeSettings.number = ParseThemeColor(obj, "number", _themeSettings.number);
+    _themeSettings.stringColor = ParseThemeColor(obj, "stringColor", _themeSettings.stringColor);
+    _themeSettings.operatorColor = ParseThemeColor(obj, "operatorColor", _themeSettings.operatorColor);
 }
 
 void MainWindow::EnsureShortcutConfigFile() {
@@ -1315,6 +1557,10 @@ std::string MainWindow::SettingsFilePath() const {
 
 std::string MainWindow::ShortcutFilePath() const {
     return ConfigRootPath() + "/shortcuts-linux.json";
+}
+
+std::string MainWindow::ThemeFilePath() const {
+    return ConfigRootPath() + "/theme-linux.json";
 }
 
 bool MainWindow::RestoreSession() {

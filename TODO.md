@@ -47,7 +47,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] File open/save/reload with encoding and EOL handling.
 - [x] Multi-tab editing and session restore.
 - [x] Search/replace (document and multi-file basic mode).
-- [ ] Syntax highlighting and theme loading.
+- [x] Syntax highlighting and theme loading.
 - [ ] External tools / run command support.
 - [ ] Plugin story decision: compatibility shim or new Linux plugin API.
 

@@ -43,12 +43,28 @@ private:
 		bool dirty = false;
 		TextEncoding encoding = TextEncoding::kUtf8;
 		int eolMode = 2;
+		std::string lexerName;
 	};
 
 	struct EditorSettings {
 		int tabWidth = 4;
 		bool wrapEnabled = false;
 		bool showLineNumbers = true;
+	};
+
+	struct ThemeSettings {
+		int background = 0xFFFFFF;
+		int foreground = 0x1A1A1A;
+		int lineNumberBackground = 0xF2F2F2;
+		int lineNumberForeground = 0x616161;
+		int caretLineBackground = 0xF7FAFF;
+		int selectionBackground = 0xCFE8FF;
+		int selectionForeground = 0x000000;
+		int comment = 0x6A9955;
+		int keyword = 0x005FB8;
+		int number = 0x9A3E9D;
+		int stringColor = 0xB34100;
+		int operatorColor = 0x1A1A1A;
 	};
 
 	void BuildUi();
@@ -104,8 +120,13 @@ private:
 	void SaveEditorSettings() const;
 	void ApplyEditorSettingsToAllEditors();
 	void ApplyEditorSettings(ScintillaEditBase *editor);
+	void ApplyTheme(ScintillaEditBase *editor);
+	void ApplyLexerForPath(ScintillaEditBase *editor, const std::string &pathUtf8);
+	void ApplyLexerStyles(ScintillaEditBase *editor, const std::string &lexerName);
 
 	void EnsureConfigRoot();
+	void EnsureThemeFile();
+	void LoadTheme();
 	void EnsureShortcutConfigFile();
 	void LoadShortcutOverrides();
 	void ApplyShortcuts();
@@ -117,6 +138,7 @@ private:
 	std::string ConfigRootPath() const;
 	std::string SettingsFilePath() const;
 	std::string ShortcutFilePath() const;
+	std::string ThemeFilePath() const;
 	std::string SessionFilePath() const;
 	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
@@ -131,6 +153,7 @@ private:
 	std::map<ScintillaEditBase *, EditorState> _editorStates;
 	std::map<std::string, QAction *> _actionsById;
 	EditorSettings _editorSettings;
+	ThemeSettings _themeSettings;
 	QJsonObject _shortcutOverrides;
 	std::string _lastFindUtf8;
 	bool _closingApplication = false;
