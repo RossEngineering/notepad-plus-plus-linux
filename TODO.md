@@ -34,7 +34,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 ## Beta 2 scope: Phase 10 UI skinning support
 
-- [ ] Define skin/theme format covering app chrome + editor + dialogs.
+- [x] Define skin/theme format covering app chrome + editor + dialogs.
 - [ ] Ship first-party skin set (light, dark, and high-contrast).
 - [ ] Add runtime skin switcher and persistent per-user selection.
 - [ ] Ensure full visual consistency across tabs, menus, status bar, and dialogs.

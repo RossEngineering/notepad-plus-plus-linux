@@ -221,6 +221,29 @@ int ParseThemeColor(const QJsonObject &obj, const char *key, int fallback) {
     return color.blue() << 16 | color.green() << 8 | color.red();
 }
 
+int ParseThemeColorFromSection(
+    const QJsonObject &root,
+    const char *sectionKey,
+    const char *key,
+    int fallback) {
+    const QJsonValue sectionValue = root.value(QString::fromLatin1(sectionKey));
+    if (!sectionValue.isObject()) {
+        return fallback;
+    }
+    return ParseThemeColor(sectionValue.toObject(), key, fallback);
+}
+
+QString ThemeColorHex(int bgr) {
+    const int red = bgr & 0xFF;
+    const int green = (bgr >> 8) & 0xFF;
+    const int blue = (bgr >> 16) & 0xFF;
+    return QStringLiteral("#%1%2%3")
+        .arg(red, 2, 16, QLatin1Char('0'))
+        .arg(green, 2, 16, QLatin1Char('0'))
+        .arg(blue, 2, 16, QLatin1Char('0'))
+        .toUpper();
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
@@ -1687,6 +1710,32 @@ void MainWindow::ApplyTheme(ScintillaEditBase *editor) {
     editor->send(SCI_SETSELFORE, 1, _themeSettings.selectionForeground);
 }
 
+void MainWindow::ApplyChromeTheme() {
+    const QString styleSheet = QStringLiteral(
+                                   "QMainWindow { background-color: %1; color: %2; }"
+                                   "QMenuBar { background-color: %3; color: %4; }"
+                                   "QMenuBar::item:selected { background-color: %5; color: %4; }"
+                                   "QMenu { background-color: %3; color: %4; }"
+                                   "QMenu::item:selected { background-color: %5; color: %4; }"
+                                   "QStatusBar { background-color: %6; color: %7; }"
+                                   "QDialog { background-color: %8; color: %9; }"
+                                   "QPushButton { background-color: %10; color: %11; "
+                                   "border: 1px solid %12; padding: 4px 8px; }")
+                                   .arg(ThemeColorHex(_themeSettings.windowBackground))
+                                   .arg(ThemeColorHex(_themeSettings.windowForeground))
+                                   .arg(ThemeColorHex(_themeSettings.menuBackground))
+                                   .arg(ThemeColorHex(_themeSettings.menuForeground))
+                                   .arg(ThemeColorHex(_themeSettings.accent))
+                                   .arg(ThemeColorHex(_themeSettings.statusBackground))
+                                   .arg(ThemeColorHex(_themeSettings.statusForeground))
+                                   .arg(ThemeColorHex(_themeSettings.dialogBackground))
+                                   .arg(ThemeColorHex(_themeSettings.dialogForeground))
+                                   .arg(ThemeColorHex(_themeSettings.dialogButtonBackground))
+                                   .arg(ThemeColorHex(_themeSettings.dialogButtonForeground))
+                                   .arg(ThemeColorHex(_themeSettings.dialogBorder));
+    setStyleSheet(styleSheet);
+}
+
 void MainWindow::ApplyLexerForPath(ScintillaEditBase *editor, const std::string &pathUtf8) {
     AutoDetectAndApplyLexer(editor, pathUtf8, GetEditorText(editor), "path");
 }
@@ -1821,19 +1870,53 @@ void MainWindow::EnsureThemeFile() {
         return;
     }
 
+    QJsonObject metadata;
+    metadata.insert(QStringLiteral("id"), QStringLiteral("builtin.light"));
+    metadata.insert(QStringLiteral("name"), QStringLiteral("Built-in Light"));
+    metadata.insert(QStringLiteral("author"), QStringLiteral("notepad-plus-plus-linux"));
+    metadata.insert(
+        QStringLiteral("description"),
+        QStringLiteral("Default light skin for app chrome, editor, and dialogs."));
+
+    QJsonObject appChrome;
+    appChrome.insert(QStringLiteral("windowBackground"), QStringLiteral("#F3F3F3"));
+    appChrome.insert(QStringLiteral("windowForeground"), QStringLiteral("#1A1A1A"));
+    appChrome.insert(QStringLiteral("menuBackground"), QStringLiteral("#FFFFFF"));
+    appChrome.insert(QStringLiteral("menuForeground"), QStringLiteral("#1A1A1A"));
+    appChrome.insert(QStringLiteral("statusBackground"), QStringLiteral("#EFEFEF"));
+    appChrome.insert(QStringLiteral("statusForeground"), QStringLiteral("#1A1A1A"));
+    appChrome.insert(QStringLiteral("accent"), QStringLiteral("#005FB8"));
+
+    QJsonObject editor;
+    editor.insert(QStringLiteral("background"), QStringLiteral("#FFFFFF"));
+    editor.insert(QStringLiteral("foreground"), QStringLiteral("#1A1A1A"));
+    editor.insert(QStringLiteral("lineNumberBackground"), QStringLiteral("#F2F2F2"));
+    editor.insert(QStringLiteral("lineNumberForeground"), QStringLiteral("#616161"));
+    editor.insert(QStringLiteral("caretLineBackground"), QStringLiteral("#F7FAFF"));
+    editor.insert(QStringLiteral("selectionBackground"), QStringLiteral("#CFE8FF"));
+    editor.insert(QStringLiteral("selectionForeground"), QStringLiteral("#000000"));
+    editor.insert(QStringLiteral("comment"), QStringLiteral("#6A9955"));
+    editor.insert(QStringLiteral("keyword"), QStringLiteral("#005FB8"));
+    editor.insert(QStringLiteral("number"), QStringLiteral("#9A3E9D"));
+    editor.insert(QStringLiteral("stringColor"), QStringLiteral("#B34100"));
+    editor.insert(QStringLiteral("operatorColor"), QStringLiteral("#1A1A1A"));
+
+    QJsonObject dialogs;
+    dialogs.insert(QStringLiteral("background"), QStringLiteral("#FFFFFF"));
+    dialogs.insert(QStringLiteral("foreground"), QStringLiteral("#1A1A1A"));
+    dialogs.insert(QStringLiteral("buttonBackground"), QStringLiteral("#E9EEF6"));
+    dialogs.insert(QStringLiteral("buttonForeground"), QStringLiteral("#1A1A1A"));
+    dialogs.insert(QStringLiteral("border"), QStringLiteral("#B5C3D6"));
+
     QJsonObject themeJson;
-    themeJson.insert(QStringLiteral("background"), QStringLiteral("#FFFFFF"));
-    themeJson.insert(QStringLiteral("foreground"), QStringLiteral("#1A1A1A"));
-    themeJson.insert(QStringLiteral("lineNumberBackground"), QStringLiteral("#F2F2F2"));
-    themeJson.insert(QStringLiteral("lineNumberForeground"), QStringLiteral("#616161"));
-    themeJson.insert(QStringLiteral("caretLineBackground"), QStringLiteral("#F7FAFF"));
-    themeJson.insert(QStringLiteral("selectionBackground"), QStringLiteral("#CFE8FF"));
-    themeJson.insert(QStringLiteral("selectionForeground"), QStringLiteral("#000000"));
-    themeJson.insert(QStringLiteral("comment"), QStringLiteral("#6A9955"));
-    themeJson.insert(QStringLiteral("keyword"), QStringLiteral("#005FB8"));
-    themeJson.insert(QStringLiteral("number"), QStringLiteral("#9A3E9D"));
-    themeJson.insert(QStringLiteral("stringColor"), QStringLiteral("#B34100"));
-    themeJson.insert(QStringLiteral("operatorColor"), QStringLiteral("#1A1A1A"));
+    themeJson.insert(
+        QStringLiteral("$schema"),
+        QStringLiteral("https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json"));
+    themeJson.insert(QStringLiteral("formatVersion"), 1);
+    themeJson.insert(QStringLiteral("metadata"), metadata);
+    themeJson.insert(QStringLiteral("appChrome"), appChrome);
+    themeJson.insert(QStringLiteral("editor"), editor);
+    themeJson.insert(QStringLiteral("dialogs"), dialogs);
 
     const QJsonDocument doc(themeJson);
     const QByteArray json = doc.toJson(QJsonDocument::Indented);
@@ -1862,33 +1945,133 @@ void MainWindow::LoadTheme() {
     }
 
     const QJsonObject obj = doc.object();
-    _themeSettings.background = ParseThemeColor(obj, "background", _themeSettings.background);
-    _themeSettings.foreground = ParseThemeColor(obj, "foreground", _themeSettings.foreground);
-    _themeSettings.lineNumberBackground = ParseThemeColor(
+
+    // Skin v1 sections (`appChrome`, `editor`, `dialogs`) are preferred.
+    // Fallback to legacy flat keys so existing user themes keep working.
+    _themeSettings.windowBackground = ParseThemeColorFromSection(
         obj,
+        "appChrome",
+        "windowBackground",
+        ParseThemeColor(obj, "windowBackground", _themeSettings.windowBackground));
+    _themeSettings.windowForeground = ParseThemeColorFromSection(
+        obj,
+        "appChrome",
+        "windowForeground",
+        ParseThemeColor(obj, "windowForeground", _themeSettings.windowForeground));
+    _themeSettings.menuBackground = ParseThemeColorFromSection(
+        obj,
+        "appChrome",
+        "menuBackground",
+        ParseThemeColor(obj, "menuBackground", _themeSettings.menuBackground));
+    _themeSettings.menuForeground = ParseThemeColorFromSection(
+        obj,
+        "appChrome",
+        "menuForeground",
+        ParseThemeColor(obj, "menuForeground", _themeSettings.menuForeground));
+    _themeSettings.statusBackground = ParseThemeColorFromSection(
+        obj,
+        "appChrome",
+        "statusBackground",
+        ParseThemeColor(obj, "statusBackground", _themeSettings.statusBackground));
+    _themeSettings.statusForeground = ParseThemeColorFromSection(
+        obj,
+        "appChrome",
+        "statusForeground",
+        ParseThemeColor(obj, "statusForeground", _themeSettings.statusForeground));
+    _themeSettings.accent = ParseThemeColorFromSection(
+        obj,
+        "appChrome",
+        "accent",
+        ParseThemeColor(obj, "accent", _themeSettings.accent));
+
+    _themeSettings.background = ParseThemeColorFromSection(
+        obj,
+        "editor",
+        "background",
+        ParseThemeColor(obj, "background", _themeSettings.background));
+    _themeSettings.foreground = ParseThemeColorFromSection(
+        obj,
+        "editor",
+        "foreground",
+        ParseThemeColor(obj, "foreground", _themeSettings.foreground));
+    _themeSettings.lineNumberBackground = ParseThemeColorFromSection(
+        obj,
+        "editor",
         "lineNumberBackground",
-        _themeSettings.lineNumberBackground);
-    _themeSettings.lineNumberForeground = ParseThemeColor(
+        ParseThemeColor(obj, "lineNumberBackground", _themeSettings.lineNumberBackground));
+    _themeSettings.lineNumberForeground = ParseThemeColorFromSection(
         obj,
+        "editor",
         "lineNumberForeground",
-        _themeSettings.lineNumberForeground);
-    _themeSettings.caretLineBackground = ParseThemeColor(
+        ParseThemeColor(obj, "lineNumberForeground", _themeSettings.lineNumberForeground));
+    _themeSettings.caretLineBackground = ParseThemeColorFromSection(
         obj,
+        "editor",
         "caretLineBackground",
-        _themeSettings.caretLineBackground);
-    _themeSettings.selectionBackground = ParseThemeColor(
+        ParseThemeColor(obj, "caretLineBackground", _themeSettings.caretLineBackground));
+    _themeSettings.selectionBackground = ParseThemeColorFromSection(
         obj,
+        "editor",
         "selectionBackground",
-        _themeSettings.selectionBackground);
-    _themeSettings.selectionForeground = ParseThemeColor(
+        ParseThemeColor(obj, "selectionBackground", _themeSettings.selectionBackground));
+    _themeSettings.selectionForeground = ParseThemeColorFromSection(
         obj,
+        "editor",
         "selectionForeground",
-        _themeSettings.selectionForeground);
-    _themeSettings.comment = ParseThemeColor(obj, "comment", _themeSettings.comment);
-    _themeSettings.keyword = ParseThemeColor(obj, "keyword", _themeSettings.keyword);
-    _themeSettings.number = ParseThemeColor(obj, "number", _themeSettings.number);
-    _themeSettings.stringColor = ParseThemeColor(obj, "stringColor", _themeSettings.stringColor);
-    _themeSettings.operatorColor = ParseThemeColor(obj, "operatorColor", _themeSettings.operatorColor);
+        ParseThemeColor(obj, "selectionForeground", _themeSettings.selectionForeground));
+    _themeSettings.comment = ParseThemeColorFromSection(
+        obj,
+        "editor",
+        "comment",
+        ParseThemeColor(obj, "comment", _themeSettings.comment));
+    _themeSettings.keyword = ParseThemeColorFromSection(
+        obj,
+        "editor",
+        "keyword",
+        ParseThemeColor(obj, "keyword", _themeSettings.keyword));
+    _themeSettings.number = ParseThemeColorFromSection(
+        obj,
+        "editor",
+        "number",
+        ParseThemeColor(obj, "number", _themeSettings.number));
+    _themeSettings.stringColor = ParseThemeColorFromSection(
+        obj,
+        "editor",
+        "stringColor",
+        ParseThemeColor(obj, "stringColor", _themeSettings.stringColor));
+    _themeSettings.operatorColor = ParseThemeColorFromSection(
+        obj,
+        "editor",
+        "operatorColor",
+        ParseThemeColor(obj, "operatorColor", _themeSettings.operatorColor));
+
+    _themeSettings.dialogBackground = ParseThemeColorFromSection(
+        obj,
+        "dialogs",
+        "background",
+        ParseThemeColor(obj, "dialogBackground", _themeSettings.dialogBackground));
+    _themeSettings.dialogForeground = ParseThemeColorFromSection(
+        obj,
+        "dialogs",
+        "foreground",
+        ParseThemeColor(obj, "dialogForeground", _themeSettings.dialogForeground));
+    _themeSettings.dialogButtonBackground = ParseThemeColorFromSection(
+        obj,
+        "dialogs",
+        "buttonBackground",
+        ParseThemeColor(obj, "dialogButtonBackground", _themeSettings.dialogButtonBackground));
+    _themeSettings.dialogButtonForeground = ParseThemeColorFromSection(
+        obj,
+        "dialogs",
+        "buttonForeground",
+        ParseThemeColor(obj, "dialogButtonForeground", _themeSettings.dialogButtonForeground));
+    _themeSettings.dialogBorder = ParseThemeColorFromSection(
+        obj,
+        "dialogs",
+        "border",
+        ParseThemeColor(obj, "dialogBorder", _themeSettings.dialogBorder));
+
+    ApplyChromeTheme();
 }
 
 void MainWindow::EnsureShortcutConfigFile() {

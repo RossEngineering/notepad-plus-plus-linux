@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "title": "Notepad Plus Plus Linux Skin v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "metadata",
+    "appChrome",
+    "editor",
+    "dialogs"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "formatVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "appChrome": {
+      "$ref": "#/$defs/appChrome"
+    },
+    "editor": {
+      "$ref": "#/$defs/editor"
+    },
+    "dialogs": {
+      "$ref": "#/$defs/dialogs"
+    }
+  },
+  "$defs": {
+    "hexColor": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$"
+    },
+    "appChrome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windowBackground",
+        "windowForeground",
+        "menuBackground",
+        "menuForeground",
+        "statusBackground",
+        "statusForeground",
+        "accent"
+      ],
+      "properties": {
+        "windowBackground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "windowForeground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "menuBackground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "menuForeground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "statusBackground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "statusForeground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "accent": {
+          "$ref": "#/$defs/hexColor"
+        }
+      }
+    },
+    "editor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "background",
+        "foreground",
+        "lineNumberBackground",
+        "lineNumberForeground",
+        "caretLineBackground",
+        "selectionBackground",
+        "selectionForeground",
+        "comment",
+        "keyword",
+        "number",
+        "stringColor",
+        "operatorColor"
+      ],
+      "properties": {
+        "background": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "foreground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "lineNumberBackground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "lineNumberForeground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "caretLineBackground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "selectionBackground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "selectionForeground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "comment": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "keyword": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "number": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "stringColor": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "operatorColor": {
+          "$ref": "#/$defs/hexColor"
+        }
+      }
+    },
+    "dialogs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "background",
+        "foreground",
+        "buttonBackground",
+        "buttonForeground",
+        "border"
+      ],
+      "properties": {
+        "background": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "foreground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "buttonBackground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "buttonForeground": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "border": {
+          "$ref": "#/$defs/hexColor"
+        }
+      }
+    }
+  }
+}

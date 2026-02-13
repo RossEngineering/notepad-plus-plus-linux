@@ -57,6 +57,18 @@ private:
 	};
 
 	struct ThemeSettings {
+		int windowBackground = 0xF3F3F3;
+		int windowForeground = 0x1A1A1A;
+		int menuBackground = 0xFFFFFF;
+		int menuForeground = 0x1A1A1A;
+		int statusBackground = 0xEFEFEF;
+		int statusForeground = 0x1A1A1A;
+		int accent = 0x005FB8;
+		int dialogBackground = 0xFFFFFF;
+		int dialogForeground = 0x1A1A1A;
+		int dialogButtonBackground = 0xE9EEF6;
+		int dialogButtonForeground = 0x1A1A1A;
+		int dialogBorder = 0xB5C3D6;
 		int background = 0xFFFFFF;
 		int foreground = 0x1A1A1A;
 		int lineNumberBackground = 0xF2F2F2;
@@ -131,6 +143,7 @@ private:
 	void ApplyEditorSettingsToAllEditors();
 	void ApplyEditorSettings(ScintillaEditBase *editor);
 	void ApplyTheme(ScintillaEditBase *editor);
+	void ApplyChromeTheme();
 	void ApplyLexerForPath(ScintillaEditBase *editor, const std::string &pathUtf8);
 	void ApplyLexerByName(ScintillaEditBase *editor, const std::string &lexerName);
 	void AutoDetectAndApplyLexer(
