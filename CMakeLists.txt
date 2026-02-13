@@ -105,6 +105,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
         platform/linux/LinuxExtensionService.cpp
         platform/linux/LinuxDiagnosticsService.cpp
         platform/linux/LinuxFileSystemService.cpp
+        platform/linux/LinuxLspClientService.cpp
         platform/linux/LinuxPathService.cpp
         platform/linux/LinuxProcessService.cpp
         platform/linux/VscodeLanguageCompatibility.cpp
@@ -349,6 +350,14 @@ if(BUILD_TESTING AND TARGET npp_platform_linux)
     )
     target_link_libraries(extension_lifecycle_smoke_test PRIVATE npp_platform_linux)
     add_test(NAME extension_lifecycle_smoke_test COMMAND extension_lifecycle_smoke_test)
+
+    add_executable(lsp_client_foundation_smoke_test tests/platform/lsp_client_foundation_smoke_test.cpp)
+    target_include_directories(lsp_client_foundation_smoke_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+    )
+    target_link_libraries(lsp_client_foundation_smoke_test PRIVATE npp_platform_linux)
+    add_test(NAME lsp_client_foundation_smoke_test COMMAND lsp_client_foundation_smoke_test)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_platform_linux)

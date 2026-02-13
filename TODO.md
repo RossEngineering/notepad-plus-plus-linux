@@ -51,8 +51,8 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 ## Beta 2 scope: Phase 12 hardening and language intelligence
 
-- [ ] Add LSP client foundation for richer language intelligence.
-- [ ] Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
+- [x] Add LSP client foundation for richer language intelligence.
+- [x] Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
 - [ ] Improve crash-recovery journal and restore UX.
 - [ ] Add extension performance budgets and startup impact guardrails.
 - [ ] Expand distro validation plan beyond Arch Linux derivatives after baseline remains stable.

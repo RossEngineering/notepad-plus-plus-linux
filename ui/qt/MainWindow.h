@@ -55,6 +55,7 @@ private:
 		bool wrapEnabled = false;
 		bool showLineNumbers = true;
 		bool autoCloseHtmlTags = true;
+		bool autoCloseDelimiters = true;
 		std::string skinId = "builtin.light";
 	};
 
@@ -134,6 +135,7 @@ private:
 	void SetEditorEolMode(ScintillaEditBase *editor, int eolMode);
 	int DetectDominantEolMode(const std::string &textUtf8) const;
 	void MaybeAutoCloseHtmlTag(ScintillaEditBase *editor, int ch);
+	void MaybeAutoCloseDelimiterPair(ScintillaEditBase *editor, int ch);
 
 	bool LoadFileIntoEditor(ScintillaEditBase *editor, const std::string &pathUtf8);
 	bool SaveEditorToFile(ScintillaEditBase *editor, const std::string &pathUtf8);

@@ -529,6 +529,7 @@ ScintillaEditBase *MainWindow::CreateEditor() {
     });
 
     connect(editor, &ScintillaEditBase::charAdded, this, [this, editor](int ch) {
+        MaybeAutoCloseDelimiterPair(editor, ch);
         MaybeAutoCloseHtmlTag(editor, ch);
     });
 
@@ -1049,11 +1050,14 @@ void MainWindow::OnPreferences() {
     lineNumbersCheck->setChecked(_editorSettings.showLineNumbers);
     auto *autoCloseHtmlTagsCheck = new QCheckBox(tr("Auto-close HTML/XML tags"), &dialog);
     autoCloseHtmlTagsCheck->setChecked(_editorSettings.autoCloseHtmlTags);
+    auto *autoCloseDelimitersCheck = new QCheckBox(tr("Auto-close paired delimiters"), &dialog);
+    autoCloseDelimitersCheck->setChecked(_editorSettings.autoCloseDelimiters);
 
     form->addRow(tr("Tab width:"), tabWidthSpin);
     form->addRow(QString(), wrapCheck);
     form->addRow(QString(), lineNumbersCheck);
     form->addRow(QString(), autoCloseHtmlTagsCheck);
+    form->addRow(QString(), autoCloseDelimitersCheck);
     layout->addLayout(form);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -1069,6 +1073,7 @@ void MainWindow::OnPreferences() {
     _editorSettings.wrapEnabled = wrapCheck->isChecked();
     _editorSettings.showLineNumbers = lineNumbersCheck->isChecked();
     _editorSettings.autoCloseHtmlTags = autoCloseHtmlTagsCheck->isChecked();
+    _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
     ApplyEditorSettingsToAllEditors();
     SaveEditorSettings();
     statusBar()->showMessage(tr("Preferences updated"), 1500);
@@ -1590,6 +1595,70 @@ int MainWindow::DetectDominantEolMode(const std::string &textUtf8) const {
     return SC_EOL_LF;
 }
 
+void MainWindow::MaybeAutoCloseDelimiterPair(ScintillaEditBase *editor, int ch) {
+    if (!editor || _suppressAutoCloseHandler || !_editorSettings.autoCloseDelimiters) {
+        return;
+    }
+
+    char closeCh = '\0';
+    bool isQuote = false;
+    switch (ch) {
+        case '(':
+            closeCh = ')';
+            break;
+        case '[':
+            closeCh = ']';
+            break;
+        case '{':
+            closeCh = '}';
+            break;
+        case '"':
+            closeCh = '"';
+            isQuote = true;
+            break;
+        case '\'':
+            closeCh = '\'';
+            isQuote = true;
+            break;
+        default:
+            return;
+    }
+
+    const sptr_t caretPos = editor->send(SCI_GETCURRENTPOS);
+    if (caretPos <= 0) {
+        return;
+    }
+
+    const char nextChar = static_cast<char>(editor->send(SCI_GETCHARAT, caretPos));
+    if (nextChar == closeCh) {
+        return;
+    }
+
+    char previousChar = '\0';
+    if (caretPos >= 2) {
+        previousChar = static_cast<char>(editor->send(SCI_GETCHARAT, caretPos - 2));
+    }
+    if (isQuote) {
+        if (previousChar == '\\') {
+            return;
+        }
+        if (ch == '\'' && std::isalnum(static_cast<unsigned char>(previousChar)) != 0) {
+            return;
+        }
+        if (std::isalnum(static_cast<unsigned char>(nextChar)) != 0) {
+            return;
+        }
+    } else if (std::isalnum(static_cast<unsigned char>(nextChar)) != 0) {
+        return;
+    }
+
+    const std::string closing(1, closeCh);
+    _suppressAutoCloseHandler = true;
+    editor->send(SCI_INSERTTEXT, caretPos, reinterpret_cast<sptr_t>(closing.c_str()));
+    editor->send(SCI_GOTOPOS, caretPos);
+    _suppressAutoCloseHandler = false;
+}
+
 void MainWindow::MaybeAutoCloseHtmlTag(ScintillaEditBase *editor, int ch) {
     if (!editor || ch != '>') {
         return;
@@ -1899,6 +1968,7 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.wrapEnabled = obj.value(QStringLiteral("wrapEnabled")).toBool(false);
     _editorSettings.showLineNumbers = obj.value(QStringLiteral("showLineNumbers")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
+    _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
     const QJsonValue skinValue = obj.value(QStringLiteral("skinId"));
     if (skinValue.isString()) {
         const std::string loadedSkinId = ToUtf8(skinValue.toString());
@@ -1915,6 +1985,7 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("wrapEnabled"), _editorSettings.wrapEnabled);
     settingsObject.insert(QStringLiteral("showLineNumbers"), _editorSettings.showLineNumbers);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
+    settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
     settingsObject.insert(QStringLiteral("skinId"), ToQString(_editorSettings.skinId));
 
     const QJsonDocument doc(settingsObject);
@@ -2118,6 +2189,42 @@ void MainWindow::ApplyLexerStyles(ScintillaEditBase *editor, const std::string &
         editor->send(SCI_STYLESETFORE, SCE_C_CHARACTER, _themeSettings.stringColor);
         editor->send(SCI_STYLESETFORE, SCE_C_OPERATOR, _themeSettings.operatorColor);
         editor->send(SCI_STYLESETFORE, SCE_C_PREPROCESSOR, _themeSettings.keyword);
+    } else if (lexerName == "xml") {
+        editor->send(SCI_STYLESETFORE, SCE_H_TAG, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_H_TAGUNKNOWN, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_H_ATTRIBUTE, _themeSettings.foreground);
+        editor->send(SCI_STYLESETFORE, SCE_H_ATTRIBUTEUNKNOWN, _themeSettings.foreground);
+        editor->send(SCI_STYLESETFORE, SCE_H_NUMBER, _themeSettings.number);
+        editor->send(SCI_STYLESETFORE, SCE_H_DOUBLESTRING, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_H_SINGLESTRING, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_H_COMMENT, _themeSettings.comment);
+        editor->send(SCI_STYLESETFORE, SCE_H_ENTITY, _themeSettings.number);
+        editor->send(SCI_STYLESETFORE, SCE_H_CDATA, _themeSettings.stringColor);
+    } else if (lexerName == "markdown") {
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER1, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER2, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER3, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER4, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER5, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER6, _themeSettings.keyword);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER1, 1);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER2, 1);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER3, 1);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER4, 1);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER5, 1);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER6, 1);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_STRONG1, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_STRONG2, _themeSettings.keyword);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_STRONG1, 1);
+        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_STRONG2, 1);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_EM1, _themeSettings.operatorColor);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_EM2, _themeSettings.operatorColor);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_LINK, _themeSettings.keyword);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_CODE, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_CODE2, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_CODEBK, _themeSettings.stringColor);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_BLOCKQUOTE, _themeSettings.comment);
+        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HRULE, _themeSettings.operatorColor);
     } else if (lexerName == "python") {
         editor->send(SCI_STYLESETFORE, SCE_P_COMMENTLINE, _themeSettings.comment);
         editor->send(SCI_STYLESETFORE, SCE_P_NUMBER, _themeSettings.number);
