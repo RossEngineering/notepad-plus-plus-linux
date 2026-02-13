@@ -21,7 +21,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 - [x] Freeze Beta 1 scope to Phase 9 deliverables.
 - [ ] Run full Linux CI + sanitizer lane green for Beta 1 candidate tag.
-- [ ] Validate release artifacts and checksums for Beta 1.
+- [x] Validate release artifacts and checksums for Beta 1.
 - [ ] Publish `v0.8.0-beta.1` notes and milestone summary.
 
 ## Post-Beta backlog: Phase 10 UI skinning support
