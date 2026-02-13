@@ -20,8 +20,8 @@ This file tracks the Linux-native migration and modernization work for this fork
 
 ## Phase 2: Build system modernization
 
-- [ ] Introduce top-level CMake configuration for Linux builds.
-- [ ] Build `scintilla` and `lexilla` as Linux targets through CMake.
+- [x] Introduce top-level CMake configuration for Linux builds.
+- [x] Build `scintilla` and `lexilla` as Linux targets through CMake.
 - [ ] Establish Debug/Release presets for local development.
 - [ ] Add CI job for Linux build and basic tests.
 - [ ] Keep existing Windows build path functional during transition.

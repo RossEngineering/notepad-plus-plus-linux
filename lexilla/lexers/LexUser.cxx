@@ -21,7 +21,22 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <map>
 #include <vector>
 #include <assert.h>
-#include <windows.h>
+#include <cstdio>
+
+#if !defined(_WIN32)
+// Provide a compatible helper for non-Windows toolchains.
+static char *npp_itoa10(int value, char *buffer, int radix)
+{
+	if (radix != 10)
+	{
+		buffer[0] = '\0';
+		return buffer;
+	}
+	std::snprintf(buffer, 32, "%d", value);
+	return buffer;
+}
+#define _itoa npp_itoa10
+#endif
 
 #include "ILexer.h"
 #include "LexAccessor.h"
