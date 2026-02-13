@@ -44,6 +44,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 ## Post-Beta backlog: Phase 12 suggested hardening work (recommended)
 
 - [ ] Add LSP client foundation for richer language intelligence.
+- [ ] Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
 - [ ] Improve crash-recovery journal and restore UX.
 - [ ] Add extension performance budgets and startup impact guardrails.
 - [ ] Expand distro validation plan beyond Manjaro after baseline remains stable.

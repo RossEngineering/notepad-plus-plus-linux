@@ -11,7 +11,7 @@ Dates are target dates and may be adjusted as migration risk changes.
 | M1: Developer UX Baseline | February 13, 2026 | Phase 8 completion (Linux-first docs, migration issue workflows, dashboard). | Done |
 | M2: Beta 1 Readiness | April 15, 2026 | Phase 9 complete: automatic language detection + stable auto-highlighting behavior. | Planned |
 | M3: Beta 1 Release (`v0.8.0-beta.1`) | April 30, 2026 | First beta cut. No additional alpha releases. | Planned |
-| M4: Post-Beta UX Expansion | June 30, 2026 | Skinning and theming system delivery (Phase 10). | Planned |
+| M4: Post-Beta UX Expansion | June 30, 2026 | Skinning/theming plus syntax-aware editing assists (for example tag auto-close) delivery. | Planned |
 | M5: Post-Beta Extension Platform | August 31, 2026 | Extension API + targeted VS Code language-asset compatibility path (Phase 11). | Planned |
 | M6: 1.0 Release Candidate | October 15, 2026 | Feature freeze, compatibility validation, and blocker burn-down for RC. | Planned |
 

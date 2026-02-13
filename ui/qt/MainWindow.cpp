@@ -31,6 +31,7 @@
 #include <QMessageBox>
 #include <QProcess>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStatusBar>
 #include <QTabWidget>
@@ -153,6 +154,53 @@ std::string PercentString(double value) {
     std::ostringstream stream;
     stream << std::fixed << std::setprecision(0) << (value * 100.0);
     return stream.str();
+}
+
+std::string PreferredExtensionForLexer(const std::string &lexerName) {
+    if (lexerName == "markdown") {
+        return ".md";
+    }
+    if (lexerName == "xml") {
+        return ".html";
+    }
+    if (lexerName == "cpp") {
+        return ".cpp";
+    }
+    if (lexerName == "python") {
+        return ".py";
+    }
+    if (lexerName == "bash") {
+        return ".sh";
+    }
+    if (lexerName == "json") {
+        return ".json";
+    }
+    if (lexerName == "yaml") {
+        return ".yaml";
+    }
+    if (lexerName == "sql") {
+        return ".sql";
+    }
+    return ".txt";
+}
+
+std::string LanguageActionIdForLexer(const std::string &lexerName) {
+    if (lexerName == "markdown") {
+        return "language.set.markdown";
+    }
+    if (lexerName == "xml") {
+        return "language.set.html";
+    }
+    if (lexerName == "cpp") {
+        return "language.set.cpp";
+    }
+    if (lexerName == "python") {
+        return "language.set.python";
+    }
+    if (lexerName == "bash") {
+        return "language.set.bash";
+    }
+    return "language.set.plain";
 }
 
 int ParseThemeColor(const QJsonObject &obj, const char *key, int fallback) {
@@ -284,6 +332,12 @@ void MainWindow::BuildActions() {
     registerAction("language.set.cpp", tr("C/C++"), [this]() { SetCurrentEditorManualLexer("cpp"); });
     registerAction("language.set.python", tr("Python"), [this]() { SetCurrentEditorManualLexer("python"); });
     registerAction("language.set.bash", tr("Bash/Shell"), [this]() { SetCurrentEditorManualLexer("bash"); });
+    _actionsById.at("language.set.plain")->setCheckable(true);
+    _actionsById.at("language.set.markdown")->setCheckable(true);
+    _actionsById.at("language.set.html")->setCheckable(true);
+    _actionsById.at("language.set.cpp")->setCheckable(true);
+    _actionsById.at("language.set.python")->setCheckable(true);
+    _actionsById.at("language.set.bash")->setCheckable(true);
 
     registerAction(
         "tools.shortcuts.open",
@@ -463,9 +517,29 @@ bool MainWindow::SaveCurrentFileAs() {
         return false;
     }
 
-    const QString target = QFileDialog::getSaveFileName(this, tr("Save File As"));
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return false;
+    }
+
+    const std::string lexerName = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    const std::string suggestedExtension = PreferredExtensionForLexer(lexerName);
+
+    QString suggestedPath;
+    if (!stateIt->second.filePathUtf8.empty()) {
+        suggestedPath = ToQString(stateIt->second.filePathUtf8);
+    } else {
+        suggestedPath = QStringLiteral("untitled%1").arg(ToQString(suggestedExtension));
+    }
+
+    QString target = QFileDialog::getSaveFileName(this, tr("Save File As"), suggestedPath);
     if (target.isEmpty()) {
         return false;
+    }
+
+    const std::filesystem::path chosenPath(ToUtf8(target));
+    if (chosenPath.extension().empty() && !suggestedExtension.empty()) {
+        target += ToQString(suggestedExtension);
     }
 
     if (!SaveEditorToFile(editor, ToUtf8(target))) {
@@ -1021,24 +1095,68 @@ void MainWindow::SetCurrentEditorManualLexer(const std::string &lexerName) {
 }
 
 void MainWindow::UpdateLanguageActionState() {
-    auto actionIt = _actionsById.find("language.lockCurrent");
-    if (actionIt == _actionsById.end() || !actionIt->second) {
+    auto lockIt = _actionsById.find("language.lockCurrent");
+    if (lockIt == _actionsById.end() || !lockIt->second) {
         return;
     }
+
+    const std::vector<std::string> languageActionIds = {
+        "language.set.plain",
+        "language.set.markdown",
+        "language.set.html",
+        "language.set.cpp",
+        "language.set.python",
+        "language.set.bash",
+    };
+
+    const auto setLanguageActionsEnabled = [this, &languageActionIds](bool enabled) {
+        for (const std::string &id : languageActionIds) {
+            const auto it = _actionsById.find(id);
+            if (it != _actionsById.end() && it->second) {
+                it->second->setEnabled(enabled);
+            }
+        }
+    };
+
+    const auto clearLanguageChecks = [this, &languageActionIds]() {
+        for (const std::string &id : languageActionIds) {
+            const auto it = _actionsById.find(id);
+            if (it != _actionsById.end() && it->second) {
+                QSignalBlocker blocker(it->second);
+                it->second->setChecked(false);
+            }
+        }
+    };
+
     ScintillaEditBase *editor = CurrentEditor();
     if (!editor) {
-        actionIt->second->setChecked(false);
-        actionIt->second->setEnabled(false);
+        lockIt->second->setChecked(false);
+        lockIt->second->setEnabled(false);
+        clearLanguageChecks();
+        setLanguageActionsEnabled(false);
         return;
     }
     const auto stateIt = _editorStates.find(editor);
     if (stateIt == _editorStates.end()) {
-        actionIt->second->setChecked(false);
-        actionIt->second->setEnabled(false);
+        lockIt->second->setChecked(false);
+        lockIt->second->setEnabled(false);
+        clearLanguageChecks();
+        setLanguageActionsEnabled(false);
         return;
     }
-    actionIt->second->setEnabled(true);
-    actionIt->second->setChecked(stateIt->second.lexerManualLock);
+
+    lockIt->second->setEnabled(true);
+    lockIt->second->setChecked(stateIt->second.lexerManualLock);
+    setLanguageActionsEnabled(true);
+    clearLanguageChecks();
+
+    const std::string activeLexer = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    const std::string activeActionId = LanguageActionIdForLexer(activeLexer);
+    const auto activeIt = _actionsById.find(activeActionId);
+    if (activeIt != _actionsById.end() && activeIt->second) {
+        QSignalBlocker blocker(activeIt->second);
+        activeIt->second->setChecked(true);
+    }
 }
 
 bool MainWindow::FindNextInEditor(
@@ -1477,6 +1595,7 @@ void MainWindow::AutoDetectAndApplyLexer(
     }
     if (stateIt->second.lexerManualLock) {
         ApplyLexerByName(editor, stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName);
+        UpdateLanguageActionState();
         return;
     }
 
@@ -1499,6 +1618,7 @@ void MainWindow::AutoDetectAndApplyLexer(
                 .arg(QString::fromLatin1(trigger)),
             2500);
     }
+    UpdateLanguageActionState();
 }
 
 void MainWindow::ApplyLexerByName(ScintillaEditBase *editor, const std::string &lexerName) {

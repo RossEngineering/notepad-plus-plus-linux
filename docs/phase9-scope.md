@@ -33,9 +33,10 @@ Deliver Beta 1 by completing Phase 9 (automatic language detection + syntax high
 ## Workstream 4: Hardening recommendations (Phase 12+)
 
 1. Add LSP client foundation.
-2. Improve crash-recovery journal and restore UX.
-3. Add extension performance budget checks.
-4. Plan distro expansion once Manjaro baseline is stable.
+2. Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
+3. Improve crash-recovery journal and restore UX.
+4. Add extension performance budget checks.
+5. Plan distro expansion once Manjaro baseline is stable.
 
 ## Release strategy note
 
