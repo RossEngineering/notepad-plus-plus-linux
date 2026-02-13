@@ -56,7 +56,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Add `PKGBUILD` for local package builds.
 - [x] Define package split strategy (runtime, debug symbols, optional plugins).
 - [x] Add desktop entry, icon assets, and MIME associations.
-- [ ] Add reproducible release build instructions.
+- [x] Add reproducible release build instructions.
 - [ ] Publish signed release artifacts and checksums.
 
 ## Phase 7: Quality and performance

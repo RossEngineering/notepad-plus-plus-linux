@@ -103,3 +103,7 @@ The existing Windows build paths remain in place and are unchanged:
 
 - Visual Studio solution under `PowerEditor/visual.net`
 - MinGW build under `PowerEditor/gcc`
+
+### Reproducible release builds
+
+For deterministic Linux release artifact steps (including `SOURCE_DATE_EPOCH` usage and archive normalization), see `docs/reproducible-release.md`.
