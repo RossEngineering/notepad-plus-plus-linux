@@ -12,6 +12,7 @@
 #include <QInputDialog>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QKeySequence>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMenu>
@@ -42,12 +43,33 @@ sptr_t LineNumberMarginWidth(ScintillaEditBase *editor) {
         reinterpret_cast<sptr_t>("_99999"));
 }
 
+const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
+    static const std::map<std::string, QKeySequence> kShortcuts = {
+        {"file.new", QKeySequence(QStringLiteral("Ctrl+N"))},
+        {"file.open", QKeySequence(QStringLiteral("Ctrl+O"))},
+        {"file.save", QKeySequence(QStringLiteral("Ctrl+S"))},
+        {"file.saveAs", QKeySequence(QStringLiteral("Ctrl+Shift+S"))},
+        {"tab.close", QKeySequence(QStringLiteral("Ctrl+W"))},
+        {"file.quit", QKeySequence(QStringLiteral("Ctrl+Q"))},
+        {"edit.find", QKeySequence(QStringLiteral("Ctrl+F"))},
+        {"edit.replace", QKeySequence(QStringLiteral("Ctrl+H"))},
+        {"edit.gotoLine", QKeySequence(QStringLiteral("Ctrl+G"))},
+        {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
+        {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
+        {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
+    };
+    return kShortcuts;
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), _diagnosticsService(_pathService, _fileSystemService) {
     BuildUi();
     LoadEditorSettings();
+    EnsureShortcutConfigFile();
+    LoadShortcutOverrides();
+    ApplyShortcuts();
     NewTab();
     UpdateWindowTitle();
     UpdateCursorStatus();
@@ -754,18 +776,96 @@ void MainWindow::EnsureConfigRoot() {
     _fileSystemService.CreateDirectories(root);
 }
 
-void MainWindow::EnsureShortcutConfigFile() {}
+void MainWindow::EnsureShortcutConfigFile() {
+    EnsureConfigRoot();
+    const auto exists = _fileSystemService.Exists(ShortcutFilePath());
+    if (exists.ok() && *exists.value) {
+        return;
+    }
 
-void MainWindow::LoadShortcutOverrides() {}
+    QJsonObject defaults;
+    for (const auto &[actionId, shortcut] : DefaultShortcutMap()) {
+        defaults.insert(QString::fromStdString(actionId), shortcut.toString(QKeySequence::PortableText));
+    }
 
-void MainWindow::ApplyShortcuts() {}
+    const QJsonDocument doc(defaults);
+    const QByteArray json = doc.toJson(QJsonDocument::Indented);
+
+    npp::platform::WriteFileOptions options;
+    options.atomic = true;
+    options.createParentDirs = true;
+    _fileSystemService.WriteTextFile(
+        ShortcutFilePath(),
+        std::string(json.constData(), static_cast<size_t>(json.size())),
+        options);
+}
+
+void MainWindow::LoadShortcutOverrides() {
+    _shortcutOverrides = QJsonObject{};
+
+    const auto exists = _fileSystemService.Exists(ShortcutFilePath());
+    if (!exists.ok() || !(*exists.value)) {
+        return;
+    }
+
+    const auto jsonFile = _fileSystemService.ReadTextFile(ShortcutFilePath());
+    if (!jsonFile.ok()) {
+        return;
+    }
+
+    const QByteArray bytes(jsonFile.value->c_str(), static_cast<int>(jsonFile.value->size()));
+    QJsonParseError parseError{};
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return;
+    }
+
+    _shortcutOverrides = doc.object();
+}
+
+void MainWindow::ApplyShortcuts() {
+    const auto &defaults = DefaultShortcutMap();
+    for (const auto &[id, action] : _actionsById) {
+        if (!action) {
+            continue;
+        }
+
+        QKeySequence shortcut;
+        const auto defaultIt = defaults.find(id);
+        if (defaultIt != defaults.end()) {
+            shortcut = defaultIt->second;
+        }
+
+        if (_shortcutOverrides.contains(QString::fromStdString(id))) {
+            const QJsonValue overrideValue = _shortcutOverrides.value(QString::fromStdString(id));
+            if (overrideValue.isString()) {
+                const QKeySequence overrideShortcut(overrideValue.toString());
+                if (!overrideShortcut.isEmpty()) {
+                    shortcut = overrideShortcut;
+                }
+            }
+        }
+
+        action->setShortcut(shortcut);
+        action->setShortcutContext(Qt::WindowShortcut);
+    }
+}
 
 void MainWindow::ReloadShortcuts() {
-    QMessageBox::information(this, tr("Shortcuts"), tr("Shortcut override loading will be enabled in Phase 4 step 4."));
+    LoadShortcutOverrides();
+    ApplyShortcuts();
+    statusBar()->showMessage(tr("Shortcuts reloaded"), 1500);
 }
 
 void MainWindow::OpenShortcutConfigFile() {
-    QMessageBox::information(this, tr("Shortcuts"), tr("Shortcut override file integration will be enabled in Phase 4 step 4."));
+    EnsureShortcutConfigFile();
+    const npp::platform::Status status = _processService.OpenPath(ShortcutFilePath());
+    if (!status.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Shortcuts"),
+            tr("Unable to open shortcut config file:\n%1").arg(ToQString(status.message)));
+    }
 }
 
 std::string MainWindow::ConfigRootPath() const {

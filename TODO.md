@@ -40,7 +40,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Create Linux application shell (main window, tabs, menus, status bar).
 - [x] Integrate Scintilla widget for Linux frontend.
 - [x] Port essential dialogs (find/replace, preferences, go to line).
-- [ ] Implement keyboard shortcuts with Linux-friendly defaults and override support.
+- [x] Implement keyboard shortcuts with Linux-friendly defaults and override support.
 
 ## Phase 5: Feature parity (MVP)
 
