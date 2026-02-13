@@ -93,6 +93,7 @@ private:
 	void OnFindInFiles();
 	void OnGoToLine();
 	void OnPreferences();
+	void OnRunCommand();
 
 	bool FindNextInEditor(ScintillaEditBase *editor, const std::string &needleUtf8, bool matchCase);
 	int ReplaceAllInEditor(
@@ -156,6 +157,8 @@ private:
 	ThemeSettings _themeSettings;
 	QJsonObject _shortcutOverrides;
 	std::string _lastFindUtf8;
+	std::string _lastRunCommandUtf8;
+	std::string _lastRunWorkingDirUtf8;
 	bool _closingApplication = false;
 
 	npp::platform::LinuxPathService _pathService;

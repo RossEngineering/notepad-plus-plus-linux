@@ -48,7 +48,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Multi-tab editing and session restore.
 - [x] Search/replace (document and multi-file basic mode).
 - [x] Syntax highlighting and theme loading.
-- [ ] External tools / run command support.
+- [x] External tools / run command support.
 - [ ] Plugin story decision: compatibility shim or new Linux plugin API.
 
 ## Phase 6: Packaging and distribution (Manjaro first)

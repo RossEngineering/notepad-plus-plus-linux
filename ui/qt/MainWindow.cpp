@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <map>
 #include <sstream>
@@ -26,6 +27,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QProcess>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QStatusBar>
@@ -72,6 +74,7 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"edit.replace", QKeySequence(QStringLiteral("Ctrl+H"))},
         {"edit.gotoLine", QKeySequence(QStringLiteral("Ctrl+G"))},
         {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
+        {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
     };
@@ -258,6 +261,8 @@ void MainWindow::BuildMenus() {
     editMenu->addAction(_actionsById.at("edit.preferences"));
 
     QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
+    toolsMenu->addAction(_actionsById.at("tools.runCommand"));
+    toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.open"));
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.reload"));
 }
@@ -288,6 +293,7 @@ void MainWindow::BuildActions() {
     registerAction("edit.replace", tr("Replace..."), [this]() { OnReplace(); });
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
+    registerAction("tools.runCommand", tr("Run Command..."), [this]() { OnRunCommand(); });
 
     registerAction(
         "tools.shortcuts.open",
@@ -868,6 +874,100 @@ void MainWindow::OnPreferences() {
     ApplyEditorSettingsToAllEditors();
     SaveEditorSettings();
     statusBar()->showMessage(tr("Preferences updated"), 1500);
+}
+
+void MainWindow::OnRunCommand() {
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Run Command"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout();
+
+    auto *commandEdit = new QLineEdit(&dialog);
+    commandEdit->setText(ToQString(_lastRunCommandUtf8));
+
+    auto *workingDirEdit = new QLineEdit(&dialog);
+    if (_lastRunWorkingDirUtf8.empty()) {
+        ScintillaEditBase *editor = CurrentEditor();
+        if (editor) {
+            const auto stateIt = _editorStates.find(editor);
+            if (stateIt != _editorStates.end() && !stateIt->second.filePathUtf8.empty()) {
+                workingDirEdit->setText(QString::fromStdString(
+                    std::filesystem::path(stateIt->second.filePathUtf8).parent_path().string()));
+            } else {
+                workingDirEdit->setText(QDir::homePath());
+            }
+        } else {
+            workingDirEdit->setText(QDir::homePath());
+        }
+    } else {
+        workingDirEdit->setText(ToQString(_lastRunWorkingDirUtf8));
+    }
+
+    auto *browseButton = new QPushButton(tr("Browse..."), &dialog);
+    auto *workingDirLayout = new QHBoxLayout();
+    workingDirLayout->addWidget(workingDirEdit);
+    workingDirLayout->addWidget(browseButton);
+
+    form->addRow(tr("Command:"), commandEdit);
+    form->addRow(tr("Working dir:"), workingDirLayout);
+    layout->addLayout(form);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(browseButton, &QPushButton::clicked, &dialog, [this, workingDirEdit]() {
+        const QString selected = QFileDialog::getExistingDirectory(
+            this,
+            tr("Select Working Directory"),
+            workingDirEdit->text());
+        if (!selected.isEmpty()) {
+            workingDirEdit->setText(selected);
+        }
+    });
+    layout->addWidget(buttons);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    const QString command = commandEdit->text().trimmed();
+    const QString workingDir = workingDirEdit->text().trimmed();
+    if (command.isEmpty()) {
+        return;
+    }
+
+    const QStringList parts = QProcess::splitCommand(command);
+    if (parts.isEmpty()) {
+        QMessageBox::warning(this, tr("Run Command"), tr("Invalid command line."));
+        return;
+    }
+
+    npp::platform::ProcessSpec spec;
+    spec.program = ToUtf8(parts.at(0));
+    for (int i = 1; i < parts.size(); ++i) {
+        spec.args.push_back(ToUtf8(parts.at(i)));
+    }
+    if (!workingDir.isEmpty()) {
+        spec.workingDirectoryUtf8 = ToUtf8(workingDir);
+    }
+
+    _lastRunCommandUtf8 = ToUtf8(command);
+    _lastRunWorkingDirUtf8 = ToUtf8(workingDir);
+
+    const auto result = _processService.Run(spec, std::chrono::milliseconds(60000));
+    if (!result.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Run Command"),
+            tr("Command failed to run:\n%1").arg(ToQString(result.status.message)));
+        return;
+    }
+
+    QMessageBox::information(
+        this,
+        tr("Run Command"),
+        tr("Command finished with exit code %1.").arg(result.value->exitCode));
 }
 
 bool MainWindow::FindNextInEditor(
