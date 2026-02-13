@@ -1,4 +1,4 @@
-# ADR 0006: Manjaro-First Packaging and Signed Release Practices
+# ADR 0006: Arch-Derivatives-First (Manjaro Baseline) Packaging and Signed Release Practices
 
 - Status: Accepted
 - Date: 2026-02-13
@@ -7,11 +7,11 @@
 
 ## Context
 
-Project goals specify Manjaro-first distribution with reproducible release behavior.
+Project goals specify Arch Linux derivative distribution first, with Manjaro as the baseline environment, and reproducible release behavior.
 
 ## Decision
 
-Adopt Arch/Manjaro packaging artifacts and release automation with checksums and optional GPG
+Adopt Arch Linux derivative packaging artifacts and release automation with checksums and optional GPG
 signing as the initial distribution path.
 
 ## Consequences

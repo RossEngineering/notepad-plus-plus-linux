@@ -120,7 +120,7 @@ Primary UI-heavy hotspots to isolate:
 
 - Find/replace, preferences, encoding/EOL, session restore.
 - Basic language highlighting/themes.
-- Package as Manjaro-friendly build artifact.
+- Package as an Arch Linux derivative-friendly build artifact (Manjaro baseline).
 
 ## Non-goals for first Linux release
 

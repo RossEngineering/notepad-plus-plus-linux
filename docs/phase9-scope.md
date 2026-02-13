@@ -37,7 +37,7 @@ Next goal is Beta 2, defined as completion of Phases 10-12.
 2. Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
 3. Improve crash-recovery journal and restore UX.
 4. Add extension performance budget checks.
-5. Plan distro expansion once Manjaro baseline is stable.
+5. Plan distro expansion once the Arch-derivatives baseline (including Manjaro) is stable.
 
 ## Release strategy note
 

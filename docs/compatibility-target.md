@@ -1,7 +1,7 @@
 # Compatibility Target (Linux MVP)
 
 Last updated: 2026-02-13
-Target platform: Manjaro Linux (primary), broader Arch-family Linux (secondary)
+Target platform: Arch Linux and derivatives (including Manjaro as baseline)
 
 ## Purpose
 
@@ -61,8 +61,8 @@ For Linux MVP:
 
 Linux MVP is considered achieved when:
 
-1. All Must-have items are implemented and manually verified on Manjaro.
-2. A clean install package can be built and launched on a fresh Manjaro environment.
+1. All Must-have items are implemented and manually verified on Arch Linux derivatives (including Manjaro).
+2. A clean install package can be built and launched on a fresh Arch Linux derivative environment.
 3. Core workflows (open/edit/save/search/session) pass regression checks.
 4. Known incompatibilities are documented in release notes.
 

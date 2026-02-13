@@ -39,4 +39,4 @@ This review checks current implementation status against ADRs in `docs/adr`.
 
 - Keep ADR evidence links updated whenever implementation files move.
 - Add test coverage for encoding, session, and lexer/theme behavior in Phase 7.
-- Add non-Arch packaging strategy ADR(s) when distro support expands beyond Manjaro-first.
+- Add non-Arch packaging strategy ADR(s) when distro support expands beyond the Arch-derivatives baseline (including Manjaro).

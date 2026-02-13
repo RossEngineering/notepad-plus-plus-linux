@@ -55,7 +55,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 - [ ] Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
 - [ ] Improve crash-recovery journal and restore UX.
 - [ ] Add extension performance budgets and startup impact guardrails.
-- [ ] Expand distro validation plan beyond Manjaro after baseline remains stable.
+- [ ] Expand distro validation plan beyond Arch Linux derivatives after baseline remains stable.
 
 ## Immediate next actions
 

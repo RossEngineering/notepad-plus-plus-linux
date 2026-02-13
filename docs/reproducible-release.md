@@ -1,7 +1,7 @@
 # Reproducible Release Build (Linux)
 
 Last updated: 2026-02-13
-Target: Manjaro/Arch Linux
+Target: Arch Linux and derivatives (including Manjaro)
 
 ## Purpose
 
@@ -11,7 +11,7 @@ Produce release artifacts that are bit-for-bit reproducible from the same commit
 
 - Clean working tree (`git status` shows no pending changes).
 - Fixed toolchain versions for CMake, compiler, Qt, and Ninja.
-- Build in a clean container/chroot (recommended: clean Arch/Manjaro build root).
+- Build in a clean container/chroot (recommended: clean Arch Linux derivative build root, such as Manjaro).
 
 ## Deterministic environment
 

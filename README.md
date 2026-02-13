@@ -2,14 +2,14 @@
 
 Linux-native fork and reengineering effort based on Notepad++.
 
-This repository tracks a transition from the original Windows-first architecture to a native Linux application, with Manjaro as the primary target environment.
+This repository tracks a transition from the original Windows-first architecture to a native Linux application, targeting Arch Linux and derivatives (including Manjaro, used as the baseline environment).
 
 ## Project status
 
 Current state:
 
 - Repository status: **Incubator** (intentional migration stage).
-- Linux-native Qt shell builds and runs on Manjaro-class environments.
+- Linux-native Qt shell builds and runs on Arch Linux derivative environments (including Manjaro).
 - Packaging and release automation foundation is implemented (Phase 6).
 - Upstream codebase heritage remains Windows-centric; migration is ongoing.
 - `v0.8.0-beta.1` is published.
@@ -55,7 +55,7 @@ Post-foundation phases (9+) are now tracked in `TODO.md` and `docs/roadmap.md`.
 
 - Preserve Notepad++ editing strengths (performance, usability, language tooling).
 - Replace Win32-only dependencies with cross-platform or Linux-native implementations.
-- Make Manjaro the reference distribution for development and packaging.
+- Make Arch Linux derivatives the reference target for development and packaging, with Manjaro as the baseline.
 
 ## Repository layout (high level)
 
@@ -67,7 +67,7 @@ Post-foundation phases (9+) are now tracked in `TODO.md` and `docs/roadmap.md`.
 ## Build notes
 
 Linux-first build and test instructions are in [`BUILD.md`](BUILD.md).
-For one-command Manjaro developer setup, see [`docs/dev-setup-manjaro.md`](docs/dev-setup-manjaro.md).
+For one-command Arch-family developer setup (validated on Manjaro), see [`docs/dev-setup-manjaro.md`](docs/dev-setup-manjaro.md).
 
 ## Contributing
 

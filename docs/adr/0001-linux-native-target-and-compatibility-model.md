@@ -7,7 +7,7 @@
 
 ## Context
 
-This fork aims to deliver a native Linux editor experience (Manjaro first) while starting
+This fork aims to deliver a native Linux editor experience for Arch Linux derivatives (including Manjaro as baseline) while starting
 from a Windows-centric Notepad++ codebase.
 
 ## Decision

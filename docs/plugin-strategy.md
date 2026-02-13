@@ -11,7 +11,7 @@ For Linux MVP, this fork will use a **new Linux-native plugin API** and will **n
 
 1. Existing Notepad++ plugin contracts are tightly coupled to Win32 message handling and DLL loading semantics.
 2. A compatibility shim would add major complexity and instability during core migration.
-3. MVP priority is a stable native editor on Linux (Manjaro-first), not binary plugin parity.
+3. MVP priority is a stable native editor on Linux for Arch Linux derivatives (Manjaro baseline), not binary plugin parity.
 4. A native API allows safer process boundaries and clearer long-term maintenance.
 
 ## MVP scope

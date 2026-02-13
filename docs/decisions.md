@@ -19,7 +19,7 @@ This file indexes architecture and governance decisions used by this repository.
 - Platform boundary policy: `docs/adr/0003-platform-boundary-and-win32-containment.md`
 - Build strategy: `docs/adr/0004-cmake-linux-build-path-with-windows-coexistence.md`
 - Plugin compatibility direction: `docs/adr/0005-linux-native-plugin-api-no-windows-abi-shim-for-mvp.md`
-- Packaging/release strategy: `docs/adr/0006-manjaro-first-packaging-and-release-practices.md`
+- Packaging/release strategy: `docs/adr/0006-manjaro-first-packaging-and-release-practices.md` (Arch-derivatives-first, Manjaro baseline)
 
 ## External reference baseline
 

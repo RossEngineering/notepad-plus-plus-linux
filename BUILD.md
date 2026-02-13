@@ -1,9 +1,9 @@
 # Build Guide
 
 This fork is Linux-native first.
-Primary reference environment: Manjaro (Arch-family).
+Primary reference environment: Arch Linux and derivatives (Manjaro baseline).
 
-## Linux Quick Start (Manjaro)
+## Linux Quick Start (Arch-family, Manjaro baseline)
 
 1. Install required packages:
 
@@ -62,7 +62,7 @@ UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1" \
 ctest --test-dir build-asan --output-on-failure
 ```
 
-## Linux Packaging (Manjaro/Arch)
+## Linux Packaging (Arch Linux and derivatives)
 
 Use the repository `PKGBUILD`:
 

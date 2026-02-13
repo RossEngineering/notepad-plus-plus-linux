@@ -1,11 +1,11 @@
-# Manjaro Build Status (Baseline)
+# Arch-Derivatives Build Status (Manjaro Baseline)
 
 Last updated: 2026-02-13
 Host: Manjaro Linux (`x86_64`, kernel `6.18.8-1-MANJARO`)
 
 ## Goal
 
-Capture what currently builds on Manjaro and what fails, with reproducible probe commands.
+Capture what currently builds on the Arch-derivatives baseline environment (Manjaro) and what fails, with reproducible probe commands.
 
 ## Environment snapshot
 

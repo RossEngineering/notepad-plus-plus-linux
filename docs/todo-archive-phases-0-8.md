@@ -8,7 +8,7 @@ Active work moved to `TODO.md` for post-Phase-8 planning.
 ## Phase 0: Baseline and audit
 
 - [x] Tag current fork baseline commit.
-- [x] Document current build status on Manjaro (what compiles, what fails, error logs).
+- [x] Document current build status on Arch Linux derivatives (including Manjaro) (what compiles, what fails, error logs).
 - [x] Inventory Win32 API usage in `PowerEditor/src`.
 - [x] Identify modules that are already cross-platform (or mostly portable).
 - [x] Define compatibility target: feature parity scope for first Linux release.
@@ -54,7 +54,7 @@ Active work moved to `TODO.md` for post-Phase-8 planning.
 - [x] External tools / run command support.
 - [x] Plugin story decision: compatibility shim or new Linux plugin API.
 
-## Phase 6: Packaging and distribution (Manjaro first)
+## Phase 6: Packaging and distribution (Arch derivatives first, Manjaro baseline)
 
 - [x] Add `PKGBUILD` for local package builds.
 - [x] Define package split strategy (runtime, debug symbols, optional plugins).
@@ -73,7 +73,7 @@ Active work moved to `TODO.md` for post-Phase-8 planning.
 ## Phase 8: Documentation and developer UX
 
 - [x] Rewrite `BUILD.md` with Linux-native instructions first.
-- [x] Add `docs/dev-setup-manjaro.md` for one-command setup.
+- [x] Add `docs/dev-setup-manjaro.md` for one-command Arch-family setup (validated on Manjaro).
 - [x] Add `docs/roadmap.md` with milestone timeline.
 - [x] Add contribution labels and issue templates for migration work.
 - [x] Add migration status dashboard to README.

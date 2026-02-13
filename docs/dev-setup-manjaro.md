@@ -1,4 +1,4 @@
-# Manjaro Dev Setup
+# Arch-Family Dev Setup (Manjaro Baseline)
 
 This is the fastest path to a working local development environment for this repo.
 
@@ -36,5 +36,5 @@ ctest --preset debug --output-on-failure
 
 ## Notes
 
-- Target distro for this workflow is Manjaro (Arch-family).
+- Target distro family for this workflow is Arch Linux and derivatives, with Manjaro as the baseline.
 - For release packaging, see `PKGBUILD` and `docs/reproducible-release.md`.

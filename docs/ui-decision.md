@@ -11,7 +11,7 @@ Use **Qt 6** as the primary Linux UI backend for this fork.
 
 1. Repository already contains Scintilla Qt integration (`scintilla/qt`), reducing integration risk.
 2. Qt provides mature Linux desktop APIs for menus, dialogs, clipboard, input methods, and high-DPI handling.
-3. It offers the fastest path to a stable Linux-native editor shell for Manjaro.
+3. It offers the fastest path to a stable Linux-native editor shell for Arch Linux derivatives (including Manjaro).
 4. Team can focus on architecture migration instead of low-level widget/toolkit gaps.
 
 ## Alternatives considered

@@ -37,7 +37,7 @@ body:
     label: Environment
     description: Distro, kernel, desktop, compiler, and package versions.
     placeholder: |
-      Distro: Manjaro
+      Distro: Arch derivative (e.g., Manjaro)
       Kernel: 6.x
       Qt: 6.x
       Compiler: gcc/clang version

@@ -1,4 +1,4 @@
-# Package Split Strategy (Arch/Manjaro)
+# Package Split Strategy (Arch Linux and derivatives)
 
 Last updated: 2026-02-13
 Status: Accepted for Phase 6
