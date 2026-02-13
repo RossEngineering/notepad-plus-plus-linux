@@ -9,9 +9,11 @@ Do not introduce new direct Win32 APIs, Win32 message calls, or Win32-specific t
 Examples of disallowed additions outside `platform/win32`:
 
 - `#include <windows.h>`
-- `HWND`, `HMENU`, `HINSTANCE`, `LPARAM`, `WPARAM`, `LRESULT`
+- `HWND`, `HMENU`, `HINSTANCE`, `LPARAM`, `WPARAM`, `LRESULT`, `HRESULT`, `DWORD`
 - `SendMessage`, `PostMessage`, `CreateWindowEx`, `RegisterClass`, `DefWindowProc`
 - `ShellExecute`, `OpenClipboard`, `GetClipboardData`, `SetClipboardData`
+- `CreateFileW`, `ReadFile`, `WriteFile`, `CloseHandle`, `DeleteFileW`, `MoveFileExW`, `GetFileAttributesW`
+- `GetModuleFileNameW`, `OutputDebugStringW`, `MessageBoxW`, `RegOpenKeyExW`, `CoInitializeEx`
 
 ## Required approach
 

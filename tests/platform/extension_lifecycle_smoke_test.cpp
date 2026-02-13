@@ -11,7 +11,7 @@
 
 namespace {
 
-bool WriteFile(const std::filesystem::path& path, const std::string& content) {
+bool WriteTextFile(const std::filesystem::path& path, const std::string& content) {
     std::error_code ec;
     if (path.has_parent_path()) {
         std::filesystem::create_directories(path.parent_path(), ec);
@@ -67,7 +67,7 @@ int main() {
     }
 
     const fs::path sampleExtensionDir = tempRoot / "source" / "ross.sample.formatter";
-    if (!WriteFile(
+    if (!WriteTextFile(
             sampleExtensionDir / "extension.json",
             "{\n"
             "  \"schemaVersion\": 1,\n"
@@ -82,7 +82,7 @@ int main() {
         std::cerr << "failed writing sample extension manifest\n";
         return 3;
     }
-    if (!WriteFile(sampleExtensionDir / "README.md", "# sample\n")) {
+    if (!WriteTextFile(sampleExtensionDir / "README.md", "# sample\n")) {
         std::cerr << "failed writing sample extension readme\n";
         return 4;
     }
@@ -128,7 +128,7 @@ int main() {
     }
 
     const fs::path languagePackDir = tempRoot / "source" / "ross.language.python";
-    if (!WriteFile(
+    if (!WriteTextFile(
             languagePackDir / "extension.json",
             "{\n"
             "  \"schemaVersion\": 1,\n"
@@ -141,7 +141,7 @@ int main() {
         std::cerr << "failed writing language pack manifest\n";
         return 12;
     }
-    if (!WriteFile(
+    if (!WriteTextFile(
             languagePackDir / "package.json",
             "{\n"
             "  \"name\": \"python-language-pack\",\n"
@@ -165,11 +165,11 @@ int main() {
         std::cerr << "failed writing language pack package.json\n";
         return 13;
     }
-    if (!WriteFile(languagePackDir / "language-configuration.json", "{ \"comments\": {} }\n")) {
+    if (!WriteTextFile(languagePackDir / "language-configuration.json", "{ \"comments\": {} }\n")) {
         std::cerr << "failed writing language config\n";
         return 14;
     }
-    if (!WriteFile(languagePackDir / "syntaxes" / "python.tmLanguage.json", "{ \"scopeName\": \"source.python\" }\n")) {
+    if (!WriteTextFile(languagePackDir / "syntaxes" / "python.tmLanguage.json", "{ \"scopeName\": \"source.python\" }\n")) {
         std::cerr << "failed writing grammar file\n";
         return 15;
     }

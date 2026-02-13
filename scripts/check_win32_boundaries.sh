@@ -8,7 +8,7 @@ if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
     exit 2
 fi
 
-WIN32_PATTERN='(#include[[:space:]]*<[Ww]indows\.h>|(^|[^A-Za-z0-9_])(HWND|HMENU|HINSTANCE|LPARAM|WPARAM|LRESULT)([^A-Za-z0-9_]|$)|(^|[^A-Za-z0-9_])(SendMessage|PostMessage|CreateWindow(Ex)?|RegisterClass(Ex)?|DefWindowProc|ShellExecute(Ex|A|W)?|OpenClipboard|GetClipboardData|SetClipboardData|CloseClipboard)([^A-Za-z0-9_]|$))'
+WIN32_PATTERN='(#include[[:space:]]*<[Ww]indows\.h>|(^|[^A-Za-z0-9_])(HWND|HMENU|HINSTANCE|LPARAM|WPARAM|LRESULT|HRESULT|DWORD|LPWSTR)([^A-Za-z0-9_]|$)|(^|[^A-Za-z0-9_])(SendMessage|PostMessage|CreateWindow(Ex)?|RegisterClass(Ex)?|DefWindowProc|ShellExecute(Ex|A|W)?|OpenClipboard|GetClipboardData|SetClipboardData|CloseClipboard)([^A-Za-z0-9_]|$)|(^|[^A-Za-z0-9_])(CreateFile(W|A)?|ReadFile|WriteFile|CloseHandle|DeleteFile(W|A)?|MoveFile(Ex)?(W|A)?|GetFileAttributes(W|A)?|FindFirstFile(W|A)?|FindNextFile(W|A)?|GetModuleFileName(W|A)?|OutputDebugString(W|A)?|MessageBox(W|A)?)([^A-Za-z0-9_]|$)|(^|[^A-Za-z0-9_])(Reg(Open|Create|Set|Get|Delete)Key(Ex)?W?|CoInitializeEx|CoCreateInstance)([^A-Za-z0-9_]|$))'
 
 TARGET_GLOBS=(
     "*.c"
