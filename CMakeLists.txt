@@ -5,6 +5,7 @@ project(notepad_plus_plus_linux LANGUAGES CXX)
 option(NPP_BUILD_SCINTILLA "Build Scintilla core static library" ON)
 option(NPP_BUILD_LEXILLA "Build Lexilla static library" ON)
 option(NPP_BUILD_PLATFORM_LINUX "Build Linux platform service implementations" ON)
+option(NPP_BUILD_QT_SHELL "Build Qt-based Linux shell prototype" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -103,6 +104,99 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
         PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
     )
+endif()
+
+if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
+    find_package(QT NAMES Qt6 Qt5 QUIET COMPONENTS Core Gui Widgets)
+    if(QT_FOUND)
+        find_package(Qt${QT_VERSION_MAJOR} QUIET COMPONENTS Core Gui Widgets)
+    endif()
+
+    if(QT_FOUND
+       AND TARGET Qt${QT_VERSION_MAJOR}::Core
+       AND TARGET Qt${QT_VERSION_MAJOR}::Gui
+       AND TARGET Qt${QT_VERSION_MAJOR}::Widgets
+       AND TARGET npp_scintilla
+       AND TARGET npp_platform_linux)
+        if(QT_VERSION_MAJOR EQUAL 6)
+            find_package(Qt6 QUIET COMPONENTS Core5Compat)
+        endif()
+
+        add_library(npp_scintilla_qt STATIC
+            scintilla/qt/ScintillaEditBase/PlatQt.cpp
+            scintilla/qt/ScintillaEditBase/ScintillaQt.cpp
+            scintilla/qt/ScintillaEditBase/ScintillaQt.h
+            scintilla/qt/ScintillaEditBase/ScintillaEditBase.cpp
+            scintilla/qt/ScintillaEditBase/ScintillaEditBase.h
+        )
+        add_library(npp::scintilla_qt ALIAS npp_scintilla_qt)
+
+        set_target_properties(npp_scintilla_qt PROPERTIES
+            AUTOMOC ON
+            AUTOUIC OFF
+            AUTORCC OFF
+        )
+
+        target_compile_definitions(npp_scintilla_qt
+            PRIVATE
+                SCINTILLA_QT=1
+                MAKING_LIBRARY=1
+        )
+
+        target_include_directories(npp_scintilla_qt
+            PUBLIC
+                "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/qt/ScintillaEditBase"
+            PRIVATE
+                "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
+        )
+
+        target_link_libraries(npp_scintilla_qt
+            PUBLIC
+                npp_scintilla
+                Qt${QT_VERSION_MAJOR}::Core
+                Qt${QT_VERSION_MAJOR}::Gui
+                Qt${QT_VERSION_MAJOR}::Widgets
+        )
+
+        if(TARGET Qt6::Core5Compat)
+            target_link_libraries(npp_scintilla_qt PRIVATE Qt6::Core5Compat)
+        endif()
+
+        add_executable(npp_linux_shell
+            ui/qt/main.cpp
+            ui/qt/MainWindow.cpp
+            ui/qt/MainWindow.h
+        )
+        add_executable(npp::linux_shell ALIAS npp_linux_shell)
+
+        set_target_properties(npp_linux_shell PROPERTIES
+            AUTOMOC ON
+            AUTOUIC OFF
+            AUTORCC OFF
+        )
+
+        target_include_directories(npp_linux_shell
+            PRIVATE
+                "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
+                "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
+                "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/qt/ScintillaEditBase"
+                "${CMAKE_CURRENT_SOURCE_DIR}/ui/qt"
+        )
+
+        target_link_libraries(npp_linux_shell
+            PRIVATE
+                npp::platform_linux
+                npp::scintilla_qt
+                Qt${QT_VERSION_MAJOR}::Core
+                Qt${QT_VERSION_MAJOR}::Gui
+                Qt${QT_VERSION_MAJOR}::Widgets
+        )
+    else()
+        message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")
+    endif()
 endif()
 
 include(CTest)

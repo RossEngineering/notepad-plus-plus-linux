@@ -37,7 +37,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 ## Phase 4: Linux-native UI
 
 - [x] Select initial UI backend (Qt recommended for first stable path).
-- [ ] Create Linux application shell (main window, tabs, menus, status bar).
+- [x] Create Linux application shell (main window, tabs, menus, status bar).
 - [ ] Integrate Scintilla widget for Linux frontend.
 - [ ] Port essential dialogs (find/replace, preferences, go to line).
 - [ ] Implement keyboard shortcuts with Linux-friendly defaults and override support.
