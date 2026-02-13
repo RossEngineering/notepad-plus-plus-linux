@@ -27,6 +27,30 @@ jobs:
       - name: Test
         run: ctest --preset ${{ matrix.preset }}
 
+  performance-budget-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (release)
+        run: cmake --preset release
+
+      - name: Build benchmark target
+        run: cmake --build --preset release --target startup_typing_benchmark -- -j2
+
+      - name: Enforce startup/typing performance budgets
+        env:
+          NPP_STARTUP_MEAN_MAX_US: "200.0"
+          NPP_STARTUP_P95_MAX_US: "300.0"
+          NPP_TYPING_MEAN_MAX_US: "5.0"
+          NPP_TYPING_P95_MAX_US: "10.0"
+        run: >
+          ./scripts/check_startup_typing_budget.sh
+          ./build/release/bin/startup_typing_benchmark
+          --quick
+
   sanitizer-checks:
     runs-on: ubuntu-latest
     env:

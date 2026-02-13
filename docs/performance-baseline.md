@@ -35,3 +35,17 @@ Results:
 - Startup benchmark measures creation of core `Document` state, insertion of seed text, and one `cpp` lexing pass.
 - Typing benchmark measures repeated single-character appends on an initialized document.
 - Keep comparison runs on the same machine profile when possible.
+
+## CI budget gate (RC2+)
+
+Linux CI enforces release benchmark thresholds via:
+
+- Workflow job: `performance-budget-check` in `.github/workflows/linux-cmake.yml`
+- Script: `scripts/check_startup_typing_budget.sh`
+
+Current default thresholds:
+
+- `startup_mean_us <= 200.0`
+- `startup_p95_us <= 300.0`
+- `typing_mean_us <= 5.0`
+- `typing_p95_us <= 10.0`
