@@ -7,7 +7,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 - [x] Complete Phase 9 and cut `v0.8.0-beta.1`.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
-- [ ] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
+- [x] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
 
 ## Phase 9: Automatic language detection and highlighting
 
@@ -28,9 +28,9 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 ## Beta 2 release gate
 
 - [x] Freeze Beta 2 scope to Phase 10-12 deliverables.
-- [ ] Run full Linux CI + sanitizer lane green for Beta 2 candidate tag.
-- [ ] Validate release artifacts and checksums for Beta 2.
-- [ ] Publish `v0.9.0-beta.2` notes and milestone summary.
+- [x] Run full Linux CI + sanitizer lane green for Beta 2 candidate tag.
+- [x] Validate release artifacts and checksums for Beta 2.
+- [x] Publish `v0.9.0-beta.2` notes and milestone summary.
 
 ## Beta 2 scope: Phase 10 UI skinning support
 
