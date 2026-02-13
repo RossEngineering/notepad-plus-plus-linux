@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "LanguageDetection.h"
 #include "LexerStyleConfig.h"
+#include "LspBaselineFeatures.h"
 
 #include <algorithm>
 #include <cctype>
@@ -87,6 +88,11 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
         {"language.autoDetect", QKeySequence(QStringLiteral("Ctrl+Alt+L"))},
         {"language.lockCurrent", QKeySequence(QStringLiteral("Ctrl+Alt+Shift+L"))},
+        {"language.lsp.start", QKeySequence(QStringLiteral("Ctrl+Alt+Enter"))},
+        {"language.lsp.stop", QKeySequence(QStringLiteral("Ctrl+Alt+Backspace"))},
+        {"language.lsp.hover", QKeySequence(QStringLiteral("Ctrl+K"))},
+        {"language.lsp.gotoDefinition", QKeySequence(QStringLiteral("F12"))},
+        {"language.lsp.diagnostics", QKeySequence(QStringLiteral("Alt+F8"))},
         {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
@@ -296,13 +302,29 @@ int BlendThemeColor(int firstBgr, int secondBgr, double secondWeight) {
     return mixedBlue << 16 | mixedGreen << 8 | mixedRed;
 }
 
+std::vector<npp::platform::LspServerConfig> DefaultLspServerConfigs() {
+    using npp::platform::LspServerConfig;
+    return {
+        LspServerConfig{"cpp", "clangd", {"--background-index"}, {}},
+        LspServerConfig{"python", "pylsp", {}, {}},
+        LspServerConfig{"bash", "bash-language-server", {"start"}, {}},
+        LspServerConfig{"yaml", "yaml-language-server", {"--stdio"}, {}},
+        LspServerConfig{"markdown", "marksman", {"server"}, {}},
+        LspServerConfig{"sql", "sqls", {}, {}},
+        LspServerConfig{"json", "vscode-json-language-server", {"--stdio"}, {}},
+        LspServerConfig{"html", "vscode-html-language-server", {"--stdio"}, {}},
+    };
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       _diagnosticsService(_pathService, _fileSystemService),
-      _extensionService(&_pathService, &_fileSystemService, kAppName) {
+      _extensionService(&_pathService, &_fileSystemService, kAppName),
+      _lspService(&_processService) {
     BuildUi();
+    InitializeLspServers();
     LoadEditorSettings();
     StartCrashRecoveryTimer();
     InitializeExtensionsWithGuardrails();
@@ -366,6 +388,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     }
     SaveSession();
     ClearCrashRecoveryJournal();
+    _lspService.StopAllSessions();
+    _lspSessionByEditor.clear();
     _closingApplication = false;
     event->accept();
 }
@@ -420,6 +444,12 @@ void MainWindow::BuildMenus() {
     languageMenu->addAction(_actionsById.at("language.set.bash"));
     languageMenu->addAction(_actionsById.at("language.set.yaml"));
     languageMenu->addAction(_actionsById.at("language.set.sql"));
+    languageMenu->addSeparator();
+    languageMenu->addAction(_actionsById.at("language.lsp.start"));
+    languageMenu->addAction(_actionsById.at("language.lsp.stop"));
+    languageMenu->addAction(_actionsById.at("language.lsp.hover"));
+    languageMenu->addAction(_actionsById.at("language.lsp.gotoDefinition"));
+    languageMenu->addAction(_actionsById.at("language.lsp.diagnostics"));
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     QMenu *skinsMenu = viewMenu->addMenu(tr("Skins"));
@@ -483,6 +513,11 @@ void MainWindow::BuildActions() {
     registerAction("language.set.bash", tr("Bash/Shell"), [this]() { SetCurrentEditorManualLexer("bash"); });
     registerAction("language.set.yaml", tr("YAML"), [this]() { SetCurrentEditorManualLexer("yaml"); });
     registerAction("language.set.sql", tr("SQL"), [this]() { SetCurrentEditorManualLexer("sql"); });
+    registerAction("language.lsp.start", tr("Start Language Server"), [this]() { OnLspStartSession(); });
+    registerAction("language.lsp.stop", tr("Stop Language Server"), [this]() { OnLspStopSession(); });
+    registerAction("language.lsp.hover", tr("Hover (Baseline)"), [this]() { OnLspShowHover(); });
+    registerAction("language.lsp.gotoDefinition", tr("Go To Definition (Baseline)"), [this]() { OnLspGoToDefinition(); });
+    registerAction("language.lsp.diagnostics", tr("Diagnostics (Baseline)"), [this]() { OnLspShowDiagnostics(); });
     _actionsById.at("language.set.plain")->setCheckable(true);
     _actionsById.at("language.set.markdown")->setCheckable(true);
     _actionsById.at("language.set.html")->setCheckable(true);
@@ -748,6 +783,7 @@ bool MainWindow::CloseTabAt(int index) {
         }
     }
 
+    StopLspSessionForEditor(editor);
     _tabs->removeTab(index);
     _editorStates.erase(editor);
     editor->deleteLater();
@@ -1310,6 +1346,24 @@ void MainWindow::OpenExternalLink(const QString &url, const QString &label) {
         tr("Unable to open link:\n%1").arg(url));
 }
 
+void MainWindow::InitializeLspServers() {
+    for (const auto& config : DefaultLspServerConfigs()) {
+        _lspService.RegisterServer(config);
+    }
+}
+
+void MainWindow::StopLspSessionForEditor(ScintillaEditBase *editor) {
+    if (!editor) {
+        return;
+    }
+    const auto sessionIt = _lspSessionByEditor.find(editor);
+    if (sessionIt == _lspSessionByEditor.end()) {
+        return;
+    }
+    _lspService.StopSession(sessionIt->second);
+    _lspSessionByEditor.erase(sessionIt);
+}
+
 void MainWindow::OnInstallExtensionFromDirectory() {
     const QString sourceDir = QFileDialog::getExistingDirectory(
         this,
@@ -1443,6 +1497,166 @@ void MainWindow::OnToggleLexerLock() {
     UpdateLanguageActionState();
 }
 
+void MainWindow::OnLspStartSession() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+
+    const std::string lexerName = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    const std::string languageId = npp::ui::MapLexerToLspLanguageId(lexerName);
+    if (languageId.empty()) {
+        QMessageBox::information(
+            this,
+            tr("Language Server"),
+            tr("No LSP baseline mapping is available for lexer: %1").arg(ToQString(lexerName)));
+        return;
+    }
+
+    const auto activeSessionIt = _lspSessionByEditor.find(editor);
+    if (activeSessionIt != _lspSessionByEditor.end() &&
+        _lspService.IsSessionActive(activeSessionIt->second)) {
+        statusBar()->showMessage(tr("Language server is already active"), 2000);
+        return;
+    }
+
+    npp::platform::LspSessionSpec spec;
+    spec.languageId = languageId;
+    spec.documentPathUtf8 = stateIt->second.filePathUtf8;
+    if (!stateIt->second.filePathUtf8.empty()) {
+        spec.workspacePathUtf8 = std::filesystem::path(stateIt->second.filePathUtf8).parent_path().string();
+    } else {
+        spec.workspacePathUtf8 = QDir::currentPath().toStdString();
+    }
+
+    auto sessionOr = _lspService.StartSession(spec);
+    if (!sessionOr.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Language Server"),
+            tr("Failed to start language server for %1:\n%2")
+                .arg(ToQString(languageId))
+                .arg(ToQString(sessionOr.status.message)));
+        return;
+    }
+
+    _lspSessionByEditor.insert_or_assign(editor, *sessionOr.value);
+    statusBar()->showMessage(
+        tr("Language server started for %1").arg(ToQString(languageId)),
+        2500);
+}
+
+void MainWindow::OnLspStopSession() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const auto sessionIt = _lspSessionByEditor.find(editor);
+    if (sessionIt == _lspSessionByEditor.end()) {
+        statusBar()->showMessage(tr("No active language server session"), 2000);
+        return;
+    }
+
+    const npp::platform::Status stopStatus = _lspService.StopSession(sessionIt->second);
+    _lspSessionByEditor.erase(sessionIt);
+    if (!stopStatus.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Language Server"),
+            tr("Failed to stop language server:\n%1").arg(ToQString(stopStatus.message)));
+        return;
+    }
+
+    statusBar()->showMessage(tr("Language server stopped"), 2000);
+}
+
+void MainWindow::OnLspShowHover() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const std::string textUtf8 = GetEditorText(editor);
+    const std::size_t caretPos = static_cast<std::size_t>(editor->send(SCI_GETCURRENTPOS));
+    const std::string symbol = npp::ui::ExtractWordAt(textUtf8, caretPos);
+    if (symbol.empty()) {
+        QMessageBox::information(this, tr("Hover"), tr("No symbol under cursor."));
+        return;
+    }
+
+    const auto sessionIt = _lspSessionByEditor.find(editor);
+    const bool sessionActive = sessionIt != _lspSessionByEditor.end() &&
+        _lspService.IsSessionActive(sessionIt->second);
+
+    QMessageBox::information(
+        this,
+        tr("Hover (Baseline)"),
+        tr("Symbol: %1\nLSP session active: %2\n\nBaseline hover is available now; "
+           "full protocol hover details are planned in later RC work.")
+            .arg(ToQString(symbol))
+            .arg(sessionActive ? tr("yes") : tr("no")));
+}
+
+void MainWindow::OnLspGoToDefinition() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const std::string textUtf8 = GetEditorText(editor);
+    const std::size_t caretPos = static_cast<std::size_t>(editor->send(SCI_GETCURRENTPOS));
+    const std::string symbol = npp::ui::ExtractWordAt(textUtf8, caretPos);
+    if (symbol.empty()) {
+        QMessageBox::information(this, tr("Go To Definition"), tr("No symbol under cursor."));
+        return;
+    }
+
+    const int line = npp::ui::FindBaselineDefinitionLine(textUtf8, symbol);
+    if (line < 0) {
+        QMessageBox::information(
+            this,
+            tr("Go To Definition"),
+            tr("Baseline definition lookup did not find '%1' in this file.").arg(ToQString(symbol)));
+        return;
+    }
+
+    editor->send(SCI_GOTOLINE, static_cast<uptr_t>(line));
+    editor->send(SCI_SCROLLCARET);
+    UpdateCursorStatus();
+    statusBar()->showMessage(
+        tr("Moved to baseline definition for %1").arg(ToQString(symbol)),
+        2000);
+}
+
+void MainWindow::OnLspShowDiagnostics() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const auto diagnostics = npp::ui::CollectBaselineDiagnostics(GetEditorText(editor));
+    if (diagnostics.empty()) {
+        QMessageBox::information(this, tr("Diagnostics"), tr("No baseline diagnostics."));
+        return;
+    }
+
+    std::ostringstream output;
+    for (const auto& diag : diagnostics) {
+        output << "line " << diag.line << ": " << diag.message << "\n";
+    }
+
+    QMessageBox::information(
+        this,
+        tr("Diagnostics (Baseline)"),
+        ToQString(output.str()));
+}
+
 void MainWindow::SetCurrentEditorManualLexer(const std::string &lexerName) {
     ScintillaEditBase *editor = CurrentEditor();
     if (!editor) {
@@ -1479,9 +1693,24 @@ void MainWindow::UpdateLanguageActionState() {
         "language.set.yaml",
         "language.set.sql",
     };
+    const std::vector<std::string> lspActionIds = {
+        "language.lsp.start",
+        "language.lsp.stop",
+        "language.lsp.hover",
+        "language.lsp.gotoDefinition",
+        "language.lsp.diagnostics",
+    };
 
     const auto setLanguageActionsEnabled = [this, &languageActionIds](bool enabled) {
         for (const std::string &id : languageActionIds) {
+            const auto it = _actionsById.find(id);
+            if (it != _actionsById.end() && it->second) {
+                it->second->setEnabled(enabled);
+            }
+        }
+    };
+    const auto setLspActionsEnabled = [this, &lspActionIds](bool enabled) {
+        for (const std::string &id : lspActionIds) {
             const auto it = _actionsById.find(id);
             if (it != _actionsById.end() && it->second) {
                 it->second->setEnabled(enabled);
@@ -1505,6 +1734,7 @@ void MainWindow::UpdateLanguageActionState() {
         lockIt->second->setEnabled(false);
         clearLanguageChecks();
         setLanguageActionsEnabled(false);
+        setLspActionsEnabled(false);
         return;
     }
     const auto stateIt = _editorStates.find(editor);
@@ -1513,6 +1743,7 @@ void MainWindow::UpdateLanguageActionState() {
         lockIt->second->setEnabled(false);
         clearLanguageChecks();
         setLanguageActionsEnabled(false);
+        setLspActionsEnabled(false);
         return;
     }
 
@@ -1522,6 +1753,7 @@ void MainWindow::UpdateLanguageActionState() {
     clearLanguageChecks();
 
     const std::string activeLexer = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    setLspActionsEnabled(!npp::ui::MapLexerToLspLanguageId(activeLexer).empty());
     const std::string activeActionId = LanguageActionIdForLexer(activeLexer);
     const auto activeIt = _actionsById.find(activeActionId);
     if (activeIt != _actionsById.end() && activeIt->second) {

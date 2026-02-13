@@ -196,6 +196,8 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
             ui/qt/main.cpp
             ui/qt/MainWindow.cpp
             ui/qt/MainWindow.h
+            ui/qt/LspBaselineFeatures.cpp
+            ui/qt/LspBaselineFeatures.h
         )
         add_executable(npp::linux_shell ALIAS npp_linux_shell)
 
@@ -287,6 +289,15 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/lexilla/include"
     )
     add_test(NAME lexer_style_config_regression_test COMMAND lexer_style_config_regression_test)
+
+    add_executable(
+        lsp_baseline_ux_regression_test
+        tests/regression/lsp_baseline_ux_regression_test.cpp
+        ui/qt/LspBaselineFeatures.cpp)
+    target_include_directories(lsp_baseline_ux_regression_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ui/qt"
+    )
+    add_test(NAME lsp_baseline_ux_regression_test COMMAND lsp_baseline_ux_regression_test)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_lexilla)

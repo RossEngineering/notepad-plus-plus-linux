@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "LinuxDiagnosticsService.h"
 #include "LinuxExtensionService.h"
 #include "LinuxFileSystemService.h"
+#include "LinuxLspClientService.h"
 #include "LinuxPathService.h"
 #include "LinuxProcessService.h"
 
@@ -127,6 +129,11 @@ private:
 	void OnManageExtensions();
 	void OnAutoDetectLanguage();
 	void OnToggleLexerLock();
+	void OnLspStartSession();
+	void OnLspStopSession();
+	void OnLspShowHover();
+	void OnLspGoToDefinition();
+	void OnLspShowDiagnostics();
 	void OnSetSkin(const std::string &skinId);
 	void SetCurrentEditorManualLexer(const std::string &lexerName);
 	void UpdateLanguageActionState();
@@ -181,6 +188,8 @@ private:
 	void ReloadShortcuts();
 	void OpenShortcutConfigFile();
 	void OpenExternalLink(const QString &url, const QString &label);
+	void InitializeLspServers();
+	void StopLspSessionForEditor(ScintillaEditBase *editor);
 	void InitializeExtensionsWithGuardrails();
 	void StartCrashRecoveryTimer();
 	void SaveCrashRecoveryJournal() const;
@@ -208,6 +217,7 @@ private:
 	QLabel *_cursorStatusLabel = nullptr;
 
 	std::map<ScintillaEditBase *, EditorState> _editorStates;
+	std::map<ScintillaEditBase *, std::uint64_t> _lspSessionByEditor;
 	std::map<std::string, QAction *> _actionsById;
 	EditorSettings _editorSettings;
 	ThemeSettings _themeSettings;
@@ -224,4 +234,5 @@ private:
 	npp::platform::LinuxProcessService _processService;
 	npp::platform::LinuxDiagnosticsService _diagnosticsService;
 	npp::platform::LinuxExtensionService _extensionService;
+	npp::platform::LinuxLspClientService _lspService;
 };

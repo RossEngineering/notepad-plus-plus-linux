@@ -78,4 +78,4 @@ jobs:
       - name: Test (ASan/UBSan + LSan)
         run: >
           ctest --test-dir build-asan --output-on-failure
-          -R "lexilla_smoke_test|syntax_highlighting_smoke_test|scintilla_document_smoke_test|core_text_undo_redo_test|encoding_large_file_regression_test|platform_linux_services_smoke_test|skin_accessibility_regression_test|lexer_style_config_regression_test|extension_lifecycle_smoke_test|vscode_language_asset_compatibility_test"
+          -R "lexilla_smoke_test|syntax_highlighting_smoke_test|scintilla_document_smoke_test|core_text_undo_redo_test|encoding_large_file_regression_test|platform_linux_services_smoke_test|skin_accessibility_regression_test|lexer_style_config_regression_test|lsp_baseline_ux_regression_test|extension_lifecycle_smoke_test|vscode_language_asset_compatibility_test"
