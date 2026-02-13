@@ -38,7 +38,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 
 - [x] Select initial UI backend (Qt recommended for first stable path).
 - [x] Create Linux application shell (main window, tabs, menus, status bar).
-- [ ] Integrate Scintilla widget for Linux frontend.
+- [x] Integrate Scintilla widget for Linux frontend.
 - [ ] Port essential dialogs (find/replace, preferences, go to line).
 - [ ] Implement keyboard shortcuts with Linux-friendly defaults and override support.
 

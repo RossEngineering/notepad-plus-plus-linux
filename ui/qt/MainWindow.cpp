@@ -26,6 +26,13 @@ QString FileNameFromPath(const std::string &pathUtf8) {
     return QString::fromStdString(std::filesystem::path(pathUtf8).filename().string());
 }
 
+sptr_t LineNumberMarginWidth(ScintillaEditBase *editor) {
+    return editor->send(
+        SCI_TEXTWIDTH,
+        STYLE_LINENUMBER,
+        reinterpret_cast<sptr_t>("_99999"));
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
@@ -125,6 +132,17 @@ ScintillaEditBase *MainWindow::CreateEditor() {
     auto *editor = new ScintillaEditBase(this);
 
     editor->send(SCI_SETCODEPAGE, SC_CP_UTF8);
+    editor->send(SCI_SETUNDOCOLLECTION, 1);
+    editor->sends(SCI_STYLESETFONT, STYLE_DEFAULT, "Noto Sans Mono");
+    editor->send(SCI_STYLESETSIZE, STYLE_DEFAULT, 11);
+    editor->send(SCI_STYLECLEARALL);
+    editor->send(SCI_SETCARETLINEVISIBLE, 1);
+    editor->send(SCI_SETCARETLINEBACK, 0xF6F6F6);
+    editor->send(SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER);
+    editor->send(SCI_SETMARGINWIDTHN, 0, LineNumberMarginWidth(editor));
+    editor->send(SCI_SETWRAPMODE, SC_WRAP_NONE);
+    editor->send(SCI_SETTABWIDTH, 4);
+    editor->send(SCI_GRABFOCUS);
 
     connect(editor, &ScintillaEditBase::notifyChange, this, [this, editor]() {
         auto it = _editorStates.find(editor);
@@ -135,9 +153,20 @@ ScintillaEditBase *MainWindow::CreateEditor() {
         UpdateTabTitle(editor);
     });
 
+    connect(editor, &ScintillaEditBase::savePointChanged, this, [this, editor](bool dirty) {
+        auto it = _editorStates.find(editor);
+        if (it == _editorStates.end()) {
+            return;
+        }
+        it->second.dirty = dirty;
+        UpdateTabTitle(editor);
+    });
+
     connect(editor, &ScintillaEditBase::updateUi, this, [this](Scintilla::Update) {
         UpdateCursorStatus();
     });
+
+    ApplyEditorSettings(editor);
 
     return editor;
 }
@@ -431,9 +460,23 @@ void MainWindow::LoadEditorSettings() {}
 
 void MainWindow::SaveEditorSettings() const {}
 
-void MainWindow::ApplyEditorSettingsToAllEditors() {}
+void MainWindow::ApplyEditorSettingsToAllEditors() {
+    if (!_tabs) {
+        return;
+    }
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ApplyEditorSettings(EditorAt(index));
+    }
+}
 
-void MainWindow::ApplyEditorSettings(ScintillaEditBase *) {}
+void MainWindow::ApplyEditorSettings(ScintillaEditBase *editor) {
+    if (!editor) {
+        return;
+    }
+    editor->send(SCI_SETTABWIDTH, _editorSettings.tabWidth);
+    editor->send(SCI_SETWRAPMODE, _editorSettings.wrapEnabled ? SC_WRAP_WORD : SC_WRAP_NONE);
+    editor->send(SCI_SETMARGINWIDTHN, 0, _editorSettings.showLineNumbers ? LineNumberMarginWidth(editor) : 0);
+}
 
 void MainWindow::EnsureConfigRoot() {}
 
