@@ -16,8 +16,8 @@ This list tracks prioritized blockers that must be resolved or explicitly waived
 | RC1-B01 | P0 | Extension permissions UX | Beta feedback + RC1 plan | Closed | Deny/allow flows are explicit, reversible, and tested (filesystem/network/process prompts). |
 | RC1-B02 | P0 | Syntax color consistency | Beta feedback + RC1 plan | Closed | Color-coded syntax output is consistent across targeted lexers/themes and validated by regression checks. |
 | RC1-B03 | P0 | Cross-distro baseline | Beta feedback + RC1 plan | Closed | Arch derivatives, Ubuntu LTS, and Fedora stable each have captured build/test/launch evidence with no unresolved P0 defects. |
-| RC1-B04 | P1 | LSP baseline confidence | Known limitation in Beta 2 notes | Open | LSP baseline paths remain stable (no regressions) and RC1 scope limits are documented. |
-| RC1-B05 | P1 | Crash/correctness burn-down | RC1 stabilization goal | Open | All open beta-era P0/P1 crash/correctness issues are fixed or have approved defer rationale. |
+| RC1-B04 | P1 | LSP baseline confidence | Known limitation in Beta 2 notes | Deferred (RC2) | LSP baseline paths remain stable (no regressions) and RC1 scope limits are documented. |
+| RC1-B05 | P1 | Crash/correctness burn-down | RC1 stabilization goal | Closed | All open beta-era P0/P1 crash/correctness issues are fixed or have approved defer rationale. |
 
 ## Intake process
 
@@ -43,6 +43,23 @@ This list tracks prioritized blockers that must be resolved or explicitly waived
    - Ubuntu lane (`ubuntu:24.04` Docker): debug/release build + `ctest` (`12/12` each) + install + offscreen launch smoke.
    - Fedora lane (`fedora:latest` Docker): debug/release build + `ctest` (`12/12` each) + install + offscreen launch smoke.
    - Evidence captured in `docs/distro-validation-report-rc1-2026-02-13.md`.
+4. `RC1-B05` (closed):
+   - Beta-era P0/P1 correctness and stability fixes from RC1 have landed (`RC1-B01` to `RC1-B03`).
+   - Current candidate validation:
+     - `ctest --preset debug --output-on-failure` (`12/12`)
+     - `ctest --preset release --output-on-failure` (`12/12`)
+     - ASan/UBSan subset suite (`10/10`) with local `detect_leaks=0` due sandbox ptrace limitation.
+     - `./scripts/check_win32_boundaries.sh HEAD~1` pass.
+   - Release artifact build/checksum validation completed for `v0.9.3-rc.1`.
+
+## Deferred blocker rationale
+
+1. `RC1-B04` (deferred to RC2):
+   - Baseline LSP path remains stable:
+     - `tests/platform/lsp_client_foundation_smoke_test.cpp` passes in debug/release.
+     - Included in local ASan/UBSan subset lane for RC1 candidate.
+   - RC1 scope intentionally limits LSP to baseline confidence and regression stability.
+   - Deeper user-facing LSP wiring (diagnostics/hover/go-to-definition UX completeness) remains explicitly planned for RC2 in `TODO.md` and `docs/roadmap.md`.
 
 ## RC1 readiness rule
 

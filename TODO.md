@@ -18,7 +18,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### RC1 program (`v0.9.1` to `v0.9.3-rc.1`)
 
-- [ ] Close top P0/P1 correctness and crash issues discovered during beta usage.
+- [x] Close top P0/P1 correctness and crash issues discovered during beta usage.
 - [x] Ship end-to-end color-coded syntax style consistency across supported lexers.
 - [x] Complete first-pass distro matrix validation (Arch derivatives, Ubuntu LTS, Fedora stable).
 - [x] Harden extension permissions UX and denial-path behavior.
