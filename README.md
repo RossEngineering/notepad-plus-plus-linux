@@ -19,6 +19,7 @@ Planned state:
 - Linux-first build, packaging, and release process.
 
 See [`TODO.md`](TODO.md) for the migration roadmap and active work items.
+Plugin direction for Linux is documented in [`docs/plugin-strategy.md`](docs/plugin-strategy.md).
 
 ## Goals
 

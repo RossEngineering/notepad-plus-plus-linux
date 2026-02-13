@@ -49,7 +49,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Search/replace (document and multi-file basic mode).
 - [x] Syntax highlighting and theme loading.
 - [x] External tools / run command support.
-- [ ] Plugin story decision: compatibility shim or new Linux plugin API.
+- [x] Plugin story decision: compatibility shim or new Linux plugin API.
 
 ## Phase 6: Packaging and distribution (Manjaro first)
 
