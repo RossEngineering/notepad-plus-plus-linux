@@ -47,6 +47,7 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
     static const std::map<std::string, QKeySequence> kShortcuts = {
         {"file.new", QKeySequence(QStringLiteral("Ctrl+N"))},
         {"file.open", QKeySequence(QStringLiteral("Ctrl+O"))},
+        {"file.reload", QKeySequence(QStringLiteral("Ctrl+Shift+R"))},
         {"file.save", QKeySequence(QStringLiteral("Ctrl+S"))},
         {"file.saveAs", QKeySequence(QStringLiteral("Ctrl+Shift+S"))},
         {"tab.close", QKeySequence(QStringLiteral("Ctrl+W"))},
@@ -59,6 +60,63 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
     };
     return kShortcuts;
+}
+
+bool IsValidUtf8(std::string_view bytes) {
+    size_t index = 0;
+    while (index < bytes.size()) {
+        const unsigned char lead = static_cast<unsigned char>(bytes[index]);
+        if ((lead & 0x80U) == 0U) {
+            ++index;
+            continue;
+        }
+
+        int continuationCount = 0;
+        if ((lead & 0xE0U) == 0xC0U) {
+            continuationCount = 1;
+            if (lead < 0xC2U) {
+                return false;
+            }
+        } else if ((lead & 0xF0U) == 0xE0U) {
+            continuationCount = 2;
+        } else if ((lead & 0xF8U) == 0xF0U) {
+            continuationCount = 3;
+            if (lead > 0xF4U) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        if (index + static_cast<size_t>(continuationCount) >= bytes.size()) {
+            return false;
+        }
+
+        for (int offset = 1; offset <= continuationCount; ++offset) {
+            const unsigned char tail = static_cast<unsigned char>(bytes[index + static_cast<size_t>(offset)]);
+            if ((tail & 0xC0U) != 0x80U) {
+                return false;
+            }
+        }
+
+        index += static_cast<size_t>(continuationCount) + 1U;
+    }
+    return true;
+}
+
+QString DecodeUtf16(const std::string &bytes, bool littleEndian) {
+    const size_t pairCount = bytes.size() / 2U;
+    std::u16string codeUnits;
+    codeUnits.reserve(pairCount);
+    for (size_t i = 0; i + 1U < bytes.size(); i += 2U) {
+        const unsigned char b0 = static_cast<unsigned char>(bytes[i]);
+        const unsigned char b1 = static_cast<unsigned char>(bytes[i + 1U]);
+        const char16_t value = littleEndian
+            ? static_cast<char16_t>(b0 | (static_cast<char16_t>(b1) << 8))
+            : static_cast<char16_t>((static_cast<char16_t>(b0) << 8) | b1);
+        codeUnits.push_back(value);
+    }
+    return QString::fromUtf16(codeUnits.data(), static_cast<int>(codeUnits.size()));
 }
 
 }  // namespace
@@ -87,6 +145,7 @@ void MainWindow::BuildMenus() {
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(_actionsById.at("file.new"));
     fileMenu->addAction(_actionsById.at("file.open"));
+    fileMenu->addAction(_actionsById.at("file.reload"));
     fileMenu->addSeparator();
     fileMenu->addAction(_actionsById.at("file.save"));
     fileMenu->addAction(_actionsById.at("file.saveAs"));
@@ -122,6 +181,7 @@ void MainWindow::BuildActions() {
 
     registerAction("file.new", tr("New Tab"), [this]() { NewTab(); });
     registerAction("file.open", tr("Open..."), [this]() { OpenFile(); });
+    registerAction("file.reload", tr("Reload"), [this]() { ReloadCurrentFile(); });
     registerAction("file.save", tr("Save"), [this]() { SaveCurrentFile(); });
     registerAction("file.saveAs", tr("Save As..."), [this]() { SaveCurrentFileAs(); });
     registerAction("tab.close", tr("Close Tab"), [this]() { CloseTab(); });
@@ -247,6 +307,35 @@ void MainWindow::OpenFile() {
 
     if (LoadFileIntoEditor(editor, ToUtf8(chosen))) {
         statusBar()->showMessage(tr("Opened %1").arg(chosen), 2000);
+    }
+}
+
+void MainWindow::ReloadCurrentFile() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end() || stateIt->second.filePathUtf8.empty()) {
+        QMessageBox::information(this, tr("Reload"), tr("Current tab has no file on disk."));
+        return;
+    }
+
+    if (stateIt->second.dirty) {
+        const auto choice = QMessageBox::question(
+            this,
+            tr("Reload"),
+            tr("Discard unsaved changes and reload from disk?"),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No);
+        if (choice != QMessageBox::Yes) {
+            return;
+        }
+    }
+
+    if (LoadFileIntoEditor(editor, stateIt->second.filePathUtf8)) {
+        statusBar()->showMessage(tr("Reloaded %1").arg(ToQString(stateIt->second.filePathUtf8)), 2000);
     }
 }
 
@@ -661,6 +750,44 @@ void MainWindow::SetEditorText(ScintillaEditBase *editor, const std::string &tex
     editor->sends(SCI_SETTEXT, 0, textUtf8.c_str());
 }
 
+void MainWindow::SetEditorEolMode(ScintillaEditBase *editor, int eolMode) {
+    if (!editor) {
+        return;
+    }
+    editor->send(SCI_SETEOLMODE, static_cast<uptr_t>(eolMode));
+    editor->send(SCI_CONVERTEOLS, static_cast<uptr_t>(eolMode));
+}
+
+int MainWindow::DetectDominantEolMode(const std::string &textUtf8) const {
+    size_t crlfCount = 0;
+    size_t lfCount = 0;
+    size_t crCount = 0;
+
+    for (size_t i = 0; i < textUtf8.size(); ++i) {
+        if (textUtf8[i] == '\r') {
+            if (i + 1 < textUtf8.size() && textUtf8[i + 1] == '\n') {
+                ++crlfCount;
+                ++i;
+            } else {
+                ++crCount;
+            }
+        } else if (textUtf8[i] == '\n') {
+            ++lfCount;
+        }
+    }
+
+    if (crlfCount >= lfCount && crlfCount >= crCount && crlfCount > 0) {
+        return SC_EOL_CRLF;
+    }
+    if (lfCount >= crCount && lfCount > 0) {
+        return SC_EOL_LF;
+    }
+    if (crCount > 0) {
+        return SC_EOL_CR;
+    }
+    return SC_EOL_LF;
+}
+
 bool MainWindow::LoadFileIntoEditor(ScintillaEditBase *editor, const std::string &pathUtf8) {
     const auto read = _fileSystemService.ReadTextFile(pathUtf8);
     if (!read.ok()) {
@@ -671,13 +798,32 @@ bool MainWindow::LoadFileIntoEditor(ScintillaEditBase *editor, const std::string
         return false;
     }
 
-    SetEditorText(editor, *read.value);
+    TextEncoding encoding = TextEncoding::kUtf8;
+    std::string utf8Text;
+    if (!DecodeTextForEditor(*read.value, &encoding, &utf8Text)) {
+        QMessageBox::critical(
+            this,
+            tr("Open Failed"),
+            tr("Unable to decode file with supported encodings."));
+        return false;
+    }
+
+    const int eolMode = DetectDominantEolMode(utf8Text);
+    SetEditorText(editor, utf8Text);
+    SetEditorEolMode(editor, eolMode);
     editor->send(SCI_SETSAVEPOINT);
 
     auto &state = _editorStates[editor];
     state.filePathUtf8 = pathUtf8;
     state.dirty = false;
+    state.encoding = encoding;
+    state.eolMode = eolMode;
     UpdateTabTitle(editor);
+    statusBar()->showMessage(
+        tr("Encoding: %1, EOL: %2")
+            .arg(EncodingLabel(encoding))
+            .arg(eolMode == SC_EOL_CRLF ? QStringLiteral("CRLF") : (eolMode == SC_EOL_CR ? QStringLiteral("CR") : QStringLiteral("LF"))),
+        2000);
     return true;
 }
 
@@ -686,8 +832,18 @@ bool MainWindow::SaveEditorToFile(ScintillaEditBase *editor, const std::string &
     options.atomic = true;
     options.createParentDirs = true;
 
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return false;
+    }
+    stateIt->second.eolMode = static_cast<int>(editor->send(SCI_GETEOLMODE));
+    const std::string bytes = EncodeForWrite(
+        GetEditorText(editor),
+        stateIt->second.encoding,
+        stateIt->second.eolMode);
+
     const npp::platform::Status writeStatus =
-        _fileSystemService.WriteTextFile(pathUtf8, GetEditorText(editor), options);
+        _fileSystemService.WriteTextFile(pathUtf8, bytes, options);
     if (!writeStatus.ok()) {
         QMessageBox::critical(
             this,
@@ -696,12 +852,125 @@ bool MainWindow::SaveEditorToFile(ScintillaEditBase *editor, const std::string &
         return false;
     }
 
-    auto &state = _editorStates[editor];
+    auto &state = stateIt->second;
     state.filePathUtf8 = pathUtf8;
     state.dirty = false;
     editor->send(SCI_SETSAVEPOINT);
     UpdateTabTitle(editor);
     return true;
+}
+
+bool MainWindow::DecodeTextForEditor(
+    const std::string &bytes,
+    TextEncoding *encoding,
+    std::string *utf8Text) const {
+    if (!encoding || !utf8Text) {
+        return false;
+    }
+
+    if (bytes.size() >= 3 &&
+        static_cast<unsigned char>(bytes[0]) == 0xEFU &&
+        static_cast<unsigned char>(bytes[1]) == 0xBBU &&
+        static_cast<unsigned char>(bytes[2]) == 0xBFU) {
+        *encoding = TextEncoding::kUtf8Bom;
+        *utf8Text = bytes.substr(3);
+        return true;
+    }
+
+    if (bytes.size() >= 2 &&
+        static_cast<unsigned char>(bytes[0]) == 0xFFU &&
+        static_cast<unsigned char>(bytes[1]) == 0xFEU) {
+        *encoding = TextEncoding::kUtf16Le;
+        const QString text = DecodeUtf16(bytes.substr(2), true);
+        *utf8Text = text.toUtf8().toStdString();
+        return true;
+    }
+
+    if (bytes.size() >= 2 &&
+        static_cast<unsigned char>(bytes[0]) == 0xFEU &&
+        static_cast<unsigned char>(bytes[1]) == 0xFFU) {
+        *encoding = TextEncoding::kUtf16Be;
+        const QString text = DecodeUtf16(bytes.substr(2), false);
+        *utf8Text = text.toUtf8().toStdString();
+        return true;
+    }
+
+    if (IsValidUtf8(bytes)) {
+        *encoding = TextEncoding::kUtf8;
+        *utf8Text = bytes;
+        return true;
+    }
+
+    *encoding = TextEncoding::kLocal8Bit;
+    *utf8Text = QString::fromLocal8Bit(bytes.c_str(), static_cast<int>(bytes.size()))
+                    .toUtf8()
+                    .toStdString();
+    return true;
+}
+
+std::string MainWindow::EncodeForWrite(
+    const std::string &utf8Text,
+    TextEncoding encoding,
+    int eolMode) const {
+    const std::string normalized = NormalizeEol(utf8Text, eolMode);
+    const QString text = QString::fromUtf8(normalized.c_str(), static_cast<int>(normalized.size()));
+
+    switch (encoding) {
+        case TextEncoding::kUtf8:
+            return normalized;
+        case TextEncoding::kUtf8Bom:
+            return std::string("\xEF\xBB\xBF") + normalized;
+        case TextEncoding::kUtf16Le: {
+            std::string out;
+            out.push_back(static_cast<char>(0xFF));
+            out.push_back(static_cast<char>(0xFE));
+            const char16_t *units = reinterpret_cast<const char16_t *>(text.utf16());
+            for (int i = 0; i < text.size(); ++i) {
+                const char16_t value = units[i];
+                out.push_back(static_cast<char>(value & 0xFF));
+                out.push_back(static_cast<char>((value >> 8) & 0xFF));
+            }
+            return out;
+        }
+        case TextEncoding::kUtf16Be: {
+            std::string out;
+            out.push_back(static_cast<char>(0xFE));
+            out.push_back(static_cast<char>(0xFF));
+            const char16_t *units = reinterpret_cast<const char16_t *>(text.utf16());
+            for (int i = 0; i < text.size(); ++i) {
+                const char16_t value = units[i];
+                out.push_back(static_cast<char>((value >> 8) & 0xFF));
+                out.push_back(static_cast<char>(value & 0xFF));
+            }
+            return out;
+        }
+        case TextEncoding::kLocal8Bit:
+            return text.toLocal8Bit().toStdString();
+    }
+    return normalized;
+}
+
+std::string MainWindow::NormalizeEol(const std::string &textUtf8, int eolMode) const {
+    const std::string eol = eolMode == SC_EOL_CRLF ? "\r\n" : (eolMode == SC_EOL_CR ? "\r" : "\n");
+    std::string normalized;
+    normalized.reserve(textUtf8.size() + 16);
+
+    for (size_t i = 0; i < textUtf8.size(); ++i) {
+        const char ch = textUtf8[i];
+        if (ch == '\r') {
+            if (i + 1 < textUtf8.size() && textUtf8[i + 1] == '\n') {
+                ++i;
+            }
+            normalized.append(eol);
+            continue;
+        }
+        if (ch == '\n') {
+            normalized.append(eol);
+            continue;
+        }
+        normalized.push_back(ch);
+    }
+    return normalized;
 }
 
 void MainWindow::LoadEditorSettings() {
@@ -882,6 +1151,22 @@ std::string MainWindow::SettingsFilePath() const {
 
 std::string MainWindow::ShortcutFilePath() const {
     return ConfigRootPath() + "/shortcuts-linux.json";
+}
+
+QString MainWindow::EncodingLabel(TextEncoding encoding) {
+    switch (encoding) {
+        case TextEncoding::kUtf8:
+            return QStringLiteral("UTF-8");
+        case TextEncoding::kUtf8Bom:
+            return QStringLiteral("UTF-8 with BOM");
+        case TextEncoding::kUtf16Le:
+            return QStringLiteral("UTF-16 LE");
+        case TextEncoding::kUtf16Be:
+            return QStringLiteral("UTF-16 BE");
+        case TextEncoding::kLocal8Bit:
+            return QStringLiteral("Local 8-bit");
+    }
+    return QStringLiteral("UTF-8");
 }
 
 std::string MainWindow::ToUtf8(const QString &value) {

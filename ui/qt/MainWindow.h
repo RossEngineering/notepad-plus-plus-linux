@@ -26,9 +26,19 @@ public:
 	~MainWindow() override = default;
 
 private:
+	enum class TextEncoding {
+		kUtf8 = 0,
+		kUtf8Bom,
+		kUtf16Le,
+		kUtf16Be,
+		kLocal8Bit,
+	};
+
 	struct EditorState {
 		std::string filePathUtf8;
 		bool dirty = false;
+		TextEncoding encoding = TextEncoding::kUtf8;
+		int eolMode = 2;
 	};
 
 	struct EditorSettings {
@@ -49,6 +59,7 @@ private:
 
 	void NewTab();
 	void OpenFile();
+	void ReloadCurrentFile();
 	bool SaveCurrentFile();
 	bool SaveCurrentFileAs();
 	bool CloseTabAt(int index);
@@ -72,9 +83,17 @@ private:
 	std::string GetEditorText(ScintillaEditBase *editor) const;
 	std::string GetSelectedText(ScintillaEditBase *editor) const;
 	void SetEditorText(ScintillaEditBase *editor, const std::string &textUtf8);
+	void SetEditorEolMode(ScintillaEditBase *editor, int eolMode);
+	int DetectDominantEolMode(const std::string &textUtf8) const;
 
 	bool LoadFileIntoEditor(ScintillaEditBase *editor, const std::string &pathUtf8);
 	bool SaveEditorToFile(ScintillaEditBase *editor, const std::string &pathUtf8);
+	bool DecodeTextForEditor(const std::string &bytes, TextEncoding *encoding, std::string *utf8Text) const;
+	std::string EncodeForWrite(
+		const std::string &utf8Text,
+		TextEncoding encoding,
+		int eolMode) const;
+	std::string NormalizeEol(const std::string &textUtf8, int eolMode) const;
 
 	void LoadEditorSettings();
 	void SaveEditorSettings() const;
@@ -91,6 +110,7 @@ private:
 	std::string ConfigRootPath() const;
 	std::string SettingsFilePath() const;
 	std::string ShortcutFilePath() const;
+	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
 	static QString ToQString(const std::string &value);
 
