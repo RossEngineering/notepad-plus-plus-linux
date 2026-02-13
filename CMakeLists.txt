@@ -246,6 +246,17 @@ if(BUILD_TESTING AND TARGET npp_scintilla)
     )
     target_link_libraries(scintilla_document_smoke_test PRIVATE npp_scintilla)
     add_test(NAME scintilla_document_smoke_test COMMAND scintilla_document_smoke_test)
+
+    add_executable(core_text_undo_redo_test tests/unit/core_text_undo_redo_test.cpp)
+    target_sources(core_text_undo_redo_test PRIVATE
+        tests/support/scintilla_debug_stubs.cpp
+    )
+    target_include_directories(core_text_undo_redo_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
+    )
+    target_link_libraries(core_text_undo_redo_test PRIVATE npp_scintilla)
+    add_test(NAME core_text_undo_redo_test COMMAND core_text_undo_redo_test)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_platform_linux)
