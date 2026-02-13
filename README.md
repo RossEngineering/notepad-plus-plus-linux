@@ -38,6 +38,7 @@ Versioning policy is in [`docs/versioning-policy.md`](docs/versioning-policy.md)
 Skin format v1 is in [`docs/skin-format-v1.md`](docs/skin-format-v1.md).
 Repository decision index is in [`docs/decisions.md`](docs/decisions.md).
 Performance benchmark baseline is in [`docs/performance-baseline.md`](docs/performance-baseline.md).
+Beta 2 release notes draft is in [`docs/releases/v0.9.0-beta.2.md`](docs/releases/v0.9.0-beta.2.md).
 Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
 
 ## Migration dashboard

@@ -27,7 +27,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 ## Beta 2 release gate
 
-- [ ] Freeze Beta 2 scope to Phase 10-12 deliverables.
+- [x] Freeze Beta 2 scope to Phase 10-12 deliverables.
 - [ ] Run full Linux CI + sanitizer lane green for Beta 2 candidate tag.
 - [ ] Validate release artifacts and checksums for Beta 2.
 - [ ] Publish `v0.9.0-beta.2` notes and milestone summary.
