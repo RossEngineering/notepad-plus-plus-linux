@@ -30,6 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      LINUX_RELEASE_GPG_KEY: ${{ secrets.LINUX_RELEASE_GPG_KEY }}
+      LINUX_RELEASE_GPG_PASSPHRASE: ${{ secrets.LINUX_RELEASE_GPG_PASSPHRASE }}
 
     steps:
       - name: Checkout
@@ -68,23 +71,19 @@ jobs:
           ./scripts/release/create_linux_release_artifacts.sh "${{ steps.release_meta.outputs.version }}"
 
       - name: Import GPG key (optional)
-        if: ${{ secrets.LINUX_RELEASE_GPG_KEY != '' }}
+        if: ${{ env.LINUX_RELEASE_GPG_KEY != '' }}
         shell: bash
-        env:
-          LINUX_RELEASE_GPG_KEY: ${{ secrets.LINUX_RELEASE_GPG_KEY }}
         run: |
           echo "$LINUX_RELEASE_GPG_KEY" | base64 -d | gpg --batch --import
 
       - name: Sign artifacts (optional)
-        if: ${{ secrets.LINUX_RELEASE_GPG_KEY != '' }}
+        if: ${{ env.LINUX_RELEASE_GPG_KEY != '' }}
         shell: bash
-        env:
-          GPG_PASSPHRASE: ${{ secrets.LINUX_RELEASE_GPG_PASSPHRASE }}
         run: |
           shopt -s nullglob
           for artifact in out/release/*.tar.xz out/release/*.sha256; do
             gpg --batch --yes --pinentry-mode loopback \
-              --passphrase "$GPG_PASSPHRASE" \
+              --passphrase "$LINUX_RELEASE_GPG_PASSPHRASE" \
               --armor --detach-sign "$artifact"
           done
 
