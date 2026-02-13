@@ -254,6 +254,25 @@ QString ThemeColorHex(int bgr) {
         .toUpper();
 }
 
+int BlendThemeColor(int firstBgr, int secondBgr, double secondWeight) {
+    const double clampedWeight = std::clamp(secondWeight, 0.0, 1.0);
+    const double firstWeight = 1.0 - clampedWeight;
+
+    const int firstRed = firstBgr & 0xFF;
+    const int firstGreen = (firstBgr >> 8) & 0xFF;
+    const int firstBlue = (firstBgr >> 16) & 0xFF;
+
+    const int secondRed = secondBgr & 0xFF;
+    const int secondGreen = (secondBgr >> 8) & 0xFF;
+    const int secondBlue = (secondBgr >> 16) & 0xFF;
+
+    const int mixedRed = static_cast<int>(firstRed * firstWeight + secondRed * clampedWeight + 0.5);
+    const int mixedGreen = static_cast<int>(firstGreen * firstWeight + secondGreen * clampedWeight + 0.5);
+    const int mixedBlue = static_cast<int>(firstBlue * firstWeight + secondBlue * clampedWeight + 0.5);
+
+    return mixedBlue << 16 | mixedGreen << 8 | mixedRed;
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
@@ -1806,6 +1825,12 @@ void MainWindow::ApplyTheme(ScintillaEditBase *editor) {
 }
 
 void MainWindow::ApplyChromeTheme() {
+    const int tabBackground = BlendThemeColor(_themeSettings.menuBackground, _themeSettings.windowBackground, 0.35);
+    const int tabActiveBackground = BlendThemeColor(_themeSettings.background, _themeSettings.windowBackground, 0.15);
+    const int tabHoverBackground = BlendThemeColor(_themeSettings.menuBackground, _themeSettings.accent, 0.15);
+    const int fieldBackground = BlendThemeColor(_themeSettings.dialogBackground, _themeSettings.background, 0.25);
+    const int disabledForeground = BlendThemeColor(_themeSettings.menuForeground, _themeSettings.dialogBackground, 0.35);
+
     const QString styleSheet = QStringLiteral(
                                    "QMainWindow { background-color: %1; color: %2; }"
                                    "QMenuBar { background-color: %3; color: %4; }"
@@ -1813,9 +1838,27 @@ void MainWindow::ApplyChromeTheme() {
                                    "QMenu { background-color: %3; color: %4; }"
                                    "QMenu::item:selected { background-color: %5; color: %4; }"
                                    "QStatusBar { background-color: %6; color: %7; }"
+                                   "QStatusBar::item { border: none; }"
+                                   "QTabWidget::pane { border: 1px solid %12; background-color: %1; top: -1px; }"
+                                   "QTabBar::tab { background-color: %13; color: %4; border: 1px solid %12; "
+                                   "border-bottom: none; padding: 6px 12px; margin-right: 2px; }"
+                                   "QTabBar::tab:selected { background-color: %14; color: %2; }"
+                                   "QTabBar::tab:hover:!selected { background-color: %15; }"
                                    "QDialog { background-color: %8; color: %9; }"
                                    "QPushButton { background-color: %10; color: %11; "
-                                   "border: 1px solid %12; padding: 4px 8px; }")
+                                   "border: 1px solid %12; padding: 4px 8px; }"
+                                   "QPushButton:hover { background-color: %15; }"
+                                   "QPushButton:disabled { color: %17; }"
+                                   "QLineEdit, QSpinBox, QTextEdit, QPlainTextEdit, QComboBox { "
+                                   "background-color: %16; color: %9; border: 1px solid %12; "
+                                   "selection-background-color: %5; selection-color: %11; }"
+                                   "QLineEdit:focus, QSpinBox:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus { "
+                                   "border: 2px solid %5; }"
+                                   "QCheckBox { color: %9; }"
+                                   "QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid %12; "
+                                   "background-color: %16; }"
+                                   "QCheckBox::indicator:checked { background-color: %5; border-color: %5; }"
+                                   "QToolTip { background-color: %3; color: %4; border: 1px solid %12; }")
                                    .arg(ThemeColorHex(_themeSettings.windowBackground))
                                    .arg(ThemeColorHex(_themeSettings.windowForeground))
                                    .arg(ThemeColorHex(_themeSettings.menuBackground))
@@ -1827,7 +1870,12 @@ void MainWindow::ApplyChromeTheme() {
                                    .arg(ThemeColorHex(_themeSettings.dialogForeground))
                                    .arg(ThemeColorHex(_themeSettings.dialogButtonBackground))
                                    .arg(ThemeColorHex(_themeSettings.dialogButtonForeground))
-                                   .arg(ThemeColorHex(_themeSettings.dialogBorder));
+                                   .arg(ThemeColorHex(_themeSettings.dialogBorder))
+                                   .arg(ThemeColorHex(tabBackground))
+                                   .arg(ThemeColorHex(tabActiveBackground))
+                                   .arg(ThemeColorHex(tabHoverBackground))
+                                   .arg(ThemeColorHex(fieldBackground))
+                                   .arg(ThemeColorHex(disabledForeground));
     setStyleSheet(styleSheet);
 }
 

@@ -49,6 +49,18 @@ This document defines the Phase 10 skin file format for the Linux-native UI.
 - `statusForeground`
 - `accent`
 
+### Derived visual mapping
+
+To keep v1 compact while still covering the full UI shell, these surfaces are derived from the
+tokens above plus dialog/editor tokens:
+
+- tab strip/background states (`QTabWidget`/`QTabBar`)
+- form fields in dialogs (`QLineEdit`, `QSpinBox`, `QComboBox`, `QTextEdit`)
+- tooltip and hover/focus states
+
+Derived values blend existing tokens (for example `menuBackground` + `windowBackground`) so skins
+remain backward compatible.
+
 ## `editor` tokens
 
 - `background`
