@@ -24,6 +24,7 @@ Package split plan is documented in [`docs/package-split-strategy.md`](docs/pack
 Reproducible Linux release guidance is in [`docs/reproducible-release.md`](docs/reproducible-release.md).
 Release publishing and signing flow is in [`docs/release-publishing.md`](docs/release-publishing.md).
 Architecture decisions are tracked in [`docs/adr`](docs/adr).
+Imported RossEngineering ADR snapshot is in [`docs/adr/rossengineering-bafc82c7`](docs/adr/rossengineering-bafc82c7).
 
 ## Goals
 
