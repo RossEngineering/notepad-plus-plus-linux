@@ -1,53 +1,63 @@
 # Roadmap
 
 This timeline reflects project direction as of February 13, 2026.
-Dates are target dates and may be adjusted as migration risk changes.
+Beta 2 is complete and published. The project now moves through three RC cuts before 1.0.0.
 
 ## Milestones
 
-| Milestone | Target Date | Scope | Status |
+| Milestone | Target Range | Scope | Status |
 | --- | --- | --- | --- |
-| M0: Foundation Complete | February 13, 2026 | Phases 0-7 complete (architecture boundaries, Linux shell, packaging, quality baseline). | Done |
-| M1: Developer UX Baseline | February 13, 2026 | Phase 8 completion (Linux-first docs, migration issue workflows, dashboard). | Done |
-| M2: Beta 1 Readiness | April 15, 2026 | Phase 9 complete: automatic language detection + stable auto-highlighting behavior. | Done |
-| M3: Beta 1 Release (`v0.8.0-beta.1`) | April 30, 2026 | First beta cut. No additional alpha releases. | Done |
-| M4: Beta 2 Workstream A | June 30, 2026 | Phase 10 skinning/theming delivery. | Planned |
-| M5: Beta 2 Workstreams B+C and Release (`v0.9.0-beta.2`) | August 31, 2026 | Phases 11-12 completion (extensions + hardening/language-intelligence) and Beta 2 cut. | Planned |
-| M6: 1.0 Release Candidate | October 15, 2026 | Feature freeze, compatibility validation, and blocker burn-down for RC. | Planned |
+| M0: Foundation Complete | Completed | Phases 0-7 complete (architecture boundaries, Linux shell, packaging, quality baseline). | Done |
+| M1: Developer UX Baseline | Completed | Phase 8 complete (Linux-first docs, migration issue workflows, dashboard). | Done |
+| M2: Beta 1 (`v0.8.0-beta.1`) | Completed | Phase 9 complete (automatic language detection + stable auto-highlighting behavior). | Done |
+| M3: Beta 2 (`v0.9.0-beta.2`) | Completed | Phases 10-12 complete (skinning, extension platform, hardening/language intelligence). | Done |
+| M4: RC1 (`v0.9.3-rc.1`) | Next | Correctness/stability pass, distro matrix baseline, extension permission hardening. | Planned |
+| M5: RC2 (`v0.9.6-rc.2`) | After RC1 | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Planned |
+| M6: RC3 (`v0.9.9-rc.3`) | After RC2 | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Planned |
+| M7: General Availability (`v1.0.0`) | After satisfactory RC3 | Final go/no-go and production release. | Planned |
 
-## Near-term priorities (next 6 weeks)
+## RC train structure
 
-1. Finalize Phase 10 skin/theme format and first-party light/dark/high-contrast packs.
-2. Implement runtime skin switching with persisted user preference.
-3. Define Phase 11 extension API boundaries and publish VS Code compatibility ADR.
-4. Start Phase 12 LSP/autocomplete foundation and crash-recovery hardening work.
+1. RC1 train: `v0.9.1` through `v0.9.3-rc.1`
+2. RC2 train: `v0.9.4` through `v0.9.6-rc.2`
+3. RC3 train: `v0.9.7` through `v0.9.9-rc.3`
 
-## Exit criteria for M2 (Beta 1 Readiness)
+## Proposed scope by RC
 
-1. Linux CI green on all required workflows.
-2. Automatic language detection works for targeted Markdown/HTML/programming corpus.
-3. Lexer auto-selection false-positive rate remains below agreed threshold.
-4. Beta 1 release candidate passes artifact/checksum validation.
+### RC1 (`v0.9.3-rc.1`) - stabilization baseline
 
-## Beta 1 state (2026-02-13)
+1. Resolve highest-impact beta defects (crash, recovery, incorrect editor behavior, extension permission edge cases).
+2. Complete first required distro validation evidence set:
+   - Arch Linux derivatives baseline
+   - Ubuntu LTS baseline
+   - Fedora stable baseline
+3. Ensure color-coded syntax behavior is consistent across targeted languages/themes.
+4. Produce a strict RC1 release checklist and pass all required CI/sanitizer lanes.
 
-1. Scope frozen to Phase 9 deliverables.
-2. Linux CI gates (including sanitizer checks) are green.
-3. Release artifacts/checksums validated.
-4. `v0.8.0-beta.1` tag and GitHub Release are published.
+### RC2 (`v0.9.6-rc.2`) - integration hardening
 
-## Beta 2 definition (2026-02-13)
+1. Move LSP from foundation to baseline user value (diagnostics, hover, go-to-definition minimum viable path).
+2. Expand VS Code language-asset compatibility coverage and regression corpus.
+3. Enforce startup and extension performance budgets in CI (not diagnostics-only).
+4. Validate packaging/documentation quality for all required distros in the matrix.
 
-1. Beta 2 scope is Phases 10-12.
-2. Phase 10: UI skinning support.
-3. Phase 11: extension platform and VS Code language-asset compatibility path.
-4. Phase 12: hardening and language-intelligence improvements.
-5. Planned release target for this scope: `v0.9.0-beta.2`.
+### RC3 (`v0.9.9-rc.3`) - release readiness
 
-## Phase 12 status (2026-02-13)
+1. Enter feature freeze; accept only bug fixes, docs, release engineering, and reliability changes.
+2. Execute full cross-feature regression suite (editor core, language features, skinning, extension lifecycle, crash recovery).
+3. Run release dry-run (artifacts, checksums, optional signing, rollback plan) and verify reproducibility controls.
+4. Reach zero open release blockers for go/no-go review.
 
-1. LSP client foundation is implemented.
-2. Syntax-aware autocomplete assists are implemented (HTML/XML tag auto-close and paired delimiters).
-3. Crash-recovery journal and startup recovery prompt are implemented.
-4. Extension startup performance guardrails are implemented.
-5. Distro validation expansion plan is documented.
+## 1.0.0 promotion gate
+
+1. Zero open P0 defects.
+2. No unresolved data-loss or crash-recovery regressions.
+3. Required Linux CI lanes green for 7 consecutive days before final tag.
+4. `v1.0.0` release notes and migration guidance finalized and reviewed.
+
+## Next planning outputs
+
+1. `docs/releases/v0.9.3-rc.1-checklist.md`
+2. `docs/releases/v0.9.6-rc.2-checklist.md`
+3. `docs/releases/v0.9.9-rc.3-checklist.md`
+4. `docs/releases/v1.0.0-checklist.md`

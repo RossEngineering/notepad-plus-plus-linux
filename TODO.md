@@ -2,64 +2,54 @@
 
 This file now tracks active post-Phase-8 work.
 Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
+Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.md`.
 
 ## Release direction
 
 - [x] Complete Phase 9 and cut `v0.8.0-beta.1`.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
 - [x] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
+- [ ] Complete RC1 scope and cut `v0.9.3-rc.1`.
+- [ ] Complete RC2 scope and cut `v0.9.6-rc.2`.
+- [ ] Complete RC3 scope and cut `v0.9.9-rc.3`.
+- [ ] Promote `v1.0.0` after RC3 validation.
 
-## Phase 9: Automatic language detection and highlighting
+## Release track from Beta 2 to 1.0.0
 
-- [x] Implement automatic language detection using extension, shebang, modelines, and content heuristics.
-- [x] Detect and classify Markdown/HTML/programming-language files on open.
-- [x] Auto-switch lexer and syntax highlighting when detection confidence is high.
-- [x] Re-run detection on rename/save-as and provide manual override lock.
-- [x] Add detection/lexer regression corpus and accuracy tracking in tests.
-- [x] Define Beta 1 acceptance threshold for language detection accuracy and false-positive rate.
+### RC1 program (`v0.9.1` to `v0.9.3-rc.1`)
 
-## Beta 1 release gate
+- [ ] Close top P0/P1 correctness and crash issues discovered during beta usage.
+- [ ] Ship end-to-end color-coded syntax style consistency across supported lexers.
+- [ ] Complete first-pass distro matrix validation (Arch derivatives, Ubuntu LTS, Fedora stable).
+- [ ] Harden extension permissions UX and denial-path behavior.
+- [ ] Cut and validate `v0.9.3-rc.1`.
 
-- [x] Freeze Beta 1 scope to Phase 9 deliverables.
-- [x] Run full Linux CI + sanitizer lane green for Beta 1 candidate tag.
-- [x] Validate release artifacts and checksums for Beta 1.
-- [x] Publish `v0.8.0-beta.1` notes and milestone summary.
+### RC2 program (`v0.9.4` to `v0.9.6-rc.2`)
 
-## Beta 2 release gate
+- [ ] Complete LSP wiring from foundation into core editor UX (diagnostics, hover, go-to-definition baseline).
+- [ ] Add extension compatibility pass for additional VS Code language assets and edge-case grammars.
+- [ ] Tighten startup/performance budgets with CI-enforced thresholds.
+- [ ] Finalize packaging/install docs for Arch derivatives and additional validated distros.
+- [ ] Cut and validate `v0.9.6-rc.2`.
 
-- [x] Freeze Beta 2 scope to Phase 10-12 deliverables.
-- [x] Run full Linux CI + sanitizer lane green for Beta 2 candidate tag.
-- [x] Validate release artifacts and checksums for Beta 2.
-- [x] Publish `v0.9.0-beta.2` notes and milestone summary.
+### RC3 program (`v0.9.7` to `v0.9.9-rc.3`)
 
-## Beta 2 scope: Phase 10 UI skinning support
+- [ ] Enter feature freeze (bug fixes, docs, packaging, and release reliability only).
+- [ ] Run full regression on editor, skinning, extension lifecycle, crash recovery, and language workflows.
+- [ ] Complete release engineering dry-run (artifacts, checksums, signing, rollback plan).
+- [ ] Resolve all open release blockers and cut `v0.9.9-rc.3`.
+- [ ] Perform go/no-go review for `v1.0.0`.
 
-- [x] Define skin/theme format covering app chrome + editor + dialogs.
-- [x] Ship first-party skin set (light, dark, and high-contrast).
-- [x] Add runtime skin switcher and persistent per-user selection.
-- [x] Ensure full visual consistency across tabs, menus, status bar, and dialogs.
-- [x] Add accessibility checks for contrast/focus visibility in CI.
+### 1.0.0 promotion gate
 
-## Beta 2 scope: Phase 11 extensions and VS Code compatibility strategy
-
-- [x] Define Linux extension API v1 boundaries and security model.
-- [x] Build extension lifecycle support (discover/install/enable/disable/remove).
-- [x] Implement extension permission prompts for filesystem/network/process access.
-- [x] Write ADR comparing VS Code compatibility options (full API parity vs targeted compatibility).
-- [x] Implement targeted compatibility path for VS Code language assets (TextMate grammars + language configs).
-- [x] Validate compatibility with at least 3 popular VS Code language extensions.
-
-## Beta 2 scope: Phase 12 hardening and language intelligence
-
-- [x] Add LSP client foundation for richer language intelligence.
-- [x] Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
-- [x] Improve crash-recovery journal and restore UX.
-- [x] Add extension performance budgets and startup impact guardrails.
-- [x] Expand distro validation plan beyond Arch Linux derivatives after baseline remains stable.
+- [ ] Zero open P0 defects.
+- [ ] No unresolved data-loss/crash-recovery regressions.
+- [ ] Linux required CI lanes green for 7 consecutive days before tag.
+- [ ] Publish `v1.0.0` release notes and migration guidance.
 
 ## Immediate next actions
 
-- [x] Create language-detection fixture corpus for Markdown/HTML/code.
-- [x] Implement confidence-scored auto-lexer switching with manual override lock.
-- [x] Define Beta 1 detection acceptance metrics and test report format.
-- [x] Draft `v0.8.0-beta.1` release checklist and notes skeleton.
+- [ ] Create `v0.9.3-rc.1` checklist and notes stub in `docs/releases/`.
+- [ ] Build and prioritize RC1 blocker list from latest beta feedback.
+- [ ] Define RC1 distro validation evidence format and publish first report.
+- [ ] Add `docs/releases/v1.0.0-checklist.md` draft with final promotion gates.
