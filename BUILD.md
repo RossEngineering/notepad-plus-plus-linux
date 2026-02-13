@@ -72,3 +72,34 @@ Building Notepad++ is regularly tested on a Windows system by using [MSYS2](http
 - When a project is built through MinGW-w64 with multilib support, a specific target can be forced by passing `TARGET_CPU` variable with `x86_64` or `i686` as value.
 - To use Clang instead of GCC for compilation provide `CXX` variable with `clang++` as value.
 - To use [Clang analyzer](https://clang-analyzer.llvm.org/) together with Clang provide `CLANGANALYZE=1` to the `mingw32-make` invocation.
+
+## Linux (experimental CMake path)
+
+This fork adds a Linux-focused CMake path for building editor engine components during migration.
+
+### Build with presets
+
+1. Install CMake and a C++17 compiler (`g++` or `clang++`).
+2. Configure:
+   - Debug: `cmake --preset debug`
+   - Release: `cmake --preset release`
+3. Build:
+   - Debug: `cmake --build --preset debug`
+   - Release: `cmake --build --preset release`
+4. Run smoke tests:
+   - Debug: `ctest --preset debug`
+   - Release: `ctest --preset release`
+
+### Current Linux CMake targets
+
+- `npp_scintilla` (Scintilla core static library)
+- `npp_lexilla` (Lexilla static library)
+- `lexilla_smoke_test`
+- `scintilla_document_smoke_test`
+
+### Windows build status
+
+The existing Windows build paths remain in place and are unchanged:
+
+- Visual Studio solution under `PowerEditor/visual.net`
+- MinGW build under `PowerEditor/gcc`
