@@ -1,0 +1,22 @@
+{
+  "name": "vscode-yaml",
+  "publisher": "redhat",
+  "version": "1.15.0",
+  "contributes": {
+    "languages": [
+      {
+        "id": "yaml",
+        "aliases": ["YAML", "yaml"],
+        "extensions": [".yaml", ".yml"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "yaml",
+        "scopeName": "source.yaml",
+        "path": "./syntaxes/yaml.tmLanguage.json"
+      }
+    ]
+  }
+}

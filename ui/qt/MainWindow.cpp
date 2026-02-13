@@ -276,8 +276,46 @@ int BlendThemeColor(int firstBgr, int secondBgr, double secondWeight) {
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), _diagnosticsService(_pathService, _fileSystemService) {
+    : QMainWindow(parent),
+      _diagnosticsService(_pathService, _fileSystemService),
+      _extensionService(&_pathService, &_fileSystemService, kAppName) {
     BuildUi();
+    _extensionService.SetPermissionPrompt([this](const npp::platform::PermissionPromptRequest& request) {
+        const QStringList options = {
+            tr("Deny"),
+            tr("Allow Once"),
+            tr("Allow Session"),
+            tr("Allow Always"),
+        };
+        bool ok = false;
+        const QString selected = QInputDialog::getItem(
+            this,
+            tr("Extension Permission Request"),
+            tr("Extension: %1\nPermission: %2\nReason: %3")
+                .arg(ToQString(request.extensionName.empty() ? request.extensionId : request.extensionName))
+                .arg(ToQString(request.permission))
+                .arg(ToQString(request.reason)),
+            options,
+            0,
+            false,
+            &ok);
+        if (!ok || selected == options.at(0)) {
+            return npp::platform::PermissionGrantMode::kDenied;
+        }
+        if (selected == options.at(1)) {
+            return npp::platform::PermissionGrantMode::kAllowOnce;
+        }
+        if (selected == options.at(2)) {
+            return npp::platform::PermissionGrantMode::kAllowSession;
+        }
+        return npp::platform::PermissionGrantMode::kAllowAlways;
+    });
+    const npp::platform::Status extensionInitStatus = _extensionService.Initialize();
+    if (!extensionInitStatus.ok()) {
+        statusBar()->showMessage(
+            tr("Extension service init failed: %1").arg(ToQString(extensionInitStatus.message)),
+            4000);
+    }
     LoadEditorSettings();
     EnsureBuiltInSkins();
     EnsureThemeFile();
@@ -341,6 +379,9 @@ void MainWindow::BuildMenus() {
     QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
     toolsMenu->addAction(_actionsById.at("tools.runCommand"));
     toolsMenu->addSeparator();
+    toolsMenu->addAction(_actionsById.at("tools.extensions.install"));
+    toolsMenu->addAction(_actionsById.at("tools.extensions.manage"));
+    toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.open"));
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.reload"));
 
@@ -389,6 +430,14 @@ void MainWindow::BuildActions() {
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
     registerAction("tools.runCommand", tr("Run Command..."), [this]() { OnRunCommand(); });
+    registerAction(
+        "tools.extensions.install",
+        tr("Install Extension from Folder..."),
+        [this]() { OnInstallExtensionFromDirectory(); });
+    registerAction(
+        "tools.extensions.manage",
+        tr("Manage Extensions..."),
+        [this]() { OnManageExtensions(); });
     registerAction("language.autoDetect", tr("Auto Detect Language"), [this]() { OnAutoDetectLanguage(); });
     registerAction("language.lockCurrent", tr("Lock Current Language"), [this]() { OnToggleLexerLock(); });
     _actionsById.at("language.lockCurrent")->setCheckable(true);
@@ -1117,6 +1166,97 @@ void MainWindow::OnRunCommand() {
         this,
         tr("Run Command"),
         tr("Command finished with exit code %1.").arg(result.value->exitCode));
+}
+
+void MainWindow::OnInstallExtensionFromDirectory() {
+    const QString sourceDir = QFileDialog::getExistingDirectory(
+        this,
+        tr("Select Extension Folder"),
+        QDir::homePath());
+    if (sourceDir.isEmpty()) {
+        return;
+    }
+
+    const npp::platform::Status installStatus =
+        _extensionService.InstallFromDirectory(ToUtf8(sourceDir));
+    if (!installStatus.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Install Extension"),
+            tr("Extension install failed:\n%1").arg(ToQString(installStatus.message)));
+        return;
+    }
+
+    statusBar()->showMessage(tr("Extension installed successfully"), 2000);
+}
+
+void MainWindow::OnManageExtensions() {
+    const auto installed = _extensionService.DiscoverInstalled();
+    if (!installed.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Manage Extensions"),
+            tr("Unable to load installed extensions:\n%1").arg(ToQString(installed.status.message)));
+        return;
+    }
+    if (installed.value->empty()) {
+        QMessageBox::information(this, tr("Manage Extensions"), tr("No installed extensions found."));
+        return;
+    }
+
+    QStringList extensionChoices;
+    for (const auto& extension : *installed.value) {
+        extensionChoices << QStringLiteral("%1 (%2)")
+                                .arg(ToQString(extension.manifest.id))
+                                .arg(extension.enabled ? tr("enabled") : tr("disabled"));
+    }
+
+    bool extensionChoiceOk = false;
+    const QString chosen = QInputDialog::getItem(
+        this,
+        tr("Manage Extensions"),
+        tr("Extension:"),
+        extensionChoices,
+        0,
+        false,
+        &extensionChoiceOk);
+    if (!extensionChoiceOk || chosen.isEmpty()) {
+        return;
+    }
+
+    const QString extensionId = chosen.left(chosen.indexOf(QStringLiteral(" (")));
+    const QStringList operations = {tr("Enable"), tr("Disable"), tr("Remove")};
+    bool operationOk = false;
+    const QString operation = QInputDialog::getItem(
+        this,
+        tr("Manage Extensions"),
+        tr("Operation:"),
+        operations,
+        0,
+        false,
+        &operationOk);
+    if (!operationOk || operation.isEmpty()) {
+        return;
+    }
+
+    npp::platform::Status operationStatus = npp::platform::Status::Ok();
+    const std::string extensionIdUtf8 = ToUtf8(extensionId);
+    if (operation == operations.at(0)) {
+        operationStatus = _extensionService.EnableExtension(extensionIdUtf8);
+    } else if (operation == operations.at(1)) {
+        operationStatus = _extensionService.DisableExtension(extensionIdUtf8);
+    } else {
+        operationStatus = _extensionService.RemoveExtension(extensionIdUtf8);
+    }
+
+    if (!operationStatus.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Manage Extensions"),
+            tr("Operation failed:\n%1").arg(ToQString(operationStatus.message)));
+        return;
+    }
+    statusBar()->showMessage(tr("Extension operation completed"), 2000);
 }
 
 void MainWindow::OnAutoDetectLanguage() {

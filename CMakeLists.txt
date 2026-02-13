@@ -101,10 +101,12 @@ endif()
 
 if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
     add_library(npp_platform_linux STATIC
+        platform/linux/LinuxExtensionService.cpp
         platform/linux/LinuxDiagnosticsService.cpp
         platform/linux/LinuxFileSystemService.cpp
         platform/linux/LinuxPathService.cpp
         platform/linux/LinuxProcessService.cpp
+        platform/linux/VscodeLanguageCompatibility.cpp
     )
     add_library(npp::platform_linux ALIAS npp_platform_linux)
 
@@ -113,6 +115,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
         PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+            "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src"
     )
 endif()
 
@@ -337,4 +340,27 @@ if(BUILD_TESTING AND TARGET npp_platform_linux)
     )
     target_link_libraries(platform_linux_services_smoke_test PRIVATE npp_platform_linux)
     add_test(NAME platform_linux_services_smoke_test COMMAND platform_linux_services_smoke_test)
+
+    add_executable(extension_lifecycle_smoke_test tests/platform/extension_lifecycle_smoke_test.cpp)
+    target_include_directories(extension_lifecycle_smoke_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+    )
+    target_link_libraries(extension_lifecycle_smoke_test PRIVATE npp_platform_linux)
+    add_test(NAME extension_lifecycle_smoke_test COMMAND extension_lifecycle_smoke_test)
+endif()
+
+if(BUILD_TESTING AND TARGET npp_platform_linux)
+    add_executable(
+        vscode_language_asset_compatibility_test
+        tests/regression/vscode_language_asset_compatibility_test.cpp)
+    target_include_directories(vscode_language_asset_compatibility_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+    )
+    target_compile_definitions(vscode_language_asset_compatibility_test PRIVATE
+        NPP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    target_link_libraries(vscode_language_asset_compatibility_test PRIVATE npp_platform_linux)
+    add_test(NAME vscode_language_asset_compatibility_test COMMAND vscode_language_asset_compatibility_test)
 endif()

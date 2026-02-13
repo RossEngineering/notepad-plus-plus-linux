@@ -109,7 +109,7 @@ Forbidden in v1:
 ### Permission grant rules
 
 1. Declared permissions live in `extension.json`.
-2. First use requires explicit user approval (prompt flow in next Phase 11 item).
+2. First use requires explicit user approval (implemented via extension permission prompts).
 3. Grants can be:
    - `once`
    - `session`

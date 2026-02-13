@@ -43,11 +43,11 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 ## Beta 2 scope: Phase 11 extensions and VS Code compatibility strategy
 
 - [x] Define Linux extension API v1 boundaries and security model.
-- [ ] Build extension lifecycle support (discover/install/enable/disable/remove).
-- [ ] Implement extension permission prompts for filesystem/network/process access.
-- [ ] Write ADR comparing VS Code compatibility options (full API parity vs targeted compatibility).
-- [ ] Implement targeted compatibility path for VS Code language assets (TextMate grammars + language configs).
-- [ ] Validate compatibility with at least 3 popular VS Code language extensions.
+- [x] Build extension lifecycle support (discover/install/enable/disable/remove).
+- [x] Implement extension permission prompts for filesystem/network/process access.
+- [x] Write ADR comparing VS Code compatibility options (full API parity vs targeted compatibility).
+- [x] Implement targeted compatibility path for VS Code language assets (TextMate grammars + language configs).
+- [x] Validate compatibility with at least 3 popular VS Code language extensions.
 
 ## Beta 2 scope: Phase 12 hardening and language intelligence
 

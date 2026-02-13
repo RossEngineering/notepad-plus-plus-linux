@@ -1,0 +1,22 @@
+{
+  "name": "python",
+  "publisher": "ms-python",
+  "version": "2026.1.0",
+  "contributes": {
+    "languages": [
+      {
+        "id": "python",
+        "aliases": ["Python", "py"],
+        "extensions": [".py", ".pyw"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "python",
+        "scopeName": "source.python",
+        "path": "./syntaxes/MagicPython.tmLanguage.json"
+      }
+    ]
+  }
+}

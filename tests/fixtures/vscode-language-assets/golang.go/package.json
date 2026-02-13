@@ -1,0 +1,22 @@
+{
+  "name": "go",
+  "publisher": "golang",
+  "version": "0.50.0",
+  "contributes": {
+    "languages": [
+      {
+        "id": "go",
+        "aliases": ["Go"],
+        "extensions": [".go"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "go",
+        "scopeName": "source.go",
+        "path": "./syntaxes/go.tmLanguage.json"
+      }
+    ]
+  }
+}

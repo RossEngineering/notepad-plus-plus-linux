@@ -9,6 +9,7 @@
 #include <QString>
 
 #include "LinuxDiagnosticsService.h"
+#include "LinuxExtensionService.h"
 #include "LinuxFileSystemService.h"
 #include "LinuxPathService.h"
 #include "LinuxProcessService.h"
@@ -111,6 +112,8 @@ private:
 	void OnGoToLine();
 	void OnPreferences();
 	void OnRunCommand();
+	void OnInstallExtensionFromDirectory();
+	void OnManageExtensions();
 	void OnAutoDetectLanguage();
 	void OnToggleLexerLock();
 	void OnSetSkin(const std::string &skinId);
@@ -200,4 +203,5 @@ private:
 	npp::platform::LinuxFileSystemService _fileSystemService;
 	npp::platform::LinuxProcessService _processService;
 	npp::platform::LinuxDiagnosticsService _diagnosticsService;
+	npp::platform::LinuxExtensionService _extensionService;
 };
