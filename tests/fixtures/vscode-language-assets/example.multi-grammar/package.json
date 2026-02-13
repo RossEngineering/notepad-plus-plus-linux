@@ -1,0 +1,32 @@
+{
+  "name": "multi-grammar",
+  "publisher": "example",
+  "version": "0.0.0-test",
+  "contributes": {
+    "languages": [
+      {
+        "id": "html",
+        "aliases": ["HTML"],
+        "extensions": [".html"],
+        "configuration": "language-configuration.json"
+      },
+      {
+        "id": "xml",
+        "aliases": ["XML"],
+        "extensions": [".xml"]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "html",
+        "scopeName": "text.html.basic",
+        "path": "syntaxes/html.tmLanguage.json"
+      },
+      {
+        "language": "xml",
+        "scopeName": "text.xml",
+        "path": "syntaxes/xml.tmLanguage.json"
+      }
+    ]
+  }
+}

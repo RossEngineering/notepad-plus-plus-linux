@@ -1,0 +1,22 @@
+{
+  "name": "markdown-baseline",
+  "publisher": "vscode",
+  "version": "0.0.0-test",
+  "contributes": {
+    "languages": [
+      {
+        "id": "markdown",
+        "aliases": ["Markdown", "md"],
+        "extensions": [".md", ".markdown"],
+        "configuration": "language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "markdown",
+        "scopeName": "text.html.markdown",
+        "path": "syntaxes/markdown.tmLanguage.json"
+      }
+    ]
+  }
+}

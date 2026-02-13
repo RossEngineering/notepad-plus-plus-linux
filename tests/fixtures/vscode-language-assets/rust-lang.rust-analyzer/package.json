@@ -1,0 +1,22 @@
+{
+  "name": "rust-analyzer",
+  "publisher": "rust-lang",
+  "version": "0.0.0-test",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rust",
+        "aliases": ["Rust", "rust"],
+        "extensions": [".rs"],
+        "configuration": "language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rust",
+        "scopeName": "source.rust",
+        "path": "syntaxes/rust.tmLanguage.json"
+      }
+    ]
+  }
+}

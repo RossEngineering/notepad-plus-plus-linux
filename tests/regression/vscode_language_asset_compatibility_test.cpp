@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -9,9 +10,9 @@ namespace {
 
 struct Case {
     std::string extensionFolder;
-    std::string expectedLanguageId;
-    std::string expectedScopeName;
-    std::string expectedLexer;
+    std::vector<std::string> expectedLanguageIds;
+    std::vector<std::string> expectedScopeNames;
+    std::vector<std::string> expectedLexers;
 };
 
 }  // namespace
@@ -24,9 +25,12 @@ int main() {
     const fs::path fixtureRoot = sourceRoot / "tests" / "fixtures" / "vscode-language-assets";
 
     const std::vector<Case> cases = {
-        {"ms-python.python", "python", "source.python", "python"},
-        {"golang.go", "go", "source.go", "cpp"},
-        {"redhat.vscode-yaml", "yaml", "source.yaml", "yaml"},
+        {"ms-python.python", {"python"}, {"source.python"}, {"python"}},
+        {"golang.go", {"go"}, {"source.go"}, {"cpp"}},
+        {"redhat.vscode-yaml", {"yaml"}, {"source.yaml"}, {"yaml"}},
+        {"rust-lang.rust-analyzer", {"rust"}, {"source.rust"}, {"cpp"}},
+        {"vscode.markdown-baseline", {"markdown"}, {"text.html.markdown"}, {"markdown"}},
+        {"example.multi-grammar", {"html", "xml"}, {"text.html.basic", "text.xml"}, {"xml", "xml"}},
     };
 
     for (const Case& testCase : cases) {
@@ -41,20 +45,57 @@ int main() {
             std::cerr << "empty language/grammar contributions for " << testCase.extensionFolder << "\n";
             return 2;
         }
-        if (snapshot.value->languages.front().id != testCase.expectedLanguageId) {
-            std::cerr << "unexpected language id for " << testCase.extensionFolder
-                      << ": " << snapshot.value->languages.front().id << "\n";
+        if (testCase.expectedLanguageIds.size() != testCase.expectedLexers.size()) {
+            std::cerr << "invalid test setup for " << testCase.extensionFolder << "\n";
             return 3;
         }
-        if (snapshot.value->languages.front().suggestedLexer != testCase.expectedLexer) {
-            std::cerr << "unexpected lexer mapping for " << testCase.extensionFolder
-                      << ": " << snapshot.value->languages.front().suggestedLexer << "\n";
-            return 4;
+        std::set<std::string> actualLanguageIds;
+        for (const auto& language : snapshot.value->languages) {
+            actualLanguageIds.insert(language.id);
         }
-        if (snapshot.value->grammars.front().scopeName != testCase.expectedScopeName) {
-            std::cerr << "unexpected scope name for " << testCase.extensionFolder
-                      << ": " << snapshot.value->grammars.front().scopeName << "\n";
-            return 5;
+        for (std::size_t i = 0; i < testCase.expectedLanguageIds.size(); ++i) {
+            if (actualLanguageIds.find(testCase.expectedLanguageIds[i]) == actualLanguageIds.end()) {
+                std::cerr << "missing expected language id for " << testCase.extensionFolder
+                          << ": " << testCase.expectedLanguageIds[i] << "\n";
+                return 4;
+            }
+
+            bool lexerMatch = false;
+            for (const auto& language : snapshot.value->languages) {
+                if (language.id == testCase.expectedLanguageIds[i] &&
+                    language.suggestedLexer == testCase.expectedLexers[i]) {
+                    lexerMatch = true;
+                    break;
+                }
+            }
+            if (!lexerMatch) {
+                std::cerr << "unexpected lexer mapping for " << testCase.extensionFolder
+                          << " language=" << testCase.expectedLanguageIds[i] << "\n";
+                return 5;
+            }
+        }
+
+        std::set<std::string> actualScopes;
+        for (const auto& grammar : snapshot.value->grammars) {
+            actualScopes.insert(grammar.scopeName);
+        }
+        for (const auto& expectedScope : testCase.expectedScopeNames) {
+            if (actualScopes.find(expectedScope) == actualScopes.end()) {
+                std::cerr << "missing expected scope for " << testCase.extensionFolder
+                          << ": " << expectedScope << "\n";
+                return 6;
+            }
+        }
+
+        if (snapshot.value->languages.size() < testCase.expectedLanguageIds.size()) {
+            std::cerr << "language contribution count too small for "
+                      << testCase.extensionFolder << "\n";
+            return 7;
+        }
+        if (snapshot.value->grammars.size() < testCase.expectedScopeNames.size()) {
+            std::cerr << "grammar contribution count too small for "
+                      << testCase.extensionFolder << "\n";
+            return 8;
         }
 
         const fs::path outputPath = extensionPath / "npp-language-pack-vscode.test-output.json";
@@ -62,7 +103,7 @@ int main() {
         if (!writeStatus.ok() || !fs::exists(outputPath)) {
             std::cerr << "failed writing compatibility snapshot output for "
                       << testCase.extensionFolder << "\n";
-            return 6;
+            return 9;
         }
         fs::remove(outputPath);
     }

@@ -29,7 +29,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 - [x] Add an About dialog under Help with version/build metadata and support links.
 - [ ] Complete LSP wiring from foundation into core editor UX (diagnostics, hover, go-to-definition baseline).
-- [ ] Add extension compatibility pass for additional VS Code language assets and edge-case grammars.
+- [x] Add extension compatibility pass for additional VS Code language assets and edge-case grammars.
 - [ ] Tighten startup/performance budgets with CI-enforced thresholds.
 - [ ] Finalize packaging/install docs for Arch derivatives and additional validated distros.
 - [ ] Cut and validate `v0.9.6-rc.2`.

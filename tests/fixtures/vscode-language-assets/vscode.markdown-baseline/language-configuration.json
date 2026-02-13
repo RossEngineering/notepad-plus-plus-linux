@@ -1,0 +1,6 @@
+{
+  "comments": {
+    "blockComment": ["<!--", "-->"]
+  },
+  "autoClosingPairs": [["(", ")"], ["[", "]"], ["{", "}"]]
+}
