@@ -202,3 +202,14 @@ Create these interfaces in `platform/include`:
 4. Clipboard service.
 5. DPI service adaptation.
 6. Theme restyling.
+
+## Incremental replacements completed
+
+Implemented Linux replacements behind interfaces in `platform/linux`:
+
+- `LinuxFileSystemService` (`IFileSystemService`)
+- `LinuxPathService` (`IPathService`, including XDG paths)
+- `LinuxDiagnosticsService` (`IDiagnosticsService`)
+- `LinuxProcessService` (`IProcessService`)
+
+Validated through `tests/platform/linux_services_smoke.cpp` and CMake presets (`debug` and `release`).
