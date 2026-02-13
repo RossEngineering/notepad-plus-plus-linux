@@ -57,7 +57,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Define package split strategy (runtime, debug symbols, optional plugins).
 - [x] Add desktop entry, icon assets, and MIME associations.
 - [x] Add reproducible release build instructions.
-- [ ] Publish signed release artifacts and checksums.
+- [x] Publish signed release artifacts and checksums.
 
 ## Phase 7: Quality and performance
 
