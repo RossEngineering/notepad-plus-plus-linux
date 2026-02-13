@@ -9,7 +9,13 @@ GitHub workflow: `.github/workflows/linux-release.yml`
 Triggers:
 
 - Tag push matching `v*` (publishes a GitHub release)
-- Manual `workflow_dispatch` (build + artifact upload only)
+- Manual `workflow_dispatch` (build + artifact upload, with optional release publish)
+
+Manual workflow inputs:
+
+- `version` (optional): artifact/release version label
+- `publish_release` (boolean): if true, also publish/update a GitHub release
+- `prerelease` (boolean): mark manual published release as prerelease
 
 Outputs:
 
@@ -40,3 +46,12 @@ git push origin v0.6.0
 ```
 
 The workflow will build, checksum, sign (if configured), and attach artifacts to the GitHub release for that tag.
+
+## Manual run (Actions UI)
+
+You can run **Linux Release Artifacts** manually and choose:
+
+1. build-only (artifact upload), or
+2. build + GitHub release publish.
+
+For manual publish, the workflow uses `version` as `tag_name` (or `manual-<sha>` if omitted).

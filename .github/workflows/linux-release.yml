@@ -5,6 +5,25 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version/tag (example: v0.7.0). Defaults to manual-<sha>.'
+        required: false
+        type: string
+      publish_release:
+        description: 'Publish GitHub Release in addition to uploading workflow artifacts'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark GitHub release as prerelease'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: linux-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release-linux:
@@ -15,13 +34,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+            PUBLISH="true"
+            PRERELEASE="false"
+            TAG_NAME="${GITHUB_REF_NAME}"
+          else
+            RAW_VERSION="${{ inputs.version }}"
+            if [[ -z "${RAW_VERSION}" ]]; then
+              RAW_VERSION="manual-$(git rev-parse --short HEAD)"
+            fi
+            VERSION="${RAW_VERSION//\//-}"
+            PUBLISH="${{ inputs.publish_release }}"
+            PRERELEASE="${{ inputs.prerelease }}"
+            TAG_NAME="${VERSION}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "release_name=Notepad++ Linux ${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build release artifacts
         shell: bash
         run: |
-          RAW_VERSION="${GITHUB_REF_NAME:-manual-$(git rev-parse --short HEAD)}"
-          VERSION="${RAW_VERSION//\//-}"
-          ./scripts/release/create_linux_release_artifacts.sh "$VERSION"
+          ./scripts/release/create_linux_release_artifacts.sh "${{ steps.release_meta.outputs.version }}"
 
       - name: Import GPG key (optional)
         if: ${{ secrets.LINUX_RELEASE_GPG_KEY != '' }}
@@ -47,12 +91,20 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-release-artifacts
+          name: linux-release-artifacts-${{ steps.release_meta.outputs.version }}
           path: out/release/*
           if-no-files-found: error
+          retention-days: 30
 
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ steps.release_meta.outputs.publish == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.release_meta.outputs.release_name }}
+          prerelease: ${{ steps.release_meta.outputs.prerelease }}
+          generate_release_notes: true
+          make_latest: true
+          fail_on_unmatched_files: true
           files: out/release/*
