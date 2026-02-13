@@ -1,0 +1,29 @@
+# Maintainer: Dan Ross <danross2683@gmail.com>
+
+pkgname=notepad-plus-plus-linux
+pkgver=0.6.0
+pkgrel=1
+pkgdesc='Linux-native Notepad++ fork focused on Manjaro/Arch systems'
+arch=('x86_64')
+url='https://github.com/notepad-plus-plus/notepad-plus-plus'
+license=('GPL-3.0-or-later')
+depends=('qt6-base' 'gcc-libs' 'glibc')
+makedepends=('cmake' 'ninja')
+options=('!lto')
+source=()
+sha256sums=()
+
+build() {
+  cmake -S "$startdir" -B "$srcdir/build" -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DNPP_BUILD_QT_SHELL=ON \
+    -DBUILD_TESTING=OFF
+  cmake --build "$srcdir/build"
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install "$srcdir/build"
+
+  install -Dm644 "$startdir/LICENSE" \
+    "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

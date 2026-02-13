@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+include(GNUInstallDirs)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
@@ -200,6 +201,10 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
             target_compile_definitions(npp_linux_shell PRIVATE NPP_HAVE_LEXILLA=1)
             target_link_libraries(npp_linux_shell PRIVATE npp::lexilla)
         endif()
+
+        install(TARGETS npp_linux_shell
+            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        )
     else()
         message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")
     endif()
