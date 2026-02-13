@@ -70,7 +70,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 ## Phase 8: Documentation and developer UX
 
 - [x] Rewrite `BUILD.md` with Linux-native instructions first.
-- [ ] Add `docs/dev-setup-manjaro.md` for one-command setup.
+- [x] Add `docs/dev-setup-manjaro.md` for one-command setup.
 - [ ] Add `docs/roadmap.md` with milestone timeline.
 - [ ] Add contribution labels and issue templates for migration work.
 - [ ] Add migration status dashboard to README.
