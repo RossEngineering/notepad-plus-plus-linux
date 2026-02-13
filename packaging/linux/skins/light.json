@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {
+    "id": "builtin.light",
+    "name": "Built-in Light",
+    "author": "notepad-plus-plus-linux",
+    "description": "Balanced default light skin."
+  },
+  "appChrome": {
+    "windowBackground": "#F3F3F3",
+    "windowForeground": "#1A1A1A",
+    "menuBackground": "#FFFFFF",
+    "menuForeground": "#1A1A1A",
+    "statusBackground": "#EFEFEF",
+    "statusForeground": "#1A1A1A",
+    "accent": "#005FB8"
+  },
+  "editor": {
+    "background": "#FFFFFF",
+    "foreground": "#1A1A1A",
+    "lineNumberBackground": "#F2F2F2",
+    "lineNumberForeground": "#616161",
+    "caretLineBackground": "#F7FAFF",
+    "selectionBackground": "#CFE8FF",
+    "selectionForeground": "#000000",
+    "comment": "#6A9955",
+    "keyword": "#005FB8",
+    "number": "#9A3E9D",
+    "stringColor": "#B34100",
+    "operatorColor": "#1A1A1A"
+  },
+  "dialogs": {
+    "background": "#FFFFFF",
+    "foreground": "#1A1A1A",
+    "buttonBackground": "#E9EEF6",
+    "buttonForeground": "#1A1A1A",
+    "border": "#B5C3D6"
+  }
+}

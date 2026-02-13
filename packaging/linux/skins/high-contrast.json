@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {
+    "id": "builtin.high_contrast",
+    "name": "Built-in High Contrast",
+    "author": "notepad-plus-plus-linux",
+    "description": "Accessibility-focused high-contrast skin."
+  },
+  "appChrome": {
+    "windowBackground": "#000000",
+    "windowForeground": "#FFFFFF",
+    "menuBackground": "#000000",
+    "menuForeground": "#FFFFFF",
+    "statusBackground": "#000000",
+    "statusForeground": "#FFFFFF",
+    "accent": "#FFD700"
+  },
+  "editor": {
+    "background": "#000000",
+    "foreground": "#FFFFFF",
+    "lineNumberBackground": "#000000",
+    "lineNumberForeground": "#FFD700",
+    "caretLineBackground": "#111111",
+    "selectionBackground": "#0033CC",
+    "selectionForeground": "#FFFFFF",
+    "comment": "#00FF00",
+    "keyword": "#FFD700",
+    "number": "#00FFFF",
+    "stringColor": "#FF8C00",
+    "operatorColor": "#FFFFFF"
+  },
+  "dialogs": {
+    "background": "#000000",
+    "foreground": "#FFFFFF",
+    "buttonBackground": "#1A1A1A",
+    "buttonForeground": "#FFFFFF",
+    "border": "#FFD700"
+  }
+}

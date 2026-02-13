@@ -231,6 +231,13 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
             "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/mime/notepad-plus-plus-linux.xml"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mime/packages"
         )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/light.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/dark.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/high-contrast.json"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux/skins"
+        )
     else()
         message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")
     endif()

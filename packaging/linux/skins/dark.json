@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {
+    "id": "builtin.dark",
+    "name": "Built-in Dark",
+    "author": "notepad-plus-plus-linux",
+    "description": "Low-glare dark skin for prolonged editing."
+  },
+  "appChrome": {
+    "windowBackground": "#1B1E23",
+    "windowForeground": "#E6EAF2",
+    "menuBackground": "#242933",
+    "menuForeground": "#E6EAF2",
+    "statusBackground": "#20242D",
+    "statusForeground": "#DCE2EC",
+    "accent": "#4FA3FF"
+  },
+  "editor": {
+    "background": "#15181E",
+    "foreground": "#DDE3EE",
+    "lineNumberBackground": "#20242D",
+    "lineNumberForeground": "#77839A",
+    "caretLineBackground": "#1F2530",
+    "selectionBackground": "#304764",
+    "selectionForeground": "#F3F7FF",
+    "comment": "#7FA06E",
+    "keyword": "#6CB6FF",
+    "number": "#C78AF3",
+    "stringColor": "#FFB86B",
+    "operatorColor": "#DDE3EE"
+  },
+  "dialogs": {
+    "background": "#242933",
+    "foreground": "#E6EAF2",
+    "buttonBackground": "#2C3442",
+    "buttonForeground": "#E6EAF2",
+    "border": "#41506A"
+  }
+}

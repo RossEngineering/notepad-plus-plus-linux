@@ -6,6 +6,7 @@ This document defines the Phase 10 skin file format for the Linux-native UI.
 
 - User skin config file: `~/.config/notepad-plus-plus-linux/theme-linux.json`
 - JSON Schema: `docs/schemas/skin-v1.schema.json`
+- Installed first-party skins: `/usr/share/notepad-plus-plus-linux/skins`
 
 ## Goals
 
@@ -75,3 +76,17 @@ This document defines the Phase 10 skin file format for the Linux-native UI.
 
 - Existing flat theme files remain supported.
 - Skin v1 section keys take precedence when both formats are present.
+
+## First-party skin set
+
+Phase 10 ships these built-in skins:
+
+- `light.json`
+- `dark.json`
+- `high-contrast.json`
+
+To apply one manually now, copy it to the user theme path:
+
+```bash
+cp /usr/share/notepad-plus-plus-linux/skins/dark.json ~/.config/notepad-plus-plus-linux/theme-linux.json
+```
