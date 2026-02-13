@@ -3,6 +3,8 @@
 This fork is Linux-native first.
 Primary reference environment: Arch Linux and derivatives (Manjaro baseline).
 
+Distro-specific install/setup guidance is in `docs/install-linux.md`.
+
 ## Linux Quick Start (Arch-family, Manjaro baseline)
 
 1. Install required packages:

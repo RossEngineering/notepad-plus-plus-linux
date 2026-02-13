@@ -75,6 +75,7 @@ Post-foundation phases (9+) are now tracked in `TODO.md` and `docs/roadmap.md`.
 ## Build notes
 
 Linux-first build and test instructions are in [`BUILD.md`](BUILD.md).
+Validated distro install guidance is in [`docs/install-linux.md`](docs/install-linux.md).
 For one-command Arch-family developer setup (validated on Manjaro), see [`docs/dev-setup-manjaro.md`](docs/dev-setup-manjaro.md).
 
 ## Contributing
