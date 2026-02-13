@@ -17,6 +17,15 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+add_library(npp_language_detection STATIC
+    ui/qt/LanguageDetection.cpp
+)
+add_library(npp::language_detection ALIAS npp_language_detection)
+target_include_directories(npp_language_detection
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/ui/qt"
+)
+
 if(NPP_BUILD_SCINTILLA)
     set(SCINTILLA_CORE_SOURCES
         scintilla/src/AutoComplete.cxx
@@ -191,6 +200,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
 
         target_link_libraries(npp_linux_shell
             PRIVATE
+                npp::language_detection
                 npp::platform_linux
                 npp::scintilla_qt
                 Qt${QT_VERSION_MAJOR}::Core
@@ -227,6 +237,15 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
 endif()
 
 include(CTest)
+
+if(BUILD_TESTING AND TARGET npp_language_detection)
+    add_executable(language_detection_regression_test tests/regression/language_detection_regression_test.cpp)
+    target_link_libraries(language_detection_regression_test PRIVATE npp::language_detection)
+    target_compile_definitions(language_detection_regression_test PRIVATE
+        NPP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    add_test(NAME language_detection_regression_test COMMAND language_detection_regression_test)
+endif()
 
 if(BUILD_TESTING AND TARGET npp_lexilla)
     add_executable(lexilla_smoke_test tests/smoke/lexilla_smoke.cpp)

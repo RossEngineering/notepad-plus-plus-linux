@@ -1,0 +1,8 @@
+<html>
+  <head><title>fixture</title></head>
+  <body>
+    <section>
+      <h2>content</h2>
+    </section>
+  </body>
+</html>

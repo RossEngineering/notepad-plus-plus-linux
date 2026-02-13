@@ -1,9 +1,11 @@
 #include "MainWindow.h"
+#include "LanguageDetection.h"
 
 #include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <filesystem>
+#include <iomanip>
 #include <map>
 #include <sstream>
 
@@ -74,6 +76,8 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"edit.replace", QKeySequence(QStringLiteral("Ctrl+H"))},
         {"edit.gotoLine", QKeySequence(QStringLiteral("Ctrl+G"))},
         {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
+        {"language.autoDetect", QKeySequence(QStringLiteral("Ctrl+Alt+L"))},
+        {"language.lockCurrent", QKeySequence(QStringLiteral("Ctrl+Alt+Shift+L"))},
         {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
@@ -145,45 +149,10 @@ std::string AsciiLower(std::string value) {
     return value;
 }
 
-std::string LexerNameFromPath(const std::string &pathUtf8) {
-    const std::string extension = AsciiLower(std::filesystem::path(pathUtf8).extension().string());
-    if (extension == ".c" || extension == ".cc" || extension == ".cpp" ||
-        extension == ".cxx" || extension == ".h" || extension == ".hpp" ||
-        extension == ".hh" || extension == ".hxx" || extension == ".java") {
-        return "cpp";
-    }
-    if (extension == ".py" || extension == ".pyw") {
-        return "python";
-    }
-    if (extension == ".js" || extension == ".jsx" || extension == ".ts" || extension == ".tsx") {
-        return "cpp";
-    }
-    if (extension == ".json") {
-        return "json";
-    }
-    if (extension == ".xml" || extension == ".xsd" || extension == ".xsl" ||
-        extension == ".html" || extension == ".htm") {
-        return "xml";
-    }
-    if (extension == ".md" || extension == ".markdown") {
-        return "markdown";
-    }
-    if (extension == ".sh" || extension == ".bash" || extension == ".zsh") {
-        return "bash";
-    }
-    if (extension == ".yaml" || extension == ".yml") {
-        return "yaml";
-    }
-    if (extension == ".sql") {
-        return "sql";
-    }
-    if (extension == ".toml" || extension == ".ini" || extension == ".cfg" || extension == ".conf") {
-        return "props";
-    }
-    if (extension == ".make" || extension == ".mk") {
-        return "makefile";
-    }
-    return "null";
+std::string PercentString(double value) {
+    std::ostringstream stream;
+    stream << std::fixed << std::setprecision(0) << (value * 100.0);
+    return stream.str();
 }
 
 int ParseThemeColor(const QJsonObject &obj, const char *key, int fallback) {
@@ -214,6 +183,7 @@ MainWindow::MainWindow(QWidget *parent)
     }
     UpdateWindowTitle();
     UpdateCursorStatus();
+    UpdateLanguageActionState();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -265,6 +235,17 @@ void MainWindow::BuildMenus() {
     toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.open"));
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.reload"));
+
+    QMenu *languageMenu = menuBar()->addMenu(tr("&Language"));
+    languageMenu->addAction(_actionsById.at("language.autoDetect"));
+    languageMenu->addAction(_actionsById.at("language.lockCurrent"));
+    languageMenu->addSeparator();
+    languageMenu->addAction(_actionsById.at("language.set.plain"));
+    languageMenu->addAction(_actionsById.at("language.set.markdown"));
+    languageMenu->addAction(_actionsById.at("language.set.html"));
+    languageMenu->addAction(_actionsById.at("language.set.cpp"));
+    languageMenu->addAction(_actionsById.at("language.set.python"));
+    languageMenu->addAction(_actionsById.at("language.set.bash"));
 }
 
 void MainWindow::BuildStatusBar() {
@@ -294,6 +275,15 @@ void MainWindow::BuildActions() {
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
     registerAction("tools.runCommand", tr("Run Command..."), [this]() { OnRunCommand(); });
+    registerAction("language.autoDetect", tr("Auto Detect Language"), [this]() { OnAutoDetectLanguage(); });
+    registerAction("language.lockCurrent", tr("Lock Current Language"), [this]() { OnToggleLexerLock(); });
+    _actionsById.at("language.lockCurrent")->setCheckable(true);
+    registerAction("language.set.plain", tr("Plain Text"), [this]() { SetCurrentEditorManualLexer("null"); });
+    registerAction("language.set.markdown", tr("Markdown"), [this]() { SetCurrentEditorManualLexer("markdown"); });
+    registerAction("language.set.html", tr("HTML/XML"), [this]() { SetCurrentEditorManualLexer("xml"); });
+    registerAction("language.set.cpp", tr("C/C++"), [this]() { SetCurrentEditorManualLexer("cpp"); });
+    registerAction("language.set.python", tr("Python"), [this]() { SetCurrentEditorManualLexer("python"); });
+    registerAction("language.set.bash", tr("Bash/Shell"), [this]() { SetCurrentEditorManualLexer("bash"); });
 
     registerAction(
         "tools.shortcuts.open",
@@ -318,6 +308,7 @@ void MainWindow::BuildTabs() {
     connect(_tabs, &QTabWidget::currentChanged, this, [this](int) {
         UpdateWindowTitle();
         UpdateCursorStatus();
+        UpdateLanguageActionState();
     });
 
     setCentralWidget(_tabs);
@@ -362,7 +353,7 @@ ScintillaEditBase *MainWindow::CreateEditor() {
     });
 
     ApplyTheme(editor);
-    ApplyLexerForPath(editor, std::string{});
+    ApplyLexerByName(editor, "null");
     ApplyEditorSettings(editor);
 
     return editor;
@@ -385,11 +376,14 @@ ScintillaEditBase *MainWindow::EditorAt(int index) const {
 void MainWindow::NewTab() {
     auto *editor = CreateEditor();
     EditorState state;
+    state.lexerName = "null";
     _editorStates.insert_or_assign(editor, state);
+    ApplyLexerByName(editor, state.lexerName);
 
     const int index = _tabs->addTab(editor, tr("Untitled"));
     _tabs->setCurrentIndex(index);
     editor->setFocus();
+    UpdateLanguageActionState();
 }
 
 void MainWindow::OpenFile() {
@@ -970,6 +964,83 @@ void MainWindow::OnRunCommand() {
         tr("Command finished with exit code %1.").arg(result.value->exitCode));
 }
 
+void MainWindow::OnAutoDetectLanguage() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+    stateIt->second.lexerManualLock = false;
+    AutoDetectAndApplyLexer(editor, stateIt->second.filePathUtf8, GetEditorText(editor), "manual-auto-detect");
+    UpdateLanguageActionState();
+}
+
+void MainWindow::OnToggleLexerLock() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+    stateIt->second.lexerManualLock = !stateIt->second.lexerManualLock;
+    if (!stateIt->second.lexerManualLock) {
+        AutoDetectAndApplyLexer(editor, stateIt->second.filePathUtf8, GetEditorText(editor), "unlock-auto-detect");
+    } else {
+        stateIt->second.lexerReason = "manual-lock";
+        stateIt->second.lexerConfidence = 1.0;
+        statusBar()->showMessage(
+            tr("Language lock enabled (%1)").arg(ToQString(stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName)),
+            2000);
+    }
+    UpdateLanguageActionState();
+}
+
+void MainWindow::SetCurrentEditorManualLexer(const std::string &lexerName) {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+    stateIt->second.lexerManualLock = true;
+    stateIt->second.lexerName = lexerName;
+    stateIt->second.lexerConfidence = 1.0;
+    stateIt->second.lexerReason = "manual-selection";
+    ApplyLexerByName(editor, lexerName);
+    statusBar()->showMessage(
+        tr("Language set to %1 (manual lock)").arg(ToQString(lexerName)),
+        2000);
+    UpdateLanguageActionState();
+}
+
+void MainWindow::UpdateLanguageActionState() {
+    auto actionIt = _actionsById.find("language.lockCurrent");
+    if (actionIt == _actionsById.end() || !actionIt->second) {
+        return;
+    }
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        actionIt->second->setChecked(false);
+        actionIt->second->setEnabled(false);
+        return;
+    }
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        actionIt->second->setChecked(false);
+        actionIt->second->setEnabled(false);
+        return;
+    }
+    actionIt->second->setEnabled(true);
+    actionIt->second->setChecked(stateIt->second.lexerManualLock);
+}
+
 bool MainWindow::FindNextInEditor(
     ScintillaEditBase *editor,
     const std::string &needleUtf8,
@@ -1148,7 +1219,7 @@ bool MainWindow::LoadFileIntoEditor(ScintillaEditBase *editor, const std::string
     state.dirty = false;
     state.encoding = encoding;
     state.eolMode = eolMode;
-    ApplyLexerForPath(editor, pathUtf8);
+    AutoDetectAndApplyLexer(editor, pathUtf8, utf8Text, "open");
     UpdateTabTitle(editor);
     statusBar()->showMessage(
         tr("Encoding: %1, EOL: %2")
@@ -1187,8 +1258,9 @@ bool MainWindow::SaveEditorToFile(ScintillaEditBase *editor, const std::string &
     state.filePathUtf8 = pathUtf8;
     state.dirty = false;
     editor->send(SCI_SETSAVEPOINT);
-    ApplyLexerForPath(editor, pathUtf8);
+    AutoDetectAndApplyLexer(editor, pathUtf8, GetEditorText(editor), "save");
     UpdateTabTitle(editor);
+    UpdateLanguageActionState();
     return true;
 }
 
@@ -1387,14 +1459,51 @@ void MainWindow::ApplyTheme(ScintillaEditBase *editor) {
 }
 
 void MainWindow::ApplyLexerForPath(ScintillaEditBase *editor, const std::string &pathUtf8) {
+    AutoDetectAndApplyLexer(editor, pathUtf8, GetEditorText(editor), "path");
+}
+
+void MainWindow::AutoDetectAndApplyLexer(
+    ScintillaEditBase *editor,
+    const std::string &pathUtf8,
+    const std::string &contentUtf8,
+    const char *trigger) {
     if (!editor) {
         return;
     }
 
-    const std::string lexerName = LexerNameFromPath(pathUtf8);
     auto stateIt = _editorStates.find(editor);
-    if (stateIt != _editorStates.end()) {
-        stateIt->second.lexerName = lexerName;
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+    if (stateIt->second.lexerManualLock) {
+        ApplyLexerByName(editor, stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName);
+        return;
+    }
+
+    constexpr double kAutoApplyThreshold = 0.60;
+    const npp::ui::LanguageDetectionResult detection = npp::ui::DetectLanguage(pathUtf8, contentUtf8);
+    const bool shouldAutoApply = detection.confidence >= kAutoApplyThreshold || detection.reason == "extension";
+    const std::string chosenLexer = shouldAutoApply ? detection.lexerName : std::string("null");
+
+    stateIt->second.lexerName = chosenLexer;
+    stateIt->second.lexerConfidence = detection.confidence;
+    stateIt->second.lexerReason = detection.reason;
+    ApplyLexerByName(editor, chosenLexer);
+
+    if (statusBar()) {
+        statusBar()->showMessage(
+            tr("Language %1 (%2%% via %3, %4)")
+                .arg(ToQString(chosenLexer))
+                .arg(ToQString(PercentString(detection.confidence)))
+                .arg(ToQString(detection.reason))
+                .arg(QString::fromLatin1(trigger)),
+            2500);
+    }
+}
+
+void MainWindow::ApplyLexerByName(ScintillaEditBase *editor, const std::string &lexerName) {
+    if (!editor) {
+        return;
     }
 
 #if defined(NPP_HAVE_LEXILLA) && NPP_HAVE_LEXILLA

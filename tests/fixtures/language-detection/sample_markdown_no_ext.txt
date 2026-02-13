@@ -1,0 +1,12 @@
+# Release Checklist
+
+## Build
+
+- run tests
+- run package
+
+```bash
+ctest --output-on-failure
+```
+
+[Roadmap](docs/roadmap.md)

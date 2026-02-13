@@ -44,6 +44,9 @@ private:
 		TextEncoding encoding = TextEncoding::kUtf8;
 		int eolMode = 2;
 		std::string lexerName;
+		bool lexerManualLock = false;
+		double lexerConfidence = 0.0;
+		std::string lexerReason;
 	};
 
 	struct EditorSettings {
@@ -94,6 +97,10 @@ private:
 	void OnGoToLine();
 	void OnPreferences();
 	void OnRunCommand();
+	void OnAutoDetectLanguage();
+	void OnToggleLexerLock();
+	void SetCurrentEditorManualLexer(const std::string &lexerName);
+	void UpdateLanguageActionState();
 
 	bool FindNextInEditor(ScintillaEditBase *editor, const std::string &needleUtf8, bool matchCase);
 	int ReplaceAllInEditor(
@@ -123,6 +130,12 @@ private:
 	void ApplyEditorSettings(ScintillaEditBase *editor);
 	void ApplyTheme(ScintillaEditBase *editor);
 	void ApplyLexerForPath(ScintillaEditBase *editor, const std::string &pathUtf8);
+	void ApplyLexerByName(ScintillaEditBase *editor, const std::string &lexerName);
+	void AutoDetectAndApplyLexer(
+		ScintillaEditBase *editor,
+		const std::string &pathUtf8,
+		const std::string &contentUtf8,
+		const char *trigger);
 	void ApplyLexerStyles(ScintillaEditBase *editor, const std::string &lexerName);
 
 	void EnsureConfigRoot();
