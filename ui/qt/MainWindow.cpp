@@ -1,18 +1,27 @@
 #include "MainWindow.h"
 
-#include <array>
+#include <algorithm>
 #include <filesystem>
 
 #include <QAction>
+#include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QFormLayout>
+#include <QInputDialog>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QSpinBox>
 #include <QStatusBar>
 #include <QTabWidget>
+#include <QVBoxLayout>
 
 #include "Scintilla.h"
 #include "ScintillaEditBase.h"
@@ -38,6 +47,7 @@ sptr_t LineNumberMarginWidth(ScintillaEditBase *editor) {
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), _diagnosticsService(_pathService, _fileSystemService) {
     BuildUi();
+    LoadEditorSettings();
     NewTab();
     UpdateWindowTitle();
     UpdateCursorStatus();
@@ -346,31 +356,247 @@ void MainWindow::UpdateCursorStatus() {
 }
 
 void MainWindow::OnFind() {
-    QMessageBox::information(this, tr("Find"), tr("Find dialog will be enabled in Phase 4 step 3."));
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Find"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout();
+    auto *needleEdit = new QLineEdit(&dialog);
+    needleEdit->setText(ToQString(_lastFindUtf8.empty() ? GetSelectedText(editor) : _lastFindUtf8));
+    auto *matchCaseCheck = new QCheckBox(tr("Match case"), &dialog);
+    form->addRow(tr("Find what:"), needleEdit);
+    form->addRow(QString(), matchCaseCheck);
+    layout->addLayout(form);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    layout->addWidget(buttons);
+
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    const std::string needleUtf8 = ToUtf8(needleEdit->text());
+    if (needleUtf8.empty()) {
+        return;
+    }
+
+    _lastFindUtf8 = needleUtf8;
+    if (!FindNextInEditor(editor, needleUtf8, matchCaseCheck->isChecked())) {
+        QMessageBox::information(this, tr("Find"), tr("No matches found."));
+    }
 }
 
 void MainWindow::OnReplace() {
-    QMessageBox::information(this, tr("Replace"), tr("Replace dialog will be enabled in Phase 4 step 3."));
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    enum class ReplaceAction {
+        kNone = 0,
+        kSingle,
+        kAll,
+    };
+
+    ReplaceAction action = ReplaceAction::kNone;
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Replace"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout();
+    auto *needleEdit = new QLineEdit(&dialog);
+    needleEdit->setText(ToQString(_lastFindUtf8.empty() ? GetSelectedText(editor) : _lastFindUtf8));
+    auto *replacementEdit = new QLineEdit(&dialog);
+    auto *matchCaseCheck = new QCheckBox(tr("Match case"), &dialog);
+
+    form->addRow(tr("Find what:"), needleEdit);
+    form->addRow(tr("Replace with:"), replacementEdit);
+    form->addRow(QString(), matchCaseCheck);
+    layout->addLayout(form);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, &dialog);
+    QPushButton *replaceButton = buttons->addButton(tr("Replace"), QDialogButtonBox::AcceptRole);
+    QPushButton *replaceAllButton = buttons->addButton(tr("Replace All"), QDialogButtonBox::ActionRole);
+    layout->addWidget(buttons);
+
+    connect(replaceButton, &QPushButton::clicked, &dialog, [&dialog, &action]() {
+        action = ReplaceAction::kSingle;
+        dialog.accept();
+    });
+    connect(replaceAllButton, &QPushButton::clicked, &dialog, [&dialog, &action]() {
+        action = ReplaceAction::kAll;
+        dialog.accept();
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    const std::string needleUtf8 = ToUtf8(needleEdit->text());
+    if (needleUtf8.empty()) {
+        return;
+    }
+
+    const std::string replacementUtf8 = ToUtf8(replacementEdit->text());
+    const bool matchCase = matchCaseCheck->isChecked();
+    _lastFindUtf8 = needleUtf8;
+
+    if (action == ReplaceAction::kSingle) {
+        if (!FindNextInEditor(editor, needleUtf8, matchCase)) {
+            QMessageBox::information(this, tr("Replace"), tr("No matches found."));
+            return;
+        }
+        editor->sends(SCI_REPLACESEL, 0, replacementUtf8.c_str());
+        return;
+    }
+
+    const int replacements = ReplaceAllInEditor(editor, needleUtf8, replacementUtf8, matchCase);
+    QMessageBox::information(
+        this,
+        tr("Replace All"),
+        tr("Replaced %1 occurrence(s).").arg(replacements));
 }
 
 void MainWindow::OnGoToLine() {
-    QMessageBox::information(this, tr("Go To Line"), tr("Go To Line dialog will be enabled in Phase 4 step 3."));
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const int maxLine = static_cast<int>(editor->send(SCI_GETLINECOUNT));
+    bool ok = false;
+    const int line = QInputDialog::getInt(
+        this,
+        tr("Go To Line"),
+        tr("Line number:"),
+        1,
+        1,
+        std::max(maxLine, 1),
+        1,
+        &ok);
+    if (!ok) {
+        return;
+    }
+
+    editor->send(SCI_GOTOLINE, static_cast<uptr_t>(line - 1));
+    editor->send(SCI_SCROLLCARET);
+    UpdateCursorStatus();
 }
 
 void MainWindow::OnPreferences() {
-    QMessageBox::information(this, tr("Preferences"), tr("Preferences dialog will be enabled in Phase 4 step 3."));
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Preferences"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout();
+    auto *tabWidthSpin = new QSpinBox(&dialog);
+    tabWidthSpin->setRange(1, 12);
+    tabWidthSpin->setValue(_editorSettings.tabWidth);
+    auto *wrapCheck = new QCheckBox(tr("Enable line wrap"), &dialog);
+    wrapCheck->setChecked(_editorSettings.wrapEnabled);
+    auto *lineNumbersCheck = new QCheckBox(tr("Show line numbers"), &dialog);
+    lineNumbersCheck->setChecked(_editorSettings.showLineNumbers);
+
+    form->addRow(tr("Tab width:"), tabWidthSpin);
+    form->addRow(QString(), wrapCheck);
+    form->addRow(QString(), lineNumbersCheck);
+    layout->addLayout(form);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    _editorSettings.tabWidth = tabWidthSpin->value();
+    _editorSettings.wrapEnabled = wrapCheck->isChecked();
+    _editorSettings.showLineNumbers = lineNumbersCheck->isChecked();
+    ApplyEditorSettingsToAllEditors();
+    SaveEditorSettings();
+    statusBar()->showMessage(tr("Preferences updated"), 1500);
 }
 
-bool MainWindow::FindNextInEditor(ScintillaEditBase *, const std::string &, bool) {
-    return false;
+bool MainWindow::FindNextInEditor(
+    ScintillaEditBase *editor,
+    const std::string &needleUtf8,
+    bool matchCase) {
+    if (!editor || needleUtf8.empty()) {
+        return false;
+    }
+
+    const uptr_t flags = matchCase ? SCFIND_MATCHCASE : 0;
+    const sptr_t documentLength = editor->send(SCI_GETTEXTLENGTH);
+    const sptr_t start = editor->send(SCI_GETSELECTIONEND);
+    const sptr_t needleLength = static_cast<sptr_t>(needleUtf8.size());
+
+    editor->send(SCI_SETSEARCHFLAGS, flags);
+    editor->send(SCI_SETTARGETRANGE, start, documentLength);
+    sptr_t found = editor->sends(SCI_SEARCHINTARGET, needleLength, needleUtf8.c_str());
+
+    if (found < 0 && start > 0) {
+        editor->send(SCI_SETTARGETRANGE, 0, start);
+        found = editor->sends(SCI_SEARCHINTARGET, needleLength, needleUtf8.c_str());
+    }
+
+    if (found < 0) {
+        return false;
+    }
+
+    const sptr_t targetStart = editor->send(SCI_GETTARGETSTART);
+    const sptr_t targetEnd = editor->send(SCI_GETTARGETEND);
+    editor->send(SCI_SETSEL, targetStart, targetEnd);
+    editor->send(SCI_SCROLLCARET);
+    return true;
 }
 
 int MainWindow::ReplaceAllInEditor(
-    ScintillaEditBase *,
-    const std::string &,
-    const std::string &,
-    bool) {
-    return 0;
+    ScintillaEditBase *editor,
+    const std::string &needleUtf8,
+    const std::string &replacementUtf8,
+    bool matchCase) {
+    if (!editor || needleUtf8.empty()) {
+        return 0;
+    }
+
+    const uptr_t flags = matchCase ? SCFIND_MATCHCASE : 0;
+    const sptr_t needleLength = static_cast<sptr_t>(needleUtf8.size());
+    const sptr_t replacementLength = static_cast<sptr_t>(replacementUtf8.size());
+
+    editor->send(SCI_BEGINUNDOACTION);
+    editor->send(SCI_SETSEARCHFLAGS, flags);
+    editor->send(SCI_SETTARGETRANGE, 0, editor->send(SCI_GETTEXTLENGTH));
+
+    int replaced = 0;
+    while (true) {
+        const sptr_t found = editor->sends(SCI_SEARCHINTARGET, needleLength, needleUtf8.c_str());
+        if (found < 0) {
+            break;
+        }
+
+        const sptr_t targetStart = editor->send(SCI_GETTARGETSTART);
+        editor->sends(SCI_REPLACETARGET, replacementLength, replacementUtf8.c_str());
+        ++replaced;
+
+        const sptr_t nextStart = targetStart + replacementLength;
+        const sptr_t docLength = editor->send(SCI_GETTEXTLENGTH);
+        editor->send(SCI_SETTARGETRANGE, nextStart, docLength);
+    }
+
+    editor->send(SCI_ENDUNDOACTION);
+    return replaced;
 }
 
 std::string MainWindow::GetEditorText(ScintillaEditBase *editor) const {
@@ -456,9 +682,51 @@ bool MainWindow::SaveEditorToFile(ScintillaEditBase *editor, const std::string &
     return true;
 }
 
-void MainWindow::LoadEditorSettings() {}
+void MainWindow::LoadEditorSettings() {
+    EnsureConfigRoot();
+    const auto exists = _fileSystemService.Exists(SettingsFilePath());
+    if (!exists.ok() || !(*exists.value)) {
+        return;
+    }
 
-void MainWindow::SaveEditorSettings() const {}
+    const auto settingsJson = _fileSystemService.ReadTextFile(SettingsFilePath());
+    if (!settingsJson.ok()) {
+        return;
+    }
+
+    const QByteArray settingsBytes(
+        settingsJson.value->c_str(),
+        static_cast<int>(settingsJson.value->size()));
+    QJsonParseError parseError{};
+    const QJsonDocument doc = QJsonDocument::fromJson(settingsBytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return;
+    }
+
+    const QJsonObject obj = doc.object();
+    _editorSettings.tabWidth = std::clamp(obj.value(QStringLiteral("tabWidth")).toInt(4), 1, 12);
+    _editorSettings.wrapEnabled = obj.value(QStringLiteral("wrapEnabled")).toBool(false);
+    _editorSettings.showLineNumbers = obj.value(QStringLiteral("showLineNumbers")).toBool(true);
+}
+
+void MainWindow::SaveEditorSettings() const {
+    const_cast<MainWindow *>(this)->EnsureConfigRoot();
+    QJsonObject settingsObject;
+    settingsObject.insert(QStringLiteral("tabWidth"), _editorSettings.tabWidth);
+    settingsObject.insert(QStringLiteral("wrapEnabled"), _editorSettings.wrapEnabled);
+    settingsObject.insert(QStringLiteral("showLineNumbers"), _editorSettings.showLineNumbers);
+
+    const QJsonDocument doc(settingsObject);
+    const auto json = doc.toJson(QJsonDocument::Indented);
+
+    npp::platform::WriteFileOptions options;
+    options.atomic = true;
+    options.createParentDirs = true;
+    const_cast<MainWindow *>(this)->_fileSystemService.WriteTextFile(
+        SettingsFilePath(),
+        std::string(json.constData(), static_cast<size_t>(json.size())),
+        options);
+}
 
 void MainWindow::ApplyEditorSettingsToAllEditors() {
     if (!_tabs) {
@@ -478,7 +746,13 @@ void MainWindow::ApplyEditorSettings(ScintillaEditBase *editor) {
     editor->send(SCI_SETMARGINWIDTHN, 0, _editorSettings.showLineNumbers ? LineNumberMarginWidth(editor) : 0);
 }
 
-void MainWindow::EnsureConfigRoot() {}
+void MainWindow::EnsureConfigRoot() {
+    const std::string root = ConfigRootPath();
+    if (root.empty()) {
+        return;
+    }
+    _fileSystemService.CreateDirectories(root);
+}
 
 void MainWindow::EnsureShortcutConfigFile() {}
 
