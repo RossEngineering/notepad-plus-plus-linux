@@ -118,6 +118,10 @@ private:
 	void OnGoToLine();
 	void OnPreferences();
 	void OnRunCommand();
+	void OnOpenHelpDocs();
+	void OnOpenHelpWiki();
+	void OnReportBug();
+	void OnRequestFeature();
 	void OnInstallExtensionFromDirectory();
 	void OnManageExtensions();
 	void OnAutoDetectLanguage();
@@ -175,6 +179,7 @@ private:
 	void ApplyShortcuts();
 	void ReloadShortcuts();
 	void OpenShortcutConfigFile();
+	void OpenExternalLink(const QString &url, const QString &label);
 	void InitializeExtensionsWithGuardrails();
 	void StartCrashRecoveryTimer();
 	void SaveCrashRecoveryJournal() const;

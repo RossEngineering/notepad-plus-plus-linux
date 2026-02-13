@@ -15,6 +15,7 @@
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QColor>
+#include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -40,6 +41,7 @@
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include "Scintilla.h"
@@ -86,8 +88,18 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
+        {"help.wiki", QKeySequence(QStringLiteral("F1"))},
     };
     return kShortcuts;
+}
+
+const QString &RepositoryBaseUrl() {
+    static const QString kUrl = QStringLiteral("https://github.com/RossEngineering/notepad-plus-plus-linux");
+    return kUrl;
+}
+
+QString RepositoryUrl(const QString &suffix) {
+    return RepositoryBaseUrl() + suffix;
 }
 
 bool IsValidUtf8(std::string_view bytes) {
@@ -412,6 +424,13 @@ void MainWindow::BuildMenus() {
     skinsMenu->addAction(_actionsById.at("view.skin.light"));
     skinsMenu->addAction(_actionsById.at("view.skin.dark"));
     skinsMenu->addAction(_actionsById.at("view.skin.highContrast"));
+
+    QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
+    helpMenu->addAction(_actionsById.at("help.docs"));
+    helpMenu->addAction(_actionsById.at("help.wiki"));
+    helpMenu->addSeparator();
+    helpMenu->addAction(_actionsById.at("help.reportBug"));
+    helpMenu->addAction(_actionsById.at("help.requestFeature"));
 }
 
 void MainWindow::BuildStatusBar() {
@@ -484,6 +503,11 @@ void MainWindow::BuildActions() {
         "tools.shortcuts.reload",
         tr("Reload Shortcut Overrides"),
         [this]() { ReloadShortcuts(); });
+
+    registerAction("help.docs", tr("Open Help Docs"), [this]() { OnOpenHelpDocs(); });
+    registerAction("help.wiki", tr("Open Project Wiki"), [this]() { OnOpenHelpWiki(); });
+    registerAction("help.reportBug", tr("Report Bug..."), [this]() { OnReportBug(); });
+    registerAction("help.requestFeature", tr("Request Feature..."), [this]() { OnRequestFeature(); });
 }
 
 void MainWindow::BuildTabs() {
@@ -1186,6 +1210,41 @@ void MainWindow::OnRunCommand() {
         this,
         tr("Run Command"),
         tr("Command finished with exit code %1.").arg(result.value->exitCode));
+}
+
+void MainWindow::OnOpenHelpDocs() {
+    OpenExternalLink(
+        RepositoryUrl(QStringLiteral("/blob/master/docs/help-and-support.md")),
+        tr("Help docs"));
+}
+
+void MainWindow::OnOpenHelpWiki() {
+    OpenExternalLink(
+        RepositoryUrl(QStringLiteral("/wiki")),
+        tr("Project wiki"));
+}
+
+void MainWindow::OnReportBug() {
+    OpenExternalLink(
+        RepositoryUrl(QStringLiteral("/issues/new?template=1-bug.yml")),
+        tr("bug report form"));
+}
+
+void MainWindow::OnRequestFeature() {
+    OpenExternalLink(
+        RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml")),
+        tr("feature request form"));
+}
+
+void MainWindow::OpenExternalLink(const QString &url, const QString &label) {
+    if (QDesktopServices::openUrl(QUrl(url))) {
+        statusBar()->showMessage(tr("Opened %1").arg(label), 2000);
+        return;
+    }
+    QMessageBox::warning(
+        this,
+        tr("Open Link"),
+        tr("Unable to open link:\n%1").arg(url));
 }
 
 void MainWindow::OnInstallExtensionFromDirectory() {

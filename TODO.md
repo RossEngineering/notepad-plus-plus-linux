@@ -22,6 +22,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Ship end-to-end color-coded syntax style consistency across supported lexers.
 - [x] Complete first-pass distro matrix validation (Arch derivatives, Ubuntu LTS, Fedora stable).
 - [x] Harden extension permissions UX and denial-path behavior.
+- [x] Add in-app Help menu entries for docs/wiki plus bug and feature submission links.
 - [ ] Cut and validate `v0.9.3-rc.1`.
 
 ### RC2 program (`v0.9.4` to `v0.9.6-rc.2`)

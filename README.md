@@ -40,6 +40,7 @@ Repository decision index is in [`docs/decisions.md`](docs/decisions.md).
 Performance benchmark baseline is in [`docs/performance-baseline.md`](docs/performance-baseline.md).
 Beta 2 release notes draft is in [`docs/releases/v0.9.0-beta.2.md`](docs/releases/v0.9.0-beta.2.md).
 Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
+Help and support quick links are in [`docs/help-and-support.md`](docs/help-and-support.md).
 
 ## Migration dashboard
 
