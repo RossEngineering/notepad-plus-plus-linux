@@ -6,7 +6,7 @@ This document proposes post-Phase-8 priorities aligned with `TODO.md` and `docs/
 
 ## Goal
 
-Deliver user-visible Linux differentiation: smart language UX, skinning, and credible extension story.
+Deliver Beta 1 by completing Phase 9 (automatic language detection + syntax highlighting quality gate).
 
 ## Workstream 1: Automatic language detection and highlighting (Phase 9)
 
@@ -14,6 +14,7 @@ Deliver user-visible Linux differentiation: smart language UX, skinning, and cre
 2. Classify Markdown/HTML/programming languages accurately on open and rename/save-as.
 3. Auto-select lexer with confidence gates and manual override lock.
 4. Track accuracy and false-positive rate on regression corpus.
+5. Use Phase 9 completion as the release gate for `v0.8.0-beta.1`.
 
 ## Workstream 2: UI skinning support (Phase 10)
 
@@ -35,3 +36,8 @@ Deliver user-visible Linux differentiation: smart language UX, skinning, and cre
 2. Improve crash-recovery journal and restore UX.
 3. Add extension performance budget checks.
 4. Plan distro expansion once Manjaro baseline is stable.
+
+## Release strategy note
+
+- No further alpha releases are planned after `v0.7.0-alpha.1`.
+- Next planned release target is `v0.8.0-beta.1`.

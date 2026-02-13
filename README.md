@@ -12,6 +12,7 @@ Current state:
 - Linux-native Qt shell builds and runs on Manjaro-class environments.
 - Packaging and release automation foundation is implemented (Phase 6).
 - Upstream codebase heritage remains Windows-centric; migration is ongoing.
+- Next planned release target: `v0.8.0-beta.1` (after Phase 9 completion).
 
 Planned state:
 

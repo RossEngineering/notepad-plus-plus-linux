@@ -7,13 +7,25 @@ Last updated: 2026-02-13
 This repository is in pre-1.0 migration status.
 
 - Recommended version range: `0.x.y`
-- Use tag format: `v<major>.<minor>.<patch>`
+- Stable tag format: `v<major>.<minor>.<patch>`
+- Pre-release tag format: `v<major>.<minor>.<patch>-<channel>.<n>`
+  - Example: `v0.8.0-beta.1`
+
+## Current release direction
+
+- Final alpha release: `v0.7.0-alpha.1`
+- No further alpha releases planned.
+- Next target release: `v0.8.0-beta.1` after Phase 9 completion.
 
 ## Version increment rules
 
 - Patch (`x.y.Z`): bug fixes and non-breaking maintenance.
 - Minor (`x.Y.z`): additive features and meaningful behaviour improvements.
 - Major (`X.y.z`): reserved for explicit compatibility resets after 1.0.
+- Pre-release channels:
+  - `alpha`: early internal milestones (currently closed out).
+  - `beta`: broader validation milestone before release candidates.
+  - `rc`: release candidate stabilization before final.
 
 ## Compatibility stance
 
