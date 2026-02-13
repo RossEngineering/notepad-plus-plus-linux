@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <map>
+#include <set>
 #include <sstream>
 
 #include <QAction>
@@ -201,6 +202,11 @@ std::string LanguageActionIdForLexer(const std::string &lexerName) {
         return "language.set.bash";
     }
     return "language.set.plain";
+}
+
+bool IsIdentifierChar(char ch) {
+    const unsigned char uch = static_cast<unsigned char>(ch);
+    return std::isalnum(uch) != 0 || ch == '-' || ch == '_' || ch == ':';
 }
 
 int ParseThemeColor(const QJsonObject &obj, const char *key, int fallback) {
@@ -404,6 +410,10 @@ ScintillaEditBase *MainWindow::CreateEditor() {
 
     connect(editor, &ScintillaEditBase::updateUi, this, [this](Scintilla::Update) {
         UpdateCursorStatus();
+    });
+
+    connect(editor, &ScintillaEditBase::charAdded, this, [this, editor](int ch) {
+        MaybeAutoCloseHtmlTag(editor, ch);
     });
 
     ApplyTheme(editor);
@@ -921,10 +931,13 @@ void MainWindow::OnPreferences() {
     wrapCheck->setChecked(_editorSettings.wrapEnabled);
     auto *lineNumbersCheck = new QCheckBox(tr("Show line numbers"), &dialog);
     lineNumbersCheck->setChecked(_editorSettings.showLineNumbers);
+    auto *autoCloseHtmlTagsCheck = new QCheckBox(tr("Auto-close HTML/XML tags"), &dialog);
+    autoCloseHtmlTagsCheck->setChecked(_editorSettings.autoCloseHtmlTags);
 
     form->addRow(tr("Tab width:"), tabWidthSpin);
     form->addRow(QString(), wrapCheck);
     form->addRow(QString(), lineNumbersCheck);
+    form->addRow(QString(), autoCloseHtmlTagsCheck);
     layout->addLayout(form);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -939,6 +952,7 @@ void MainWindow::OnPreferences() {
     _editorSettings.tabWidth = tabWidthSpin->value();
     _editorSettings.wrapEnabled = wrapCheck->isChecked();
     _editorSettings.showLineNumbers = lineNumbersCheck->isChecked();
+    _editorSettings.autoCloseHtmlTags = autoCloseHtmlTagsCheck->isChecked();
     ApplyEditorSettingsToAllEditors();
     SaveEditorSettings();
     statusBar()->showMessage(tr("Preferences updated"), 1500);
@@ -1307,6 +1321,101 @@ int MainWindow::DetectDominantEolMode(const std::string &textUtf8) const {
     return SC_EOL_LF;
 }
 
+void MainWindow::MaybeAutoCloseHtmlTag(ScintillaEditBase *editor, int ch) {
+    if (!editor || ch != '>') {
+        return;
+    }
+    if (_suppressAutoCloseHandler || !_editorSettings.autoCloseHtmlTags) {
+        return;
+    }
+
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+    if (stateIt->second.lexerName != "xml") {
+        return;
+    }
+
+    const sptr_t caretPos = editor->send(SCI_GETCURRENTPOS);
+    if (caretPos <= 1) {
+        return;
+    }
+
+    const sptr_t line = editor->send(SCI_LINEFROMPOSITION, caretPos);
+    const sptr_t lineStart = editor->send(SCI_POSITIONFROMLINE, line);
+    const sptr_t lookbackStart = std::max<sptr_t>(lineStart, caretPos - 512);
+    const sptr_t lookbackLength = caretPos - lookbackStart;
+    if (lookbackLength <= 0) {
+        return;
+    }
+
+    std::string before(static_cast<size_t>(lookbackLength), '\0');
+    for (sptr_t i = 0; i < lookbackLength; ++i) {
+        before[static_cast<size_t>(i)] =
+            static_cast<char>(editor->send(SCI_GETCHARAT, lookbackStart + i));
+    }
+
+    const size_t ltPos = before.find_last_of('<');
+    if (ltPos == std::string::npos || ltPos + 1 >= before.size()) {
+        return;
+    }
+
+    std::string inside = before.substr(ltPos + 1);
+    if (inside.empty()) {
+        return;
+    }
+    if (inside[0] == '/' || inside[0] == '!' || inside[0] == '?') {
+        return;
+    }
+    if (!inside.empty() && inside.back() == '>') {
+        inside.pop_back();
+    }
+    if (inside.empty()) {
+        return;
+    }
+    if (!inside.empty() && inside.back() == '/') {
+        return;
+    }
+
+    size_t tagEnd = 0;
+    while (tagEnd < inside.size() && IsIdentifierChar(inside[tagEnd])) {
+        ++tagEnd;
+    }
+    if (tagEnd == 0) {
+        return;
+    }
+
+    const std::string tagName = inside.substr(0, tagEnd);
+    const std::string tagLower = AsciiLower(tagName);
+    static const std::set<std::string> kVoidTags = {
+        "area", "base", "br", "col", "embed", "hr", "img",
+        "input", "link", "meta", "param", "source", "track", "wbr",
+    };
+    if (kVoidTags.find(tagLower) != kVoidTags.end()) {
+        return;
+    }
+
+    const sptr_t lookaheadEnd = std::min<sptr_t>(editor->send(SCI_GETTEXTLENGTH), caretPos + 2 + static_cast<sptr_t>(tagName.size()));
+    if (lookaheadEnd > caretPos) {
+        std::string after(static_cast<size_t>(lookaheadEnd - caretPos), '\0');
+        for (sptr_t i = 0; i < lookaheadEnd - caretPos; ++i) {
+            after[static_cast<size_t>(i)] =
+                static_cast<char>(editor->send(SCI_GETCHARAT, caretPos + i));
+        }
+        std::string prefix = "</" + tagName;
+        if (after.rfind(prefix, 0) == 0) {
+            return;
+        }
+    }
+
+    const std::string closing = "</" + tagName + ">";
+    _suppressAutoCloseHandler = true;
+    editor->send(SCI_INSERTTEXT, caretPos, reinterpret_cast<sptr_t>(closing.c_str()));
+    editor->send(SCI_GOTOPOS, caretPos);
+    _suppressAutoCloseHandler = false;
+}
+
 bool MainWindow::LoadFileIntoEditor(ScintillaEditBase *editor, const std::string &pathUtf8) {
     const auto read = _fileSystemService.ReadTextFile(pathUtf8);
     if (!read.ok()) {
@@ -1520,6 +1629,7 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.tabWidth = std::clamp(obj.value(QStringLiteral("tabWidth")).toInt(4), 1, 12);
     _editorSettings.wrapEnabled = obj.value(QStringLiteral("wrapEnabled")).toBool(false);
     _editorSettings.showLineNumbers = obj.value(QStringLiteral("showLineNumbers")).toBool(true);
+    _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
 }
 
 void MainWindow::SaveEditorSettings() const {
@@ -1528,6 +1638,7 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("tabWidth"), _editorSettings.tabWidth);
     settingsObject.insert(QStringLiteral("wrapEnabled"), _editorSettings.wrapEnabled);
     settingsObject.insert(QStringLiteral("showLineNumbers"), _editorSettings.showLineNumbers);
+    settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
 
     const QJsonDocument doc(settingsObject);
     const auto json = doc.toJson(QJsonDocument::Indented);

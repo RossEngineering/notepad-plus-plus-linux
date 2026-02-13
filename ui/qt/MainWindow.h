@@ -53,6 +53,7 @@ private:
 		int tabWidth = 4;
 		bool wrapEnabled = false;
 		bool showLineNumbers = true;
+		bool autoCloseHtmlTags = true;
 	};
 
 	struct ThemeSettings {
@@ -114,6 +115,7 @@ private:
 	void SetEditorText(ScintillaEditBase *editor, const std::string &textUtf8);
 	void SetEditorEolMode(ScintillaEditBase *editor, int eolMode);
 	int DetectDominantEolMode(const std::string &textUtf8) const;
+	void MaybeAutoCloseHtmlTag(ScintillaEditBase *editor, int ch);
 
 	bool LoadFileIntoEditor(ScintillaEditBase *editor, const std::string &pathUtf8);
 	bool SaveEditorToFile(ScintillaEditBase *editor, const std::string &pathUtf8);
@@ -173,6 +175,7 @@ private:
 	std::string _lastRunCommandUtf8;
 	std::string _lastRunWorkingDirUtf8;
 	bool _closingApplication = false;
+	bool _suppressAutoCloseHandler = false;
 
 	npp::platform::LinuxPathService _pathService;
 	npp::platform::LinuxFileSystemService _fileSystemService;
