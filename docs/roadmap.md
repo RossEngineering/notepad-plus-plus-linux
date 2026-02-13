@@ -9,8 +9,8 @@ Dates are target dates and may be adjusted as migration risk changes.
 | --- | --- | --- | --- |
 | M0: Foundation Complete | February 13, 2026 | Phases 0-7 complete (architecture boundaries, Linux shell, packaging, quality baseline). | Done |
 | M1: Developer UX Baseline | February 13, 2026 | Phase 8 completion (Linux-first docs, migration issue workflows, dashboard). | Done |
-| M2: Beta 1 Readiness | April 15, 2026 | Phase 9 complete: automatic language detection + stable auto-highlighting behavior. | Planned |
-| M3: Beta 1 Release (`v0.8.0-beta.1`) | April 30, 2026 | First beta cut. No additional alpha releases. | Planned |
+| M2: Beta 1 Readiness | April 15, 2026 | Phase 9 complete: automatic language detection + stable auto-highlighting behavior. | Done |
+| M3: Beta 1 Release (`v0.8.0-beta.1`) | April 30, 2026 | First beta cut. No additional alpha releases. | In Progress |
 | M4: Post-Beta UX Expansion | June 30, 2026 | Skinning/theming plus syntax-aware editing assists (for example tag auto-close) delivery. | Planned |
 | M5: Post-Beta Extension Platform | August 31, 2026 | Extension API + targeted VS Code language-asset compatibility path (Phase 11). | Planned |
 | M6: 1.0 Release Candidate | October 15, 2026 | Feature freeze, compatibility validation, and blocker burn-down for RC. | Planned |
@@ -28,3 +28,10 @@ Dates are target dates and may be adjusted as migration risk changes.
 2. Automatic language detection works for targeted Markdown/HTML/programming corpus.
 3. Lexer auto-selection false-positive rate remains below agreed threshold.
 4. Beta 1 release candidate passes artifact/checksum validation.
+
+## Beta 1 state (2026-02-13)
+
+1. Scope frozen to Phase 9 deliverables; post-beta backlog excluded from Beta 1.
+2. Local Linux gates passing (`debug`, `release`, and ASan/UBSan with local LSan limitation).
+3. Release artifacts and checksum validation completed for `v0.8.0-beta.1`.
+4. Remaining publish steps: push/tag and GitHub release workflow execution.
