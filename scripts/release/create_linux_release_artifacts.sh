@@ -13,7 +13,7 @@ export TZ="UTC"
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT_DIR" log -1 --pretty=%ct)}"
 
 rm -rf "$BUILD_DIR" "$STAGE_DIR"
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR" "$STAGE_DIR"
 
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
@@ -23,6 +23,13 @@ cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -G Ninja \
 
 cmake --build "$BUILD_DIR"
 DESTDIR="$STAGE_DIR" cmake --install "$BUILD_DIR"
+
+EXPECTED_BIN="$STAGE_DIR/usr/bin/notepad-plus-plus-linux"
+if [[ ! -f "$EXPECTED_BIN" ]]; then
+  echo "Release artifact staging failed: expected binary not found at $EXPECTED_BIN" >&2
+  echo "This usually means Qt dependencies are missing and npp_linux_shell was skipped at configure time." >&2
+  exit 1
+fi
 
 ARTIFACT_BASE="notepad-plus-plus-linux-${VERSION}-x86_64"
 TARBALL="$OUTPUT_DIR/${ARTIFACT_BASE}.tar.xz"
