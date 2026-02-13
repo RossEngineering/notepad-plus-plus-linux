@@ -73,7 +73,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Add `docs/dev-setup-manjaro.md` for one-command setup.
 - [x] Add `docs/roadmap.md` with milestone timeline.
 - [x] Add contribution labels and issue templates for migration work.
-- [ ] Add migration status dashboard to README.
+- [x] Add migration status dashboard to README.
 
 ## Immediate next actions
 

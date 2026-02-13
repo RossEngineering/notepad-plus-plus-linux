@@ -31,6 +31,23 @@ Repository decision index is in [`docs/decisions.md`](docs/decisions.md).
 Performance benchmark baseline is in [`docs/performance-baseline.md`](docs/performance-baseline.md).
 Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
 
+## Migration dashboard
+
+| Phase | Focus | Status | Primary Artifact |
+| --- | --- | --- | --- |
+| Phase 0 | Baseline and audit | Complete | `docs/manjaro-build-status.md` |
+| Phase 1 | Architecture boundaries | Complete | `docs/architecture.md` |
+| Phase 2 | Build modernization | Complete | `CMakeLists.txt` |
+| Phase 3 | Platform abstraction | Complete | `platform/include` |
+| Phase 4 | Linux-native UI | Complete | `ui/qt` |
+| Phase 5 | MVP parity | Complete | `docs/plugin-strategy.md` |
+| Phase 6 | Packaging and distribution | Complete | `packaging/arch/PKGBUILD` |
+| Phase 7 | Quality and performance | Complete | `docs/performance-baseline.md` |
+| Phase 8 | Docs and developer UX | Complete | `docs/roadmap.md` |
+
+Current progress: **8 / 8 phases complete** in the current roadmap.
+Next release planning and post-Phase-8 scope should be tracked against `docs/roadmap.md`.
+
 ## Goals
 
 - Preserve Notepad++ editing strengths (performance, usability, language tooling).
@@ -46,13 +63,8 @@ Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
 
 ## Build notes
 
-The existing build documentation in [`BUILD.md`](BUILD.md) is still upstream-oriented and primarily Windows focused.
-
-As Linux-native build support is introduced, this README and `BUILD.md` will be updated with:
-
-- Linux dependency list
-- CMake presets / build commands
-- Manjaro packaging instructions
+Linux-first build and test instructions are in [`BUILD.md`](BUILD.md).
+For one-command Manjaro developer setup, see [`docs/dev-setup-manjaro.md`](docs/dev-setup-manjaro.md).
 
 ## Contributing
 
