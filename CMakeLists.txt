@@ -254,6 +254,14 @@ if(BUILD_TESTING AND TARGET npp_language_detection)
     add_test(NAME language_detection_regression_test COMMAND language_detection_regression_test)
 endif()
 
+if(BUILD_TESTING)
+    add_executable(skin_accessibility_regression_test tests/regression/skin_accessibility_regression_test.cpp)
+    target_compile_definitions(skin_accessibility_regression_test PRIVATE
+        NPP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    add_test(NAME skin_accessibility_regression_test COMMAND skin_accessibility_regression_test)
+endif()
+
 if(BUILD_TESTING AND TARGET npp_lexilla)
     add_executable(lexilla_smoke_test tests/smoke/lexilla_smoke.cpp)
     target_include_directories(lexilla_smoke_test PRIVATE
