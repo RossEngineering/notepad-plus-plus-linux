@@ -7,6 +7,7 @@ This file indexes architecture and governance decisions used by this repository.
 - UI backend decision: `docs/ui-decision.md`
 - Compatibility target: `docs/compatibility-target.md`
 - Plugin strategy: `docs/plugin-strategy.md`
+- Extension API v1 boundaries/security model: `docs/extension-api-v1.md`
 - Package split strategy: `docs/package-split-strategy.md`
 - Reproducible release approach: `docs/reproducible-release.md`
 - Release publishing/signing flow: `docs/release-publishing.md`

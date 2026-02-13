@@ -3,6 +3,8 @@
 Last updated: 2026-02-13
 Status: Accepted for MVP
 
+Detailed Phase 11 API boundary and permission model: `docs/extension-api-v1.md`.
+
 ## Decision
 
 For Linux MVP, this fork will use a **new Linux-native plugin API** and will **not** provide a Windows ABI compatibility shim.

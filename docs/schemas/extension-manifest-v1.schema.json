@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/extension-manifest-v1.schema.json",
+  "title": "notepad-plus-plus-linux Extension Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "type",
+    "apiVersion"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9_-]+)+$",
+      "description": "Stable reverse-domain-style extension identifier."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "language-pack",
+        "command-plugin",
+        "tool-integration"
+      ]
+    },
+    "apiVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$",
+      "description": "Host extension API compatibility target."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "entrypoint": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required for executable extension types."
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(workspace\\.read|workspace\\.write|filesystem\\.(read|write):.+|network\\.client|process\\.spawn|clipboard\\.(read|write))$"
+      },
+      "default": []
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      },
+      "default": []
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "command-plugin",
+              "tool-integration"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "entrypoint"
+        ]
+      }
+    }
+  ]
+}

@@ -23,6 +23,7 @@ Planned state:
 
 See [`TODO.md`](TODO.md) for the migration roadmap and active work items.
 Plugin direction for Linux is documented in [`docs/plugin-strategy.md`](docs/plugin-strategy.md).
+Extension API v1 boundaries and security model are documented in [`docs/extension-api-v1.md`](docs/extension-api-v1.md).
 Package split plan is documented in [`docs/package-split-strategy.md`](docs/package-split-strategy.md).
 Reproducible Linux release guidance is in [`docs/reproducible-release.md`](docs/reproducible-release.md).
 Release publishing and signing flow is in [`docs/release-publishing.md`](docs/release-publishing.md).
