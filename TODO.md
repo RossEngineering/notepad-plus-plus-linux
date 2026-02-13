@@ -5,7 +5,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 ## Release direction
 
-- [ ] Complete Phase 9 and cut `v0.8.0-beta.1`.
+- [x] Complete Phase 9 and cut `v0.8.0-beta.1`.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
 
 ## Phase 9: Automatic language detection and highlighting
