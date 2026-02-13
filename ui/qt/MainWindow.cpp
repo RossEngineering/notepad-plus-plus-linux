@@ -1232,7 +1232,7 @@ void MainWindow::OnManageExtensions() {
     }
 
     const QString extensionId = chosen.left(chosen.indexOf(QStringLiteral(" (")));
-    const QStringList operations = {tr("Enable"), tr("Disable"), tr("Remove")};
+    const QStringList operations = {tr("Enable"), tr("Disable"), tr("Reset Permissions"), tr("Remove")};
     bool operationOk = false;
     const QString operation = QInputDialog::getItem(
         this,
@@ -1252,6 +1252,8 @@ void MainWindow::OnManageExtensions() {
         operationStatus = _extensionService.EnableExtension(extensionIdUtf8);
     } else if (operation == operations.at(1)) {
         operationStatus = _extensionService.DisableExtension(extensionIdUtf8);
+    } else if (operation == operations.at(2)) {
+        operationStatus = _extensionService.ResetPermissions(extensionIdUtf8);
     } else {
         operationStatus = _extensionService.RemoveExtension(extensionIdUtf8);
     }
@@ -1263,7 +1265,11 @@ void MainWindow::OnManageExtensions() {
             tr("Operation failed:\n%1").arg(ToQString(operationStatus.message)));
         return;
     }
-    statusBar()->showMessage(tr("Extension operation completed"), 2000);
+    if (operation == operations.at(2)) {
+        statusBar()->showMessage(tr("Extension permission decisions reset"), 2000);
+    } else {
+        statusBar()->showMessage(tr("Extension operation completed"), 2000);
+    }
 }
 
 void MainWindow::OnAutoDetectLanguage() {

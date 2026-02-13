@@ -70,6 +70,7 @@ public:
     Status InstallFromDirectory(const std::string& sourceDirectoryUtf8);
     Status EnableExtension(const std::string& extensionId);
     Status DisableExtension(const std::string& extensionId);
+    Status ResetPermissions(const std::string& extensionId);
     Status RemoveExtension(const std::string& extensionId);
     StatusOr<bool> IsPermissionGranted(
         const std::string& extensionId,

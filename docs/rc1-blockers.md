@@ -13,7 +13,7 @@ This list tracks prioritized blockers that must be resolved or explicitly waived
 
 | ID | Priority | Area | Source | Status | Exit criteria |
 | --- | --- | --- | --- | --- | --- |
-| RC1-B01 | P0 | Extension permissions UX | Beta feedback + RC1 plan | Open | Deny/allow flows are explicit, reversible, and tested (filesystem/network/process prompts). |
+| RC1-B01 | P0 | Extension permissions UX | Beta feedback + RC1 plan | Closed | Deny/allow flows are explicit, reversible, and tested (filesystem/network/process prompts). |
 | RC1-B02 | P0 | Syntax color consistency | Beta feedback + RC1 plan | Open | Color-coded syntax output is consistent across targeted lexers/themes and validated by regression checks. |
 | RC1-B03 | P0 | Cross-distro baseline | Beta feedback + RC1 plan | Open | Arch derivatives, Ubuntu LTS, and Fedora stable each have captured build/test/launch evidence with no unresolved P0 defects. |
 | RC1-B04 | P1 | LSP baseline confidence | Known limitation in Beta 2 notes | Open | LSP baseline paths remain stable (no regressions) and RC1 scope limits are documented. |
@@ -24,6 +24,14 @@ This list tracks prioritized blockers that must be resolved or explicitly waived
 1. New blocker candidates must include repro steps and expected vs actual behavior.
 2. Each blocker must be linked to an issue/PR before status changes from `Open`.
 3. Any defer/waive decision requires rationale and explicit target milestone.
+
+## Closed blocker evidence
+
+1. `RC1-B01` (closed):
+   - User-denied permission requests now fail closed with explicit `kPermissionDenied` host errors.
+   - Install rollback removes copied extension files when interactive permission is denied.
+   - Permission decisions are reversible via `Reset Permissions` in extension management UI.
+   - Regression coverage updated in `tests/platform/extension_lifecycle_smoke_test.cpp`.
 
 ## RC1 readiness rule
 

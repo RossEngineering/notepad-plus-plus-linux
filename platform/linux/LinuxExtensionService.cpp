@@ -606,6 +606,13 @@ Status LinuxExtensionService::InstallFromDirectory(const std::string& sourceDire
         return status;
     }
 
+    const auto rollbackInstall = [this, &destinationPath, &manifest]() {
+        static_cast<void>(RemoveDirectoryRecursively(destinationPath));
+        static_cast<void>(RemoveStateEntry(manifest.value->id));
+        static_cast<void>(RemovePersistedPermissions(manifest.value->id));
+        _sessionGrantedPermissions.erase(manifest.value->id);
+    };
+
     if (manifest.value->type == ExtensionType::kLanguagePack) {
         const auto vscodeSnapshot = LoadVscodeLanguagePackFromDirectory(destinationPath);
         if (vscodeSnapshot.ok()) {
@@ -613,6 +620,7 @@ Status LinuxExtensionService::InstallFromDirectory(const std::string& sourceDire
                 destinationPath + "/npp-language-pack-vscode.json",
                 *vscodeSnapshot.value);
             if (!status.ok()) {
+                rollbackInstall();
                 return status;
             }
         }
@@ -624,6 +632,7 @@ Status LinuxExtensionService::InstallFromDirectory(const std::string& sourceDire
         }
         const auto permissionGranted = RequestPermission(manifest.value->id, permission, "install");
         if (!permissionGranted.ok()) {
+            rollbackInstall();
             return permissionGranted.status;
         }
     }
@@ -632,7 +641,12 @@ Status LinuxExtensionService::InstallFromDirectory(const std::string& sourceDire
     stateEntry.enabled = true;
     stateEntry.version = manifest.value->version;
     stateEntry.installPath = destinationPath;
-    return WriteStateEntry(manifest.value->id, stateEntry);
+    status = WriteStateEntry(manifest.value->id, stateEntry);
+    if (!status.ok()) {
+        rollbackInstall();
+        return status;
+    }
+    return status;
 }
 
 Status LinuxExtensionService::EnableExtension(const std::string& extensionId) {
@@ -653,6 +667,24 @@ Status LinuxExtensionService::DisableExtension(const std::string& extensionId) {
     ExtensionStateEntry updated = *state.value;
     updated.enabled = false;
     return WriteStateEntry(extensionId, updated);
+}
+
+Status LinuxExtensionService::ResetPermissions(const std::string& extensionId) {
+    const Status extensionIdStatus = ValidateExtensionId(extensionId);
+    if (!extensionIdStatus.ok()) {
+        return extensionIdStatus;
+    }
+
+    const auto exists = _fileSystemService->Exists(ExtensionInstallPath(extensionId));
+    if (!exists.ok()) {
+        return exists.status;
+    }
+    if (!(*exists.value)) {
+        return Status{StatusCode::kNotFound, "Extension not installed: " + extensionId};
+    }
+
+    _sessionGrantedPermissions.erase(extensionId);
+    return RemovePersistedPermissions(extensionId);
 }
 
 Status LinuxExtensionService::RemoveExtension(const std::string& extensionId) {
@@ -760,7 +792,10 @@ StatusOr<bool> LinuxExtensionService::RequestPermission(
         }
         return StatusOr<bool>{Status::Ok(), true};
     }
-    return StatusOr<bool>{Status::Ok(), false};
+    return StatusOr<bool>::FromStatus(
+        Status{
+            StatusCode::kPermissionDenied,
+            "Permission denied for extension '" + extensionId + "': " + permission + " (" + reason + ")"});
 }
 
 }  // namespace npp::platform

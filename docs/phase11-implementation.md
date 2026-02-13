@@ -39,6 +39,8 @@ Behavior:
 2. persist `Allow Always` grants in
    `${XDG_CONFIG_HOME}/notepad-plus-plus-linux/extensions-permissions.json`
 3. keep session grants in memory for the running process
+4. fail closed with explicit host `kPermissionDenied` errors on denied requests
+5. support permission decision reset from extension management (`Reset Permissions`)
 
 Primary implementation:
 
