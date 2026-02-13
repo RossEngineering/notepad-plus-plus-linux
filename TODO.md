@@ -62,7 +62,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 ## Phase 7: Quality and performance
 
 - [x] Add unit tests for core text operations and undo/redo behavior.
-- [ ] Add regression tests for encoding conversion and large-file handling.
+- [x] Add regression tests for encoding conversion and large-file handling.
 - [ ] Add syntax highlighting smoke tests across representative languages.
 - [ ] Benchmark startup time and typing latency against baseline.
 - [ ] Add memory/leak checks in CI for Linux builds.

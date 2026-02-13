@@ -257,6 +257,17 @@ if(BUILD_TESTING AND TARGET npp_scintilla)
     )
     target_link_libraries(core_text_undo_redo_test PRIVATE npp_scintilla)
     add_test(NAME core_text_undo_redo_test COMMAND core_text_undo_redo_test)
+
+    add_executable(encoding_large_file_regression_test tests/regression/encoding_large_file_regression_test.cpp)
+    target_sources(encoding_large_file_regression_test PRIVATE
+        tests/support/scintilla_debug_stubs.cpp
+    )
+    target_include_directories(encoding_large_file_regression_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
+    )
+    target_link_libraries(encoding_large_file_regression_test PRIVATE npp_scintilla)
+    add_test(NAME encoding_large_file_regression_test COMMAND encoding_large_file_regression_test)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_platform_linux)
