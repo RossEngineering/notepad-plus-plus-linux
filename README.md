@@ -8,9 +8,10 @@ This repository tracks a transition from the original Windows-first architecture
 
 Current state:
 
-- Codebase is largely upstream Notepad++ and remains Windows-centric.
-- Build and platform docs still describe Windows and MinGW workflows.
-- Linux-native application shell is not implemented yet.
+- Repository status: **Incubator** (intentional migration stage).
+- Linux-native Qt shell builds and runs on Manjaro-class environments.
+- Packaging and release automation foundation is implemented (Phase 6).
+- Upstream codebase heritage remains Windows-centric; migration is ongoing.
 
 Planned state:
 
@@ -25,6 +26,9 @@ Reproducible Linux release guidance is in [`docs/reproducible-release.md`](docs/
 Release publishing and signing flow is in [`docs/release-publishing.md`](docs/release-publishing.md).
 Architecture decisions are tracked in [`docs/adr`](docs/adr).
 Imported RossEngineering ADR snapshot is in [`docs/adr/rossengineering-bafc82c7`](docs/adr/rossengineering-bafc82c7).
+Versioning policy is in [`docs/versioning-policy.md`](docs/versioning-policy.md).
+Repository decision index is in [`docs/decisions.md`](docs/decisions.md).
+Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
 
 ## Goals
 

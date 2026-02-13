@@ -11,6 +11,8 @@
 [Rr]elease/
 !scripts/release/
 !scripts/release/*.sh
+/build/
+/out/
 x64/
 x86/
 #[Bb]in/
