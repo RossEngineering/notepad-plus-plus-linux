@@ -37,6 +37,16 @@ To prevent deeper platform lock-in:
 See `docs/coding-rules.md` for details.  
 Automated check: `scripts/check_win32_boundaries.sh` (also enforced in CI).
 
+### Migration labels
+
+This fork uses label groups to keep migration work triage consistent:
+
+1. `area:*` labels for ownership scope (`area:linux`, `area:migration`, `area:ci`, `area:docs`).
+2. `type:*` labels for issue class (`type:bug`, `type:enhancement`, `type:task`).
+3. `priority:*` labels for urgency (`priority:p0`, `priority:p1`, `priority:p2`).
+
+Migration-focused issue templates are available in `.github/ISSUE_TEMPLATE`.
+
 ### Guidelines for pull requests
 
 1. Respect existing Notepad++ coding style. Observe the code near your intended change, and attempt to preserve the style of that code with the changes you make.

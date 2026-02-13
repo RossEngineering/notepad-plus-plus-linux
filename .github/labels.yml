@@ -1,0 +1,39 @@
+- name: area:linux
+  color: 0E8A16
+  description: Linux-specific behavior, packaging, runtime, or compatibility work.
+
+- name: area:migration
+  color: 1D76DB
+  description: Architecture or implementation work tied to Windows-to-Linux migration.
+
+- name: area:docs
+  color: 5319E7
+  description: Documentation updates for build, setup, roadmap, or developer guidance.
+
+- name: area:ci
+  color: FBCA04
+  description: CI workflow, build matrix, sanitizer, and automation updates.
+
+- name: type:bug
+  color: D73A4A
+  description: Something is not working as intended.
+
+- name: type:enhancement
+  color: A2EEEF
+  description: Improvement request that extends or improves existing behavior.
+
+- name: type:task
+  color: CFD3D7
+  description: Planned implementation work item.
+
+- name: priority:p0
+  color: B60205
+  description: Critical blocker for release or core functionality.
+
+- name: priority:p1
+  color: D93F0B
+  description: High-priority work for the next milestone.
+
+- name: priority:p2
+  color: FBCA04
+  description: Normal-priority backlog work.

@@ -1,0 +1,49 @@
+name: Linux migration task
+description: Track planned migration work for Linux-native architecture.
+title: "[Migration] <title>"
+labels: ["type:task", "area:migration"]
+body:
+- type: checkboxes
+  attributes:
+    label: Pre-flight checks
+    options:
+    - label: I searched existing issues and roadmap items.
+      required: true
+    - label: This task aligns with TODO phase/milestone work.
+      required: true
+- type: input
+  attributes:
+    label: TODO Phase
+    description: Example: Phase 8 or Phase 9
+    placeholder: "Phase N"
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Target milestone
+    description: Example: M2 Linux Alpha Hardening
+    placeholder: "M# milestone"
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Scope
+    description: What must be implemented in this task.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Acceptance criteria
+    description: Specific conditions that define done.
+    placeholder: |
+      1.
+      2.
+      3.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Dependencies and risks
+    description: Related issues, blockers, architecture risks, or platform constraints.
+  validations:
+    required: false

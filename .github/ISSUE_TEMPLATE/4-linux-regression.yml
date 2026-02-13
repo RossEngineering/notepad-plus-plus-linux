@@ -1,0 +1,51 @@
+name: Linux regression
+description: Report Linux-native runtime or behavior regressions.
+title: "[Linux regression] <title>"
+labels: ["type:bug", "area:linux"]
+body:
+- type: checkboxes
+  attributes:
+    label: Validation checks
+    options:
+    - label: I reproduced this on the latest master branch build.
+      required: true
+    - label: I searched existing Linux regression issues.
+      required: true
+- type: textarea
+  attributes:
+    label: Regression summary
+    description: What worked previously and what is broken now.
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Last known good commit/tag
+    placeholder: "v0.6.0-alpha.1 or commit SHA"
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Reproduction steps
+    placeholder: |
+      1.
+      2.
+      3.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Environment
+    description: Distro, kernel, desktop, compiler, and package versions.
+    placeholder: |
+      Distro: Manjaro
+      Kernel: 6.x
+      Qt: 6.x
+      Compiler: gcc/clang version
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Logs and evidence
+    description: Console output, sanitizer reports, screenshots, or ctest output.
+  validations:
+    required: false
