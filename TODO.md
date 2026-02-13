@@ -51,7 +51,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ## Immediate next actions
 
-- [x] Create `v0.9.3-rc.1` checklist and notes stub in `docs/releases/`.
-- [x] Build and prioritize RC1 blocker list from latest beta feedback.
-- [x] Define RC1 distro validation evidence format and publish first report.
-- [x] Add `docs/releases/v1.0.0-checklist.md` draft with final promotion gates.
+- [x] Create `v0.9.6-rc.2` checklist and notes stub in `docs/releases/`.
+- [x] Build and prioritize RC2 blocker list from current gap analysis.
+- [ ] Land RC2 LSP baseline UX wiring and close `RC2-B01`.
+- [ ] Re-run distro validation matrix evidence for RC2 candidate and update report.
