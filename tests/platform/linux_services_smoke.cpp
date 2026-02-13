@@ -5,6 +5,7 @@
 #include <string>
 
 #include "LinuxDiagnosticsService.h"
+#include "LinuxClipboardService.h"
 #include "LinuxFileSystemService.h"
 #include "LinuxPathService.h"
 #include "LinuxProcessService.h"
@@ -15,6 +16,7 @@ int main() {
 	LinuxPathService pathService;
 	LinuxFileSystemService fsService;
 	LinuxProcessService processService;
+	LinuxClipboardService clipboardService;
 	LinuxDiagnosticsService diagnosticsService(pathService, fsService);
 
 	auto config = pathService.GetPath(PathScope::kConfig);
@@ -81,6 +83,34 @@ int main() {
 	if (!processService.Terminate(*child.value).ok()) {
 		std::cerr << "terminate failed\n";
 		return 10;
+	}
+
+	if (!clipboardService.SupportsBuffer(ClipboardBuffer::kClipboard) ||
+		!clipboardService.SupportsBuffer(ClipboardBuffer::kPrimarySelection)) {
+		std::cerr << "clipboard buffer support mismatch\n";
+		return 11;
+	}
+	if (!clipboardService.SetText("clip-text").ok()) {
+		std::cerr << "set clipboard text failed\n";
+		return 12;
+	}
+	auto clipText = clipboardService.GetText();
+	if (!clipText.ok() || *clipText.value != "clip-text") {
+		std::cerr << "get clipboard text failed\n";
+		return 13;
+	}
+	if (!clipboardService.SetText("primary-text", ClipboardBuffer::kPrimarySelection).ok()) {
+		std::cerr << "set primary selection text failed\n";
+		return 14;
+	}
+	auto primaryText = clipboardService.GetText(ClipboardBuffer::kPrimarySelection);
+	if (!primaryText.ok() || *primaryText.value != "primary-text") {
+		std::cerr << "get primary selection text failed\n";
+		return 15;
+	}
+	if (!clipboardService.Clear().ok() || !clipboardService.Clear(ClipboardBuffer::kPrimarySelection).ok()) {
+		std::cerr << "clear clipboard buffers failed\n";
+		return 16;
 	}
 
 	return 0;

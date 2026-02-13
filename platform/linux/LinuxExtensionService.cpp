@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <utility>
 
 #include "VscodeLanguageCompatibility.h"
@@ -20,42 +18,19 @@ Status MakeInvalidStatus(const std::string& message) {
     return Status{StatusCode::kInvalidArgument, message};
 }
 
-StatusOr<std::string> ReadTextFile(const std::string& pathUtf8) {
-    std::ifstream stream(pathUtf8, std::ios::binary);
-    if (!stream.is_open()) {
-        return StatusOr<std::string>::FromStatus(
-            Status{StatusCode::kNotFound, "Unable to open file: " + pathUtf8});
-    }
-    std::ostringstream buffer;
-    buffer << stream.rdbuf();
-    return StatusOr<std::string>{Status::Ok(), buffer.str()};
+StatusOr<std::string> ReadTextFile(IFileSystemService& fileSystemService, const std::string& pathUtf8) {
+    return fileSystemService.ReadTextFile(pathUtf8);
 }
 
-Status WriteTextFile(const std::string& pathUtf8, const std::string& content) {
-    const std::filesystem::path path = std::filesystem::path(pathUtf8);
-    if (path.has_parent_path()) {
-        std::error_code createEc;
-        std::filesystem::create_directories(path.parent_path(), createEc);
-        if (createEc) {
-            return Status{
-                StatusCode::kIoError,
-                "Failed creating parent directories for " + pathUtf8 + ": " + createEc.message()};
-        }
-    }
-
-    std::ofstream stream(pathUtf8, std::ios::binary | std::ios::trunc);
-    if (!stream.is_open()) {
-        return Status{StatusCode::kIoError, "Unable to open file for write: " + pathUtf8};
-    }
-    stream << content;
-    if (!stream.good()) {
-        return Status{StatusCode::kIoError, "Failed writing file: " + pathUtf8};
-    }
-    return Status::Ok();
+Status WriteTextFile(IFileSystemService& fileSystemService, const std::string& pathUtf8, const std::string& content) {
+    WriteFileOptions options;
+    options.atomic = true;
+    options.createParentDirs = true;
+    return fileSystemService.WriteTextFile(pathUtf8, content, options);
 }
 
-StatusOr<Json> ReadJsonFile(const std::string& pathUtf8) {
-    const auto fileText = ReadTextFile(pathUtf8);
+StatusOr<Json> ReadJsonFile(IFileSystemService& fileSystemService, const std::string& pathUtf8) {
+    const auto fileText = ReadTextFile(fileSystemService, pathUtf8);
     if (!fileText.ok()) {
         return StatusOr<Json>::FromStatus(fileText.status);
     }
@@ -140,8 +115,8 @@ Status ValidateExtensionId(const std::string& extensionId) {
 }  // namespace
 
 LinuxExtensionService::LinuxExtensionService(
-    LinuxPathService* pathService,
-    LinuxFileSystemService* fileSystemService,
+    IPathService* pathService,
+    IFileSystemService* fileSystemService,
     std::string appName)
     : _pathService(pathService), _fileSystemService(fileSystemService), _appName(std::move(appName)) {}
 
@@ -219,7 +194,10 @@ Status LinuxExtensionService::EnsureBaseDirectories() {
         return stateExists.status;
     }
     if (!(*stateExists.value)) {
-        status = WriteTextFile(ExtensionStateFilePath(), "{\n  \"schemaVersion\": 1,\n  \"extensions\": {}\n}\n");
+        status = WriteTextFile(
+            *_fileSystemService,
+            ExtensionStateFilePath(),
+            "{\n  \"schemaVersion\": 1,\n  \"extensions\": {}\n}\n");
         if (!status.ok()) {
             return status;
         }
@@ -231,6 +209,7 @@ Status LinuxExtensionService::EnsureBaseDirectories() {
     }
     if (!(*permissionExists.value)) {
         status = WriteTextFile(
+            *_fileSystemService,
             ExtensionPermissionFilePath(),
             "{\n  \"schemaVersion\": 1,\n  \"extensions\": {}\n}\n");
         if (!status.ok()) {
@@ -259,7 +238,7 @@ StatusOr<ExtensionManifest> LinuxExtensionService::LoadManifestFromDirectory(
     const std::filesystem::path directory = std::filesystem::path(directoryUtf8);
     const std::filesystem::path manifestPath = directory / "extension.json";
 
-    const auto manifestJson = ReadJsonFile(manifestPath.string());
+    const auto manifestJson = ReadJsonFile(*_fileSystemService, manifestPath.string());
     if (!manifestJson.ok()) {
         return StatusOr<ExtensionManifest>::FromStatus(manifestJson.status);
     }
@@ -398,7 +377,7 @@ Status LinuxExtensionService::RemoveDirectoryRecursively(const std::string& dire
 
 StatusOr<LinuxExtensionService::ExtensionStateEntry> LinuxExtensionService::ReadStateEntry(
     const std::string& extensionId) const {
-    const auto stateJson = ReadJsonFile(ExtensionStateFilePath());
+    const auto stateJson = ReadJsonFile(*_fileSystemService, ExtensionStateFilePath());
     if (!stateJson.ok()) {
         return StatusOr<ExtensionStateEntry>::FromStatus(stateJson.status);
     }
@@ -428,7 +407,7 @@ StatusOr<LinuxExtensionService::ExtensionStateEntry> LinuxExtensionService::Read
 }
 
 Status LinuxExtensionService::WriteStateEntry(const std::string& extensionId, const ExtensionStateEntry& stateEntry) {
-    const auto stateJson = ReadJsonFile(ExtensionStateFilePath());
+    const auto stateJson = ReadJsonFile(*_fileSystemService, ExtensionStateFilePath());
     if (!stateJson.ok()) {
         return stateJson.status;
     }
@@ -444,11 +423,11 @@ Status LinuxExtensionService::WriteStateEntry(const std::string& extensionId, co
     entry["installPath"] = stateEntry.installPath;
     root["extensions"][extensionId] = std::move(entry);
 
-    return WriteTextFile(ExtensionStateFilePath(), root.dump(2) + "\n");
+    return WriteTextFile(*_fileSystemService, ExtensionStateFilePath(), root.dump(2) + "\n");
 }
 
 Status LinuxExtensionService::RemoveStateEntry(const std::string& extensionId) {
-    const auto stateJson = ReadJsonFile(ExtensionStateFilePath());
+    const auto stateJson = ReadJsonFile(*_fileSystemService, ExtensionStateFilePath());
     if (!stateJson.ok()) {
         return stateJson.status;
     }
@@ -457,12 +436,12 @@ Status LinuxExtensionService::RemoveStateEntry(const std::string& extensionId) {
         root["extensions"] = Json::object();
     }
     root["extensions"].erase(extensionId);
-    return WriteTextFile(ExtensionStateFilePath(), root.dump(2) + "\n");
+    return WriteTextFile(*_fileSystemService, ExtensionStateFilePath(), root.dump(2) + "\n");
 }
 
 StatusOr<std::set<std::string>> LinuxExtensionService::ReadPersistedPermissions(
     const std::string& extensionId) const {
-    const auto permissionJson = ReadJsonFile(ExtensionPermissionFilePath());
+    const auto permissionJson = ReadJsonFile(*_fileSystemService, ExtensionPermissionFilePath());
     if (!permissionJson.ok()) {
         return StatusOr<std::set<std::string>>::FromStatus(permissionJson.status);
     }
@@ -503,7 +482,7 @@ Status LinuxExtensionService::WritePersistedPermission(
     const std::string& extensionId,
     const std::string& permission,
     PermissionGrantMode grantMode) {
-    const auto permissionJson = ReadJsonFile(ExtensionPermissionFilePath());
+    const auto permissionJson = ReadJsonFile(*_fileSystemService, ExtensionPermissionFilePath());
     if (!permissionJson.ok()) {
         return permissionJson.status;
     }
@@ -523,11 +502,11 @@ Status LinuxExtensionService::WritePersistedPermission(
     entry["mode"] = PermissionGrantModeToString(grantMode);
     root["extensions"][extensionId]["permissions"][permission] = std::move(entry);
 
-    return WriteTextFile(ExtensionPermissionFilePath(), root.dump(2) + "\n");
+    return WriteTextFile(*_fileSystemService, ExtensionPermissionFilePath(), root.dump(2) + "\n");
 }
 
 Status LinuxExtensionService::RemovePersistedPermissions(const std::string& extensionId) {
-    const auto permissionJson = ReadJsonFile(ExtensionPermissionFilePath());
+    const auto permissionJson = ReadJsonFile(*_fileSystemService, ExtensionPermissionFilePath());
     if (!permissionJson.ok()) {
         return permissionJson.status;
     }
@@ -536,7 +515,7 @@ Status LinuxExtensionService::RemovePersistedPermissions(const std::string& exte
         root["extensions"] = Json::object();
     }
     root["extensions"].erase(extensionId);
-    return WriteTextFile(ExtensionPermissionFilePath(), root.dump(2) + "\n");
+    return WriteTextFile(*_fileSystemService, ExtensionPermissionFilePath(), root.dump(2) + "\n");
 }
 
 bool LinuxExtensionService::RequiresInteractivePermissionPrompt(const std::string& permission) {

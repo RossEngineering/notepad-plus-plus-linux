@@ -101,6 +101,7 @@ endif()
 
 if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
     add_library(npp_platform_linux STATIC
+        platform/linux/LinuxClipboardService.cpp
         platform/linux/LinuxExtensionService.cpp
         platform/linux/LinuxDiagnosticsService.cpp
         platform/linux/LinuxFileSystemService.cpp

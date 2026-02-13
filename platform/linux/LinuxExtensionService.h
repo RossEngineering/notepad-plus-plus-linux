@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "LinuxFileSystemService.h"
-#include "LinuxPathService.h"
+#include "IFileSystemService.h"
+#include "IPathService.h"
 #include "Types.h"
 
 namespace npp::platform {
@@ -58,8 +58,8 @@ using PermissionPromptCallback = std::function<PermissionGrantMode(const Permiss
 class LinuxExtensionService final {
 public:
     LinuxExtensionService(
-        LinuxPathService* pathService,
-        LinuxFileSystemService* fileSystemService,
+        IPathService* pathService,
+        IFileSystemService* fileSystemService,
         std::string appName);
 
     void SetPermissionPrompt(PermissionPromptCallback callback);
@@ -86,8 +86,8 @@ private:
         std::string installPath;
     };
 
-    LinuxPathService* _pathService = nullptr;
-    LinuxFileSystemService* _fileSystemService = nullptr;
+    IPathService* _pathService = nullptr;
+    IFileSystemService* _fileSystemService = nullptr;
     std::string _appName;
     PermissionPromptCallback _permissionPrompt;
     mutable std::map<std::string, std::set<std::string>> _sessionGrantedPermissions;
