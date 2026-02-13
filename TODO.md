@@ -10,12 +10,12 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 ## Phase 9: Automatic language detection and highlighting
 
-- [ ] Implement automatic language detection using extension, shebang, modelines, and content heuristics.
-- [ ] Detect and classify Markdown/HTML/programming-language files on open.
-- [ ] Auto-switch lexer and syntax highlighting when detection confidence is high.
-- [ ] Re-run detection on rename/save-as and provide manual override lock.
-- [ ] Add detection/lexer regression corpus and accuracy tracking in tests.
-- [ ] Define Beta 1 acceptance threshold for language detection accuracy and false-positive rate.
+- [x] Implement automatic language detection using extension, shebang, modelines, and content heuristics.
+- [x] Detect and classify Markdown/HTML/programming-language files on open.
+- [x] Auto-switch lexer and syntax highlighting when detection confidence is high.
+- [x] Re-run detection on rename/save-as and provide manual override lock.
+- [x] Add detection/lexer regression corpus and accuracy tracking in tests.
+- [x] Define Beta 1 acceptance threshold for language detection accuracy and false-positive rate.
 
 ## Beta 1 release gate
 
@@ -50,7 +50,7 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 ## Immediate next actions
 
-- [ ] Create language-detection fixture corpus for Markdown/HTML/code.
-- [ ] Implement confidence-scored auto-lexer switching with manual override lock.
-- [ ] Define Beta 1 detection acceptance metrics and test report format.
-- [ ] Draft `v0.8.0-beta.1` release checklist and notes skeleton.
+- [x] Create language-detection fixture corpus for Markdown/HTML/code.
+- [x] Implement confidence-scored auto-lexer switching with manual override lock.
+- [x] Define Beta 1 detection acceptance metrics and test report format.
+- [x] Draft `v0.8.0-beta.1` release checklist and notes skeleton.
