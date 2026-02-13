@@ -4,7 +4,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 
 ## Phase 0: Baseline and audit
 
-- [ ] Tag current fork baseline commit.
+- [x] Tag current fork baseline commit.
 - [ ] Document current build status on Manjaro (what compiles, what fails, error logs).
 - [x] Inventory Win32 API usage in `PowerEditor/src`.
 - [ ] Identify modules that are already cross-platform (or mostly portable).
