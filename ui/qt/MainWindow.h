@@ -74,6 +74,7 @@ private:
 
 	void OnFind();
 	void OnReplace();
+	void OnFindInFiles();
 	void OnGoToLine();
 	void OnPreferences();
 

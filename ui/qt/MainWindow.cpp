@@ -2,14 +2,17 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <sstream>
 
 #include <QAction>
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -24,6 +27,7 @@
 #include <QSpinBox>
 #include <QStatusBar>
 #include <QTabWidget>
+#include <QTextEdit>
 #include <QVBoxLayout>
 
 #include "Scintilla.h"
@@ -55,6 +59,7 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"tab.close", QKeySequence(QStringLiteral("Ctrl+W"))},
         {"file.quit", QKeySequence(QStringLiteral("Ctrl+Q"))},
         {"edit.find", QKeySequence(QStringLiteral("Ctrl+F"))},
+        {"search.findInFiles", QKeySequence(QStringLiteral("Ctrl+Shift+F"))},
         {"edit.replace", QKeySequence(QStringLiteral("Ctrl+H"))},
         {"edit.gotoLine", QKeySequence(QStringLiteral("Ctrl+G"))},
         {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
@@ -121,6 +126,13 @@ QString DecodeUtf16(const std::string &bytes, bool littleEndian) {
     return QString::fromUtf16(codeUnits.data(), static_cast<int>(codeUnits.size()));
 }
 
+std::string AsciiLower(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent)
@@ -175,6 +187,7 @@ void MainWindow::BuildMenus() {
 
     QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
     editMenu->addAction(_actionsById.at("edit.find"));
+    editMenu->addAction(_actionsById.at("search.findInFiles"));
     editMenu->addAction(_actionsById.at("edit.replace"));
     editMenu->addAction(_actionsById.at("edit.gotoLine"));
     editMenu->addSeparator();
@@ -207,6 +220,7 @@ void MainWindow::BuildActions() {
     registerAction("file.quit", tr("Quit"), [this]() { close(); });
 
     registerAction("edit.find", tr("Find..."), [this]() { OnFind(); });
+    registerAction("search.findInFiles", tr("Find in Files..."), [this]() { OnFindInFiles(); });
     registerAction("edit.replace", tr("Replace..."), [this]() { OnReplace(); });
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
@@ -595,6 +609,137 @@ void MainWindow::OnReplace() {
         this,
         tr("Replace All"),
         tr("Replaced %1 occurrence(s).").arg(replacements));
+}
+
+void MainWindow::OnFindInFiles() {
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Find in Files"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout();
+
+    auto *needleEdit = new QLineEdit(&dialog);
+    needleEdit->setText(ToQString(_lastFindUtf8));
+
+    auto *folderEdit = new QLineEdit(&dialog);
+    QString defaultRoot = QDir::homePath();
+    ScintillaEditBase *editor = CurrentEditor();
+    if (editor) {
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt != _editorStates.end() && !stateIt->second.filePathUtf8.empty()) {
+            defaultRoot = QString::fromStdString(
+                std::filesystem::path(stateIt->second.filePathUtf8).parent_path().string());
+        }
+    }
+    folderEdit->setText(defaultRoot);
+
+    auto *browseButton = new QPushButton(tr("Browse..."), &dialog);
+    auto *folderLayout = new QHBoxLayout();
+    folderLayout->addWidget(folderEdit);
+    folderLayout->addWidget(browseButton);
+
+    auto *matchCaseCheck = new QCheckBox(tr("Match case"), &dialog);
+
+    form->addRow(tr("Find what:"), needleEdit);
+    form->addRow(tr("Folder:"), folderLayout);
+    form->addRow(QString(), matchCaseCheck);
+    layout->addLayout(form);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(browseButton, &QPushButton::clicked, &dialog, [this, folderEdit]() {
+        const QString selected = QFileDialog::getExistingDirectory(
+            this,
+            tr("Select Search Root"),
+            folderEdit->text());
+        if (!selected.isEmpty()) {
+            folderEdit->setText(selected);
+        }
+    });
+    layout->addWidget(buttons);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    const std::string needleUtf8 = ToUtf8(needleEdit->text());
+    const std::string rootPathUtf8 = ToUtf8(folderEdit->text());
+    if (needleUtf8.empty() || rootPathUtf8.empty()) {
+        return;
+    }
+
+    _lastFindUtf8 = needleUtf8;
+    npp::platform::ListDirectoryOptions listOptions;
+    listOptions.recursive = true;
+    listOptions.includeDirectories = false;
+
+    const auto listed = _fileSystemService.ListDirectory(rootPathUtf8, listOptions);
+    if (!listed.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Find in Files"),
+            tr("Unable to enumerate folder:\n%1").arg(ToQString(listed.status.message)));
+        return;
+    }
+
+    const bool matchCase = matchCaseCheck->isChecked();
+    const std::string needleCmp = matchCase ? needleUtf8 : AsciiLower(needleUtf8);
+
+    std::ostringstream report;
+    int matchCount = 0;
+    constexpr int kMaxReportedMatches = 500;
+    for (const std::string &path : *listed.value) {
+        const auto contentOr = _fileSystemService.ReadTextFile(path);
+        if (!contentOr.ok()) {
+            continue;
+        }
+
+        TextEncoding fileEncoding = TextEncoding::kUtf8;
+        std::string utf8Content;
+        if (!DecodeTextForEditor(*contentOr.value, &fileEncoding, &utf8Content)) {
+            continue;
+        }
+
+        std::istringstream stream(utf8Content);
+        std::string line;
+        int lineNumber = 0;
+        while (std::getline(stream, line)) {
+            ++lineNumber;
+            const std::string lineCmp = matchCase ? line : AsciiLower(line);
+            if (lineCmp.find(needleCmp) == std::string::npos) {
+                continue;
+            }
+
+            ++matchCount;
+            if (matchCount <= kMaxReportedMatches) {
+                report << path << ":" << lineNumber << ": " << line << "\n";
+            }
+        }
+    }
+
+    if (matchCount == 0) {
+        QMessageBox::information(this, tr("Find in Files"), tr("No matches found."));
+        return;
+    }
+
+    if (matchCount > kMaxReportedMatches) {
+        report << "\n... output truncated after " << kMaxReportedMatches << " matches.\n";
+    }
+
+    QDialog resultsDialog(this);
+    resultsDialog.resize(900, 600);
+    resultsDialog.setWindowTitle(tr("Find in Files Results (%1 matches)").arg(matchCount));
+    auto *resultsLayout = new QVBoxLayout(&resultsDialog);
+    auto *resultsText = new QTextEdit(&resultsDialog);
+    resultsText->setReadOnly(true);
+    resultsText->setPlainText(QString::fromUtf8(report.str().c_str()));
+    resultsLayout->addWidget(resultsText);
+    auto *closeButtons = new QDialogButtonBox(QDialogButtonBox::Close, &resultsDialog);
+    connect(closeButtons, &QDialogButtonBox::rejected, &resultsDialog, &QDialog::reject);
+    connect(closeButtons, &QDialogButtonBox::accepted, &resultsDialog, &QDialog::accept);
+    resultsLayout->addWidget(closeButtons);
+    resultsDialog.exec();
 }
 
 void MainWindow::OnGoToLine() {
