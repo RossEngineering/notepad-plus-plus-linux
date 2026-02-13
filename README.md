@@ -26,6 +26,9 @@ Plugin direction for Linux is documented in [`docs/plugin-strategy.md`](docs/plu
 Extension API v1 boundaries and security model are documented in [`docs/extension-api-v1.md`](docs/extension-api-v1.md).
 Phase 11 implementation evidence is documented in [`docs/phase11-implementation.md`](docs/phase11-implementation.md).
 Phase 12 implementation progress is documented in [`docs/phase12-implementation.md`](docs/phase12-implementation.md).
+Crash recovery journal behavior is documented in [`docs/crash-recovery-journal.md`](docs/crash-recovery-journal.md).
+Extension startup guardrails are documented in [`docs/extension-performance-guardrails.md`](docs/extension-performance-guardrails.md).
+Distro validation expansion is documented in [`docs/distro-validation-plan.md`](docs/distro-validation-plan.md).
 Package split plan is documented in [`docs/package-split-strategy.md`](docs/package-split-strategy.md).
 Reproducible Linux release guidance is in [`docs/reproducible-release.md`](docs/reproducible-release.md).
 Release publishing and signing flow is in [`docs/release-publishing.md`](docs/release-publishing.md).

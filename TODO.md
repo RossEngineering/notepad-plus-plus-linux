@@ -53,9 +53,9 @@ Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
 - [x] Add LSP client foundation for richer language intelligence.
 - [x] Add syntax-aware autocomplete assists (for example HTML tag auto-close and paired delimiters).
-- [ ] Improve crash-recovery journal and restore UX.
-- [ ] Add extension performance budgets and startup impact guardrails.
-- [ ] Expand distro validation plan beyond Arch Linux derivatives after baseline remains stable.
+- [x] Improve crash-recovery journal and restore UX.
+- [x] Add extension performance budgets and startup impact guardrails.
+- [x] Expand distro validation plan beyond Arch Linux derivatives after baseline remains stable.
 
 ## Immediate next actions
 

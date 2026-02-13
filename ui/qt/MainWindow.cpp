@@ -17,6 +17,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QDateTime>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -37,6 +38,7 @@
 #include <QStatusBar>
 #include <QTabWidget>
 #include <QTextEdit>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "Scintilla.h"
@@ -280,6 +282,9 @@ MainWindow::MainWindow(QWidget *parent)
       _diagnosticsService(_pathService, _fileSystemService),
       _extensionService(&_pathService, &_fileSystemService, kAppName) {
     BuildUi();
+    LoadEditorSettings();
+    StartCrashRecoveryTimer();
+    InitializeExtensionsWithGuardrails();
     _extensionService.SetPermissionPrompt([this](const npp::platform::PermissionPromptRequest& request) {
         const QStringList options = {
             tr("Deny"),
@@ -310,20 +315,13 @@ MainWindow::MainWindow(QWidget *parent)
         }
         return npp::platform::PermissionGrantMode::kAllowAlways;
     });
-    const npp::platform::Status extensionInitStatus = _extensionService.Initialize();
-    if (!extensionInitStatus.ok()) {
-        statusBar()->showMessage(
-            tr("Extension service init failed: %1").arg(ToQString(extensionInitStatus.message)),
-            4000);
-    }
-    LoadEditorSettings();
     EnsureBuiltInSkins();
     EnsureThemeFile();
     LoadTheme();
     EnsureShortcutConfigFile();
     LoadShortcutOverrides();
     ApplyShortcuts();
-    if (!RestoreSession()) {
+    if (!RestoreCrashRecoveryJournal() && !RestoreSession()) {
         NewTab();
     }
     UpdateWindowTitle();
@@ -342,7 +340,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         }
     }
 
+    if (_crashRecoveryTimer) {
+        _crashRecoveryTimer->stop();
+    }
     SaveSession();
+    ClearCrashRecoveryJournal();
     _closingApplication = false;
     event->accept();
 }
@@ -1969,6 +1971,20 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.showLineNumbers = obj.value(QStringLiteral("showLineNumbers")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
+    _editorSettings.extensionGuardrailsEnabled =
+        obj.value(QStringLiteral("extensionGuardrailsEnabled")).toBool(true);
+    _editorSettings.extensionStartupBudgetMs = std::clamp(
+        obj.value(QStringLiteral("extensionStartupBudgetMs")).toInt(1200),
+        100,
+        15000);
+    _editorSettings.extensionPerExtensionBudgetMs = std::clamp(
+        obj.value(QStringLiteral("extensionPerExtensionBudgetMs")).toInt(250),
+        10,
+        5000);
+    _editorSettings.crashRecoveryAutosaveSeconds = std::clamp(
+        obj.value(QStringLiteral("crashRecoveryAutosaveSeconds")).toInt(15),
+        5,
+        300);
     const QJsonValue skinValue = obj.value(QStringLiteral("skinId"));
     if (skinValue.isString()) {
         const std::string loadedSkinId = ToUtf8(skinValue.toString());
@@ -1986,6 +2002,14 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("showLineNumbers"), _editorSettings.showLineNumbers);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
+    settingsObject.insert(QStringLiteral("extensionGuardrailsEnabled"), _editorSettings.extensionGuardrailsEnabled);
+    settingsObject.insert(QStringLiteral("extensionStartupBudgetMs"), _editorSettings.extensionStartupBudgetMs);
+    settingsObject.insert(
+        QStringLiteral("extensionPerExtensionBudgetMs"),
+        _editorSettings.extensionPerExtensionBudgetMs);
+    settingsObject.insert(
+        QStringLiteral("crashRecoveryAutosaveSeconds"),
+        _editorSettings.crashRecoveryAutosaveSeconds);
     settingsObject.insert(QStringLiteral("skinId"), ToQString(_editorSettings.skinId));
 
     const QJsonDocument doc(settingsObject);
@@ -2631,6 +2655,86 @@ void MainWindow::OpenShortcutConfigFile() {
     }
 }
 
+void MainWindow::InitializeExtensionsWithGuardrails() {
+    const auto startupBegin = std::chrono::steady_clock::now();
+    const npp::platform::Status initStatus = _extensionService.Initialize();
+    const auto afterInit = std::chrono::steady_clock::now();
+
+    if (!initStatus.ok()) {
+        statusBar()->showMessage(
+            tr("Extension service init failed: %1").arg(ToQString(initStatus.message)),
+            5000);
+        return;
+    }
+
+    const auto discovered = _extensionService.DiscoverInstalled();
+    const auto startupEnd = std::chrono::steady_clock::now();
+    if (!discovered.ok()) {
+        statusBar()->showMessage(
+            tr("Extension discovery failed: %1").arg(ToQString(discovered.status.message)),
+            5000);
+        return;
+    }
+
+    const std::size_t extensionCount = discovered.value->size();
+    const auto initMs = std::chrono::duration_cast<std::chrono::milliseconds>(afterInit - startupBegin).count();
+    const auto discoverMs = std::chrono::duration_cast<std::chrono::milliseconds>(startupEnd - afterInit).count();
+    const auto totalMs = std::chrono::duration_cast<std::chrono::milliseconds>(startupEnd - startupBegin).count();
+    const double perExtensionMs = extensionCount > 0
+        ? static_cast<double>(discoverMs) / static_cast<double>(extensionCount)
+        : static_cast<double>(discoverMs);
+
+    if (!_editorSettings.extensionGuardrailsEnabled) {
+        return;
+    }
+
+    const bool startupExceeded = totalMs > _editorSettings.extensionStartupBudgetMs;
+    const bool perExtensionExceeded = extensionCount > 0 &&
+        perExtensionMs > static_cast<double>(_editorSettings.extensionPerExtensionBudgetMs);
+    if (!startupExceeded && !perExtensionExceeded) {
+        return;
+    }
+
+    const QString summary = tr(
+        "Extension startup guardrail: total=%1ms (budget=%2ms), per-extension=%3ms (budget=%4ms), count=%5")
+            .arg(totalMs)
+            .arg(_editorSettings.extensionStartupBudgetMs)
+            .arg(QString::number(perExtensionMs, 'f', 1))
+            .arg(_editorSettings.extensionPerExtensionBudgetMs)
+            .arg(static_cast<int>(extensionCount));
+    statusBar()->showMessage(summary, 7000);
+
+    std::ostringstream details;
+    details << "captured_at_utc=" << QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs).toStdString() << "\n";
+    details << "extension_init_ms=" << initMs << "\n";
+    details << "extension_discover_ms=" << discoverMs << "\n";
+    details << "extension_startup_total_ms=" << totalMs << "\n";
+    details << "extension_count=" << extensionCount << "\n";
+    details << "extension_per_extension_ms=" << perExtensionMs << "\n";
+    details << "startup_budget_ms=" << _editorSettings.extensionStartupBudgetMs << "\n";
+    details << "per_extension_budget_ms=" << _editorSettings.extensionPerExtensionBudgetMs << "\n";
+
+    const std::string fileName =
+        "extension-startup-guardrail-" +
+        std::to_string(QDateTime::currentSecsSinceEpoch()) + ".log";
+    _diagnosticsService.WriteDiagnostic(kAppName, "logs", fileName, details.str());
+}
+
+void MainWindow::StartCrashRecoveryTimer() {
+    if (_crashRecoveryTimer) {
+        _crashRecoveryTimer->stop();
+        _crashRecoveryTimer->deleteLater();
+        _crashRecoveryTimer = nullptr;
+    }
+
+    _crashRecoveryTimer = new QTimer(this);
+    _crashRecoveryTimer->setInterval(_editorSettings.crashRecoveryAutosaveSeconds * 1000);
+    connect(_crashRecoveryTimer, &QTimer::timeout, this, [this]() {
+        SaveCrashRecoveryJournal();
+    });
+    _crashRecoveryTimer->start();
+}
+
 std::string MainWindow::ConfigRootPath() const {
     const auto configPath = _pathService.GetAppPath(npp::platform::PathScope::kConfig, kAppName);
     if (!configPath.ok()) {
@@ -2681,6 +2785,152 @@ std::string MainWindow::ShortcutFilePath() const {
 
 std::string MainWindow::ThemeFilePath() const {
     return ConfigRootPath() + "/theme-linux.json";
+}
+
+void MainWindow::SaveCrashRecoveryJournal() const {
+    const_cast<MainWindow *>(this)->EnsureConfigRoot();
+
+    QJsonArray tabs;
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ScintillaEditBase *editor = EditorAt(index);
+        if (!editor) {
+            continue;
+        }
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end() || !stateIt->second.dirty) {
+            continue;
+        }
+
+        QJsonObject tab;
+        tab.insert(QStringLiteral("filePath"), ToQString(stateIt->second.filePathUtf8));
+        tab.insert(QStringLiteral("content"), ToQString(GetEditorText(editor)));
+        tab.insert(QStringLiteral("dirty"), stateIt->second.dirty);
+        tab.insert(QStringLiteral("encoding"), static_cast<int>(stateIt->second.encoding));
+        tab.insert(QStringLiteral("eolMode"), stateIt->second.eolMode);
+        tab.insert(QStringLiteral("lexerName"), ToQString(stateIt->second.lexerName));
+        tabs.append(tab);
+    }
+
+    if (tabs.isEmpty()) {
+        const_cast<MainWindow *>(this)->ClearCrashRecoveryJournal();
+        return;
+    }
+
+    QJsonObject root;
+    root.insert(QStringLiteral("schemaVersion"), 1);
+    root.insert(
+        QStringLiteral("capturedAtUtc"),
+        QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+    root.insert(QStringLiteral("activeIndex"), _tabs->currentIndex());
+    root.insert(QStringLiteral("tabs"), tabs);
+
+    const QJsonDocument doc(root);
+    const QByteArray json = doc.toJson(QJsonDocument::Indented);
+
+    npp::platform::WriteFileOptions options;
+    options.atomic = true;
+    options.createParentDirs = true;
+    const_cast<MainWindow *>(this)->_fileSystemService.WriteTextFile(
+        CrashRecoveryJournalPath(),
+        std::string(json.constData(), static_cast<size_t>(json.size())),
+        options);
+}
+
+void MainWindow::ClearCrashRecoveryJournal() const {
+    const auto exists = _fileSystemService.Exists(CrashRecoveryJournalPath());
+    if (!exists.ok() || !(*exists.value)) {
+        return;
+    }
+    const_cast<MainWindow *>(this)->_fileSystemService.RemoveFile(CrashRecoveryJournalPath());
+}
+
+bool MainWindow::RestoreCrashRecoveryJournal() {
+    EnsureConfigRoot();
+    const auto exists = _fileSystemService.Exists(CrashRecoveryJournalPath());
+    if (!exists.ok() || !(*exists.value)) {
+        return false;
+    }
+
+    const auto journalJson = _fileSystemService.ReadTextFile(CrashRecoveryJournalPath());
+    if (!journalJson.ok()) {
+        return false;
+    }
+
+    QJsonParseError parseError{};
+    const QByteArray jsonBytes(journalJson.value->c_str(), static_cast<int>(journalJson.value->size()));
+    const QJsonDocument doc = QJsonDocument::fromJson(jsonBytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        ClearCrashRecoveryJournal();
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QJsonArray tabs = root.value(QStringLiteral("tabs")).toArray();
+    if (tabs.isEmpty()) {
+        ClearCrashRecoveryJournal();
+        return false;
+    }
+
+    const QString capturedAt = root.value(QStringLiteral("capturedAtUtc")).toString();
+    const auto recoverChoice = QMessageBox::question(
+        this,
+        tr("Recover Unsaved Changes"),
+        tr("Unsaved content journal found%1 with %2 tab(s).\nRecover now?")
+            .arg(capturedAt.isEmpty() ? QString{} : tr(" (%1)").arg(capturedAt))
+            .arg(tabs.size()),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::Yes);
+    if (recoverChoice != QMessageBox::Yes) {
+        ClearCrashRecoveryJournal();
+        return false;
+    }
+
+    int restored = 0;
+    for (const QJsonValue &tabValue : tabs) {
+        if (!tabValue.isObject()) {
+            continue;
+        }
+        const QJsonObject tabObj = tabValue.toObject();
+        const std::string contentUtf8 = ToUtf8(tabObj.value(QStringLiteral("content")).toString());
+
+        NewTab();
+        ScintillaEditBase *editor = CurrentEditor();
+        if (!editor) {
+            continue;
+        }
+
+        auto &state = _editorStates[editor];
+        state.filePathUtf8 = ToUtf8(tabObj.value(QStringLiteral("filePath")).toString());
+        state.dirty = tabObj.value(QStringLiteral("dirty")).toBool(true);
+        const int rawEncoding = tabObj.value(QStringLiteral("encoding")).toInt(static_cast<int>(TextEncoding::kUtf8));
+        const int boundedEncoding = std::clamp(rawEncoding, 0, static_cast<int>(TextEncoding::kLocal8Bit));
+        state.encoding = static_cast<TextEncoding>(boundedEncoding);
+        state.eolMode = tabObj.value(QStringLiteral("eolMode")).toInt(SC_EOL_LF);
+        state.lexerName = ToUtf8(tabObj.value(QStringLiteral("lexerName")).toString());
+        state.lexerManualLock = false;
+
+        SetEditorText(editor, contentUtf8);
+        SetEditorEolMode(editor, state.eolMode);
+        if (!state.lexerName.empty()) {
+            ApplyLexerByName(editor, state.lexerName);
+        } else {
+            AutoDetectAndApplyLexer(editor, state.filePathUtf8, contentUtf8, "crash-recovery");
+        }
+        editor->send(SCI_SETSAVEPOINT);
+        UpdateTabTitle(editor);
+        ++restored;
+    }
+
+    if (restored <= 0) {
+        return false;
+    }
+
+    const int activeIndex = root.value(QStringLiteral("activeIndex")).toInt(0);
+    const int boundedIndex = std::clamp(activeIndex, 0, _tabs->count() - 1);
+    _tabs->setCurrentIndex(boundedIndex);
+    statusBar()->showMessage(tr("Recovered %1 tab(s) from crash journal").arg(restored), 4000);
+    ClearCrashRecoveryJournal();
+    return true;
 }
 
 bool MainWindow::RestoreSession() {
@@ -2782,6 +3032,10 @@ void MainWindow::SaveSession() const {
 
 std::string MainWindow::SessionFilePath() const {
     return ConfigRootPath() + "/session.json";
+}
+
+std::string MainWindow::CrashRecoveryJournalPath() const {
+    return ConfigRootPath() + "/crash-recovery-journal.json";
 }
 
 QString MainWindow::EncodingLabel(TextEncoding encoding) {

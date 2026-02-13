@@ -43,3 +43,11 @@ Dates are target dates and may be adjusted as migration risk changes.
 3. Phase 11: extension platform and VS Code language-asset compatibility path.
 4. Phase 12: hardening and language-intelligence improvements.
 5. Planned release target for this scope: `v0.9.0-beta.2`.
+
+## Phase 12 status (2026-02-13)
+
+1. LSP client foundation is implemented.
+2. Syntax-aware autocomplete assists are implemented (HTML/XML tag auto-close and paired delimiters).
+3. Crash-recovery journal and startup recovery prompt are implemented.
+4. Extension startup performance guardrails are implemented.
+5. Distro validation expansion plan is documented.

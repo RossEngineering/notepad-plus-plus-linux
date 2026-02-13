@@ -19,8 +19,19 @@ Last updated: 2026-02-13
    - Extended lexer color styling for HTML/XML and Markdown in `ui/qt/MainWindow.cpp`
    - Existing C++/Python/Bash styling retained
 
-## Remaining Phase 12 items
+4. Crash-recovery journal and restore UX
+   - Added periodic crash journal autosave and startup recovery prompt in `ui/qt/MainWindow.cpp`
+   - Added journal persistence settings in `editor-settings.json`
+   - Added documentation: `docs/crash-recovery-journal.md`
 
-1. Improve crash-recovery journal and restore UX.
-2. Add extension performance budgets and startup impact guardrails.
-3. Expand distro validation plan beyond Arch Linux derivatives after baseline remains stable.
+5. Extension performance budgets and startup guardrails
+   - Added startup-time and per-extension budget checks in `ui/qt/MainWindow.cpp`
+   - Added diagnostics emission for guardrail violations
+   - Added documentation: `docs/extension-performance-guardrails.md`
+
+6. Distro validation expansion plan
+   - Added cross-distro validation matrix and rollout criteria in `docs/distro-validation-plan.md`
+
+## Phase 12 status
+
+All planned Phase 12 TODO deliverables are now implemented.

@@ -18,6 +18,7 @@ class QAction;
 class QCloseEvent;
 class QLabel;
 class QTabWidget;
+class QTimer;
 class ScintillaEditBase;
 
 class MainWindow final : public QMainWindow {
@@ -56,6 +57,10 @@ private:
 		bool showLineNumbers = true;
 		bool autoCloseHtmlTags = true;
 		bool autoCloseDelimiters = true;
+		bool extensionGuardrailsEnabled = true;
+		int extensionStartupBudgetMs = 1200;
+		int extensionPerExtensionBudgetMs = 250;
+		int crashRecoveryAutosaveSeconds = 15;
 		std::string skinId = "builtin.light";
 	};
 
@@ -170,6 +175,11 @@ private:
 	void ApplyShortcuts();
 	void ReloadShortcuts();
 	void OpenShortcutConfigFile();
+	void InitializeExtensionsWithGuardrails();
+	void StartCrashRecoveryTimer();
+	void SaveCrashRecoveryJournal() const;
+	bool RestoreCrashRecoveryJournal();
+	void ClearCrashRecoveryJournal() const;
 	bool RestoreSession();
 	void SaveSession() const;
 
@@ -180,6 +190,7 @@ private:
 	std::string ShortcutFilePath() const;
 	std::string ThemeFilePath() const;
 	std::string SessionFilePath() const;
+	std::string CrashRecoveryJournalPath() const;
 	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
 	static QString ToQString(const std::string &value);
@@ -200,6 +211,7 @@ private:
 	std::string _lastRunWorkingDirUtf8;
 	bool _closingApplication = false;
 	bool _suppressAutoCloseHandler = false;
+	QTimer *_crashRecoveryTimer = nullptr;
 
 	npp::platform::LinuxPathService _pathService;
 	npp::platform::LinuxFileSystemService _fileSystemService;
