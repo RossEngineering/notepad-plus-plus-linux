@@ -14,7 +14,7 @@ This list tracks prioritized blockers that must be resolved or explicitly waived
 | ID | Priority | Area | Source | Status | Exit criteria |
 | --- | --- | --- | --- | --- | --- |
 | RC1-B01 | P0 | Extension permissions UX | Beta feedback + RC1 plan | Closed | Deny/allow flows are explicit, reversible, and tested (filesystem/network/process prompts). |
-| RC1-B02 | P0 | Syntax color consistency | Beta feedback + RC1 plan | Open | Color-coded syntax output is consistent across targeted lexers/themes and validated by regression checks. |
+| RC1-B02 | P0 | Syntax color consistency | Beta feedback + RC1 plan | Closed | Color-coded syntax output is consistent across targeted lexers/themes and validated by regression checks. |
 | RC1-B03 | P0 | Cross-distro baseline | Beta feedback + RC1 plan | Open | Arch derivatives, Ubuntu LTS, and Fedora stable each have captured build/test/launch evidence with no unresolved P0 defects. |
 | RC1-B04 | P1 | LSP baseline confidence | Known limitation in Beta 2 notes | Open | LSP baseline paths remain stable (no regressions) and RC1 scope limits are documented. |
 | RC1-B05 | P1 | Crash/correctness burn-down | RC1 stabilization goal | Open | All open beta-era P0/P1 crash/correctness issues are fixed or have approved defer rationale. |
@@ -32,6 +32,11 @@ This list tracks prioritized blockers that must be resolved or explicitly waived
    - Install rollback removes copied extension files when interactive permission is denied.
    - Permission decisions are reversible via `Reset Permissions` in extension management UI.
    - Regression coverage updated in `tests/platform/extension_lifecycle_smoke_test.cpp`.
+2. `RC1-B02` (closed):
+   - Introduced shared lexer style mapping in `ui/qt/LexerStyleConfig.h` and applied it in `ui/qt/MainWindow.cpp`.
+   - Added YAML and SQL custom syntax color-role mapping and language menu parity.
+   - Extended syntax smoke coverage in `tests/smoke/syntax_highlighting_smoke_test.cpp` (`xml`, `markdown`, `yaml`, `sql`).
+   - Added regression gate `tests/regression/lexer_style_config_regression_test.cpp`.
 
 ## RC1 readiness rule
 

@@ -265,6 +265,13 @@ if(BUILD_TESTING)
         NPP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     )
     add_test(NAME skin_accessibility_regression_test COMMAND skin_accessibility_regression_test)
+
+    add_executable(lexer_style_config_regression_test tests/regression/lexer_style_config_regression_test.cpp)
+    target_include_directories(lexer_style_config_regression_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ui/qt"
+        "${CMAKE_CURRENT_SOURCE_DIR}/lexilla/include"
+    )
+    add_test(NAME lexer_style_config_regression_test COMMAND lexer_style_config_regression_test)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_lexilla)

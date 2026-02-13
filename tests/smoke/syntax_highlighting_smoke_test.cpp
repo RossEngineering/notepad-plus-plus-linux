@@ -94,5 +94,17 @@ int main() {
     if (!RunLexerCase("bash", "#!/bin/bash\necho hello\n")) {
         return 4;
     }
+    if (!RunLexerCase("xml", "<root><item id=\"1\">value</item></root>\n")) {
+        return 5;
+    }
+    if (!RunLexerCase("markdown", "# title\n\n- item\n\n`code`\n")) {
+        return 6;
+    }
+    if (!RunLexerCase("yaml", "name: npp\nenabled: true\ncount: 3\n")) {
+        return 7;
+    }
+    if (!RunLexerCase("sql", "SELECT id, name FROM users WHERE active = 1;\n")) {
+        return 8;
+    }
     return 0;
 }

@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "LanguageDetection.h"
+#include "LexerStyleConfig.h"
 
 #include <algorithm>
 #include <cctype>
@@ -203,6 +204,12 @@ std::string LanguageActionIdForLexer(const std::string &lexerName) {
     if (lexerName == "bash") {
         return "language.set.bash";
     }
+    if (lexerName == "yaml") {
+        return "language.set.yaml";
+    }
+    if (lexerName == "sql") {
+        return "language.set.sql";
+    }
     return "language.set.plain";
 }
 
@@ -397,6 +404,8 @@ void MainWindow::BuildMenus() {
     languageMenu->addAction(_actionsById.at("language.set.cpp"));
     languageMenu->addAction(_actionsById.at("language.set.python"));
     languageMenu->addAction(_actionsById.at("language.set.bash"));
+    languageMenu->addAction(_actionsById.at("language.set.yaml"));
+    languageMenu->addAction(_actionsById.at("language.set.sql"));
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     QMenu *skinsMenu = viewMenu->addMenu(tr("Skins"));
@@ -449,12 +458,16 @@ void MainWindow::BuildActions() {
     registerAction("language.set.cpp", tr("C/C++"), [this]() { SetCurrentEditorManualLexer("cpp"); });
     registerAction("language.set.python", tr("Python"), [this]() { SetCurrentEditorManualLexer("python"); });
     registerAction("language.set.bash", tr("Bash/Shell"), [this]() { SetCurrentEditorManualLexer("bash"); });
+    registerAction("language.set.yaml", tr("YAML"), [this]() { SetCurrentEditorManualLexer("yaml"); });
+    registerAction("language.set.sql", tr("SQL"), [this]() { SetCurrentEditorManualLexer("sql"); });
     _actionsById.at("language.set.plain")->setCheckable(true);
     _actionsById.at("language.set.markdown")->setCheckable(true);
     _actionsById.at("language.set.html")->setCheckable(true);
     _actionsById.at("language.set.cpp")->setCheckable(true);
     _actionsById.at("language.set.python")->setCheckable(true);
     _actionsById.at("language.set.bash")->setCheckable(true);
+    _actionsById.at("language.set.yaml")->setCheckable(true);
+    _actionsById.at("language.set.sql")->setCheckable(true);
 
     registerAction("view.skin.light", tr("Light"), [this]() { OnSetSkin("builtin.light"); });
     registerAction("view.skin.dark", tr("Dark"), [this]() { OnSetSkin("builtin.dark"); });
@@ -1341,6 +1354,8 @@ void MainWindow::UpdateLanguageActionState() {
         "language.set.cpp",
         "language.set.python",
         "language.set.bash",
+        "language.set.yaml",
+        "language.set.sql",
     };
 
     const auto setLanguageActionsEnabled = [this, &languageActionIds](bool enabled) {
@@ -2196,6 +2211,18 @@ void MainWindow::ApplyLexerByName(ScintillaEditBase *editor, const std::string &
             "False None True and as assert async await break class continue def del elif else "
             "except finally for from global if import in is lambda nonlocal not or pass raise "
             "return try while with yield");
+    } else if (lexerName == "yaml") {
+        editor->sends(
+            SCI_SETKEYWORDS,
+            0,
+            "true false yes no on off null");
+    } else if (lexerName == "sql") {
+        editor->sends(
+            SCI_SETKEYWORDS,
+            0,
+            "select from where join inner outer left right full on group by order having "
+            "insert into values update delete create alter drop table view index as and or "
+            "not in exists like between null distinct limit offset case when then else end");
     }
 
     ApplyTheme(editor);
@@ -2207,71 +2234,28 @@ void MainWindow::ApplyLexerStyles(ScintillaEditBase *editor, const std::string &
     if (!editor) {
         return;
     }
+    const auto colorForRole = [this](npp::ui::LexerStyleColorRole role) -> int {
+        switch (role) {
+            case npp::ui::LexerStyleColorRole::kComment:
+                return _themeSettings.comment;
+            case npp::ui::LexerStyleColorRole::kNumber:
+                return _themeSettings.number;
+            case npp::ui::LexerStyleColorRole::kKeyword:
+                return _themeSettings.keyword;
+            case npp::ui::LexerStyleColorRole::kString:
+                return _themeSettings.stringColor;
+            case npp::ui::LexerStyleColorRole::kOperator:
+                return _themeSettings.operatorColor;
+            case npp::ui::LexerStyleColorRole::kForeground:
+                return _themeSettings.foreground;
+        }
+        return _themeSettings.foreground;
+    };
 
-    if (lexerName == "cpp" || lexerName == "json") {
-        editor->send(SCI_STYLESETFORE, SCE_C_COMMENT, _themeSettings.comment);
-        editor->send(SCI_STYLESETFORE, SCE_C_COMMENTLINE, _themeSettings.comment);
-        editor->send(SCI_STYLESETFORE, SCE_C_COMMENTDOC, _themeSettings.comment);
-        editor->send(SCI_STYLESETFORE, SCE_C_NUMBER, _themeSettings.number);
-        editor->send(SCI_STYLESETFORE, SCE_C_WORD, _themeSettings.keyword);
-        editor->send(SCI_STYLESETBOLD, SCE_C_WORD, 1);
-        editor->send(SCI_STYLESETFORE, SCE_C_STRING, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_C_CHARACTER, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_C_OPERATOR, _themeSettings.operatorColor);
-        editor->send(SCI_STYLESETFORE, SCE_C_PREPROCESSOR, _themeSettings.keyword);
-    } else if (lexerName == "xml") {
-        editor->send(SCI_STYLESETFORE, SCE_H_TAG, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_H_TAGUNKNOWN, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_H_ATTRIBUTE, _themeSettings.foreground);
-        editor->send(SCI_STYLESETFORE, SCE_H_ATTRIBUTEUNKNOWN, _themeSettings.foreground);
-        editor->send(SCI_STYLESETFORE, SCE_H_NUMBER, _themeSettings.number);
-        editor->send(SCI_STYLESETFORE, SCE_H_DOUBLESTRING, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_H_SINGLESTRING, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_H_COMMENT, _themeSettings.comment);
-        editor->send(SCI_STYLESETFORE, SCE_H_ENTITY, _themeSettings.number);
-        editor->send(SCI_STYLESETFORE, SCE_H_CDATA, _themeSettings.stringColor);
-    } else if (lexerName == "markdown") {
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER1, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER2, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER3, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER4, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER5, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HEADER6, _themeSettings.keyword);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER1, 1);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER2, 1);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER3, 1);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER4, 1);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER5, 1);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_HEADER6, 1);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_STRONG1, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_STRONG2, _themeSettings.keyword);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_STRONG1, 1);
-        editor->send(SCI_STYLESETBOLD, SCE_MARKDOWN_STRONG2, 1);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_EM1, _themeSettings.operatorColor);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_EM2, _themeSettings.operatorColor);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_LINK, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_CODE, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_CODE2, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_CODEBK, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_BLOCKQUOTE, _themeSettings.comment);
-        editor->send(SCI_STYLESETFORE, SCE_MARKDOWN_HRULE, _themeSettings.operatorColor);
-    } else if (lexerName == "python") {
-        editor->send(SCI_STYLESETFORE, SCE_P_COMMENTLINE, _themeSettings.comment);
-        editor->send(SCI_STYLESETFORE, SCE_P_NUMBER, _themeSettings.number);
-        editor->send(SCI_STYLESETFORE, SCE_P_WORD, _themeSettings.keyword);
-        editor->send(SCI_STYLESETBOLD, SCE_P_WORD, 1);
-        editor->send(SCI_STYLESETFORE, SCE_P_STRING, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_P_CHARACTER, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_P_OPERATOR, _themeSettings.operatorColor);
-        editor->send(SCI_STYLESETFORE, SCE_P_DEFNAME, _themeSettings.keyword);
-        editor->send(SCI_STYLESETFORE, SCE_P_CLASSNAME, _themeSettings.keyword);
-    } else if (lexerName == "bash") {
-        editor->send(SCI_STYLESETFORE, SCE_SH_COMMENTLINE, _themeSettings.comment);
-        editor->send(SCI_STYLESETFORE, SCE_SH_NUMBER, _themeSettings.number);
-        editor->send(SCI_STYLESETFORE, SCE_SH_WORD, _themeSettings.keyword);
-        editor->send(SCI_STYLESETBOLD, SCE_SH_WORD, 1);
-        editor->send(SCI_STYLESETFORE, SCE_SH_STRING, _themeSettings.stringColor);
-        editor->send(SCI_STYLESETFORE, SCE_SH_OPERATOR, _themeSettings.operatorColor);
+    const auto &rules = npp::ui::LexerStyleRulesFor(lexerName);
+    for (const auto &rule : rules) {
+        editor->send(SCI_STYLESETFORE, rule.styleId, colorForRole(rule.colorRole));
+        editor->send(SCI_STYLESETBOLD, rule.styleId, rule.bold ? 1 : 0);
     }
 }
 
