@@ -62,4 +62,3 @@ For migration priorities and sequencing, check [`TODO.md`](TODO.md).
 ## License
 
 This project remains under the GPL. See [`LICENSE`](LICENSE).
-
