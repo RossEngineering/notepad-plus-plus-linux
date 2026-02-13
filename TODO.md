@@ -1,83 +1,43 @@
 # TODO - notepad-plus-plus-linux
 
-This file tracks the Linux-native migration and modernization work for this fork.
+This file now tracks active post-Phase-8 work.
+Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 
-## Phase 0: Baseline and audit
+## Phase 9: Automatic language detection and highlighting
 
-- [x] Tag current fork baseline commit.
-- [x] Document current build status on Manjaro (what compiles, what fails, error logs).
-- [x] Inventory Win32 API usage in `PowerEditor/src`.
-- [x] Identify modules that are already cross-platform (or mostly portable).
-- [x] Define compatibility target: feature parity scope for first Linux release.
+- [ ] Implement automatic language detection using extension, shebang, modelines, and content heuristics.
+- [ ] Detect and classify Markdown/HTML/programming-language files on open.
+- [ ] Auto-switch lexer and syntax highlighting when detection confidence is high.
+- [ ] Re-run detection on rename/save-as and provide manual override lock.
+- [ ] Add detection/lexer regression corpus and accuracy tracking in tests.
 
-## Phase 1: Architecture boundaries
+## Phase 10: UI skinning support
 
-- [x] Create architecture doc under `docs/architecture.md`.
-- [x] Define `core` boundary (buffer, undo/redo, search, encoding, session state).
-- [x] Define `platform` boundary (filesystem, clipboard, process, settings, dialogs).
-- [x] Define `ui` boundary and message/event flow.
-- [x] Add coding rules that block new direct Win32 calls outside platform layer.
+- [ ] Define skin/theme format covering app chrome + editor + dialogs.
+- [ ] Ship first-party skin set (light, dark, and high-contrast).
+- [ ] Add runtime skin switcher and persistent per-user selection.
+- [ ] Ensure full visual consistency across tabs, menus, status bar, and dialogs.
+- [ ] Add accessibility checks for contrast/focus visibility in CI.
 
-## Phase 2: Build system modernization
+## Phase 11: Extensions and VS Code compatibility strategy
 
-- [x] Introduce top-level CMake configuration for Linux builds.
-- [x] Build `scintilla` and `lexilla` as Linux targets through CMake.
-- [x] Establish Debug/Release presets for local development.
-- [x] Add CI job for Linux build and basic tests.
-- [x] Keep existing Windows build path functional during transition.
+- [ ] Define Linux extension API v1 boundaries and security model.
+- [ ] Build extension lifecycle support (discover/install/enable/disable/remove).
+- [ ] Implement extension permission prompts for filesystem/network/process access.
+- [ ] Write ADR comparing VS Code compatibility options (full API parity vs targeted compatibility).
+- [ ] Implement targeted compatibility path for VS Code language assets (TextMate grammars + language configs).
+- [ ] Validate compatibility with at least 3 popular VS Code language extensions.
 
-## Phase 3: Platform abstraction layer
+## Phase 12: Suggested hardening work (recommended)
 
-- [x] Add interface layer for OS services (path/file, clipboard, timers, subprocess).
-- [x] Port file and path handling to UTF-8-first Linux behavior.
-- [x] Implement XDG config/data/cache directory handling.
-- [x] Implement Linux crash logging and diagnostics path.
-- [x] Replace direct Win32 calls incrementally behind interfaces.
-
-## Phase 4: Linux-native UI
-
-- [x] Select initial UI backend (Qt recommended for first stable path).
-- [x] Create Linux application shell (main window, tabs, menus, status bar).
-- [x] Integrate Scintilla widget for Linux frontend.
-- [x] Port essential dialogs (find/replace, preferences, go to line).
-- [x] Implement keyboard shortcuts with Linux-friendly defaults and override support.
-
-## Phase 5: Feature parity (MVP)
-
-- [x] File open/save/reload with encoding and EOL handling.
-- [x] Multi-tab editing and session restore.
-- [x] Search/replace (document and multi-file basic mode).
-- [x] Syntax highlighting and theme loading.
-- [x] External tools / run command support.
-- [x] Plugin story decision: compatibility shim or new Linux plugin API.
-
-## Phase 6: Packaging and distribution (Manjaro first)
-
-- [x] Add `PKGBUILD` for local package builds.
-- [x] Define package split strategy (runtime, debug symbols, optional plugins).
-- [x] Add desktop entry, icon assets, and MIME associations.
-- [x] Add reproducible release build instructions.
-- [x] Publish signed release artifacts and checksums.
-
-## Phase 7: Quality and performance
-
-- [x] Add unit tests for core text operations and undo/redo behavior.
-- [x] Add regression tests for encoding conversion and large-file handling.
-- [x] Add syntax highlighting smoke tests across representative languages.
-- [x] Benchmark startup time and typing latency against baseline.
-- [x] Add memory/leak checks in CI for Linux builds.
-
-## Phase 8: Documentation and developer UX
-
-- [x] Rewrite `BUILD.md` with Linux-native instructions first.
-- [x] Add `docs/dev-setup-manjaro.md` for one-command setup.
-- [x] Add `docs/roadmap.md` with milestone timeline.
-- [x] Add contribution labels and issue templates for migration work.
-- [x] Add migration status dashboard to README.
+- [ ] Add LSP client foundation for richer language intelligence.
+- [ ] Improve crash-recovery journal and restore UX.
+- [ ] Add extension performance budgets and startup impact guardrails.
+- [ ] Expand distro validation plan beyond Manjaro after baseline remains stable.
 
 ## Immediate next actions
 
-- [x] Create `docs/architecture.md` with first module map.
-- [x] Run Win32 API usage report and commit results to `docs/audit-win32.md`.
-- [ ] Prototype Linux CMake build for `scintilla` + `lexilla`.
-- [x] Decide UI backend and record rationale in `docs/ui-decision.md`.
+- [ ] Draft VS Code compatibility ADR with explicit non-goals.
+- [ ] Create language-detection fixture corpus for Markdown/HTML/code.
+- [ ] Draft skin schema and provide two sample skin files.
+- [ ] Define extension permission categories and default-deny policy.

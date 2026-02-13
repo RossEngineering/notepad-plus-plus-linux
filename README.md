@@ -45,8 +45,8 @@ Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
 | Phase 7 | Quality and performance | Complete | `docs/performance-baseline.md` |
 | Phase 8 | Docs and developer UX | Complete | `docs/roadmap.md` |
 
-Current progress: **8 / 8 phases complete** in the current roadmap.
-Next release planning and post-Phase-8 scope should be tracked against `docs/roadmap.md`.
+Foundation progress: **8 / 8 foundation phases complete**.
+Post-foundation phases (9+) are now tracked in `TODO.md` and `docs/roadmap.md`.
 
 ## Goals
 
