@@ -54,7 +54,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 ## Phase 6: Packaging and distribution (Manjaro first)
 
 - [x] Add `PKGBUILD` for local package builds.
-- [ ] Define package split strategy (runtime, debug symbols, optional plugins).
+- [x] Define package split strategy (runtime, debug symbols, optional plugins).
 - [ ] Add desktop entry, icon assets, and MIME associations.
 - [ ] Add reproducible release build instructions.
 - [ ] Publish signed release artifacts and checksums.
