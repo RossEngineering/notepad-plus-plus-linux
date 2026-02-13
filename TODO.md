@@ -49,7 +49,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ## Immediate next actions
 
-- [ ] Create `v0.9.3-rc.1` checklist and notes stub in `docs/releases/`.
+- [x] Create `v0.9.3-rc.1` checklist and notes stub in `docs/releases/`.
 - [ ] Build and prioritize RC1 blocker list from latest beta feedback.
 - [ ] Define RC1 distro validation evidence format and publish first report.
 - [ ] Add `docs/releases/v1.0.0-checklist.md` draft with final promotion gates.
