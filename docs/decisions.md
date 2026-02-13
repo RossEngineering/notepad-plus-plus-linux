@@ -28,3 +28,4 @@ This file indexes architecture and governance decisions used by this repository.
 
 - Imported RossEngineering ADR snapshot: `docs/adr/rossengineering-bafc82c7/`
 - Alignment review against that snapshot: `docs/adr/rossengineering-alignment-2026-02-13.md`
+- Incubator promotion validation: `docs/incubator-promotion-validation-2026-02-13.md`
