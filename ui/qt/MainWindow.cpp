@@ -204,6 +204,16 @@ std::string LanguageActionIdForLexer(const std::string &lexerName) {
     return "language.set.plain";
 }
 
+std::string SkinActionIdForSkinId(const std::string &skinId) {
+    if (skinId == "builtin.dark") {
+        return "view.skin.dark";
+    }
+    if (skinId == "builtin.high_contrast") {
+        return "view.skin.highContrast";
+    }
+    return "view.skin.light";
+}
+
 bool IsIdentifierChar(char ch) {
     const unsigned char uch = static_cast<unsigned char>(ch);
     return std::isalnum(uch) != 0 || ch == '-' || ch == '_' || ch == ':';
@@ -250,6 +260,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), _diagnosticsService(_pathService, _fileSystemService) {
     BuildUi();
     LoadEditorSettings();
+    EnsureBuiltInSkins();
     EnsureThemeFile();
     LoadTheme();
     EnsureShortcutConfigFile();
@@ -261,6 +272,7 @@ MainWindow::MainWindow(QWidget *parent)
     UpdateWindowTitle();
     UpdateCursorStatus();
     UpdateLanguageActionState();
+    UpdateSkinActionState();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -323,6 +335,12 @@ void MainWindow::BuildMenus() {
     languageMenu->addAction(_actionsById.at("language.set.cpp"));
     languageMenu->addAction(_actionsById.at("language.set.python"));
     languageMenu->addAction(_actionsById.at("language.set.bash"));
+
+    QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+    QMenu *skinsMenu = viewMenu->addMenu(tr("Skins"));
+    skinsMenu->addAction(_actionsById.at("view.skin.light"));
+    skinsMenu->addAction(_actionsById.at("view.skin.dark"));
+    skinsMenu->addAction(_actionsById.at("view.skin.highContrast"));
 }
 
 void MainWindow::BuildStatusBar() {
@@ -367,6 +385,13 @@ void MainWindow::BuildActions() {
     _actionsById.at("language.set.cpp")->setCheckable(true);
     _actionsById.at("language.set.python")->setCheckable(true);
     _actionsById.at("language.set.bash")->setCheckable(true);
+
+    registerAction("view.skin.light", tr("Light"), [this]() { OnSetSkin("builtin.light"); });
+    registerAction("view.skin.dark", tr("Dark"), [this]() { OnSetSkin("builtin.dark"); });
+    registerAction("view.skin.highContrast", tr("High Contrast"), [this]() { OnSetSkin("builtin.high_contrast"); });
+    _actionsById.at("view.skin.light")->setCheckable(true);
+    _actionsById.at("view.skin.dark")->setCheckable(true);
+    _actionsById.at("view.skin.highContrast")->setCheckable(true);
 
     registerAction(
         "tools.shortcuts.open",
@@ -1196,6 +1221,68 @@ void MainWindow::UpdateLanguageActionState() {
     }
 }
 
+void MainWindow::OnSetSkin(const std::string &skinId) {
+    if (skinId != "builtin.light" && skinId != "builtin.dark" && skinId != "builtin.high_contrast") {
+        return;
+    }
+
+    const std::string skinPath = SkinFilePathForId(skinId);
+    if (skinPath.empty()) {
+        QMessageBox::warning(
+            this,
+            tr("Skin"),
+            tr("Selected skin file was not found for id: %1").arg(ToQString(skinId)));
+        return;
+    }
+
+    _editorSettings.skinId = skinId;
+    SaveEditorSettings();
+    LoadTheme();
+
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ScintillaEditBase *editor = EditorAt(index);
+        if (!editor) {
+            continue;
+        }
+        auto stateIt = _editorStates.find(editor);
+        const std::string lexerName = stateIt == _editorStates.end() || stateIt->second.lexerName.empty()
+            ? "null"
+            : stateIt->second.lexerName;
+        ApplyLexerByName(editor, lexerName);
+    }
+    UpdateSkinActionState();
+
+    if (statusBar()) {
+        statusBar()->showMessage(
+            tr("Skin applied: %1").arg(ToQString(skinId)),
+            2000);
+    }
+}
+
+void MainWindow::UpdateSkinActionState() {
+    const std::vector<std::string> skinActionIds = {
+        "view.skin.light",
+        "view.skin.dark",
+        "view.skin.highContrast",
+    };
+
+    for (const std::string &id : skinActionIds) {
+        const auto it = _actionsById.find(id);
+        if (it == _actionsById.end() || !it->second) {
+            continue;
+        }
+        QSignalBlocker blocker(it->second);
+        it->second->setChecked(false);
+    }
+
+    const std::string activeActionId = SkinActionIdForSkinId(_editorSettings.skinId);
+    const auto activeIt = _actionsById.find(activeActionId);
+    if (activeIt != _actionsById.end() && activeIt->second) {
+        QSignalBlocker blocker(activeIt->second);
+        activeIt->second->setChecked(true);
+    }
+}
+
 bool MainWindow::FindNextInEditor(
     ScintillaEditBase *editor,
     const std::string &needleUtf8,
@@ -1653,6 +1740,13 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.wrapEnabled = obj.value(QStringLiteral("wrapEnabled")).toBool(false);
     _editorSettings.showLineNumbers = obj.value(QStringLiteral("showLineNumbers")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
+    const QJsonValue skinValue = obj.value(QStringLiteral("skinId"));
+    if (skinValue.isString()) {
+        const std::string loadedSkinId = ToUtf8(skinValue.toString());
+        if (!loadedSkinId.empty()) {
+            _editorSettings.skinId = loadedSkinId;
+        }
+    }
 }
 
 void MainWindow::SaveEditorSettings() const {
@@ -1662,6 +1756,7 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("wrapEnabled"), _editorSettings.wrapEnabled);
     settingsObject.insert(QStringLiteral("showLineNumbers"), _editorSettings.showLineNumbers);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
+    settingsObject.insert(QStringLiteral("skinId"), ToQString(_editorSettings.skinId));
 
     const QJsonDocument doc(settingsObject);
     const auto json = doc.toJson(QJsonDocument::Indented);
@@ -1863,6 +1958,70 @@ void MainWindow::EnsureConfigRoot() {
     _fileSystemService.CreateDirectories(root);
 }
 
+void MainWindow::EnsureBuiltInSkins() {
+    EnsureConfigRoot();
+    const std::string skinRoot = SkinDirectoryPath();
+    if (skinRoot.empty()) {
+        return;
+    }
+    _fileSystemService.CreateDirectories(skinRoot);
+
+    struct BuiltInSkin {
+        const char *id;
+        const char *fileName;
+        const char *json;
+    };
+
+    static const BuiltInSkin kBuiltIns[] = {
+        {
+            "builtin.light",
+            "light.json",
+            R"({
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {"id": "builtin.light", "name": "Built-in Light"},
+  "appChrome": {"windowBackground": "#F3F3F3", "windowForeground": "#1A1A1A", "menuBackground": "#FFFFFF", "menuForeground": "#1A1A1A", "statusBackground": "#EFEFEF", "statusForeground": "#1A1A1A", "accent": "#005FB8"},
+  "editor": {"background": "#FFFFFF", "foreground": "#1A1A1A", "lineNumberBackground": "#F2F2F2", "lineNumberForeground": "#616161", "caretLineBackground": "#F7FAFF", "selectionBackground": "#CFE8FF", "selectionForeground": "#000000", "comment": "#6A9955", "keyword": "#005FB8", "number": "#9A3E9D", "stringColor": "#B34100", "operatorColor": "#1A1A1A"},
+  "dialogs": {"background": "#FFFFFF", "foreground": "#1A1A1A", "buttonBackground": "#E9EEF6", "buttonForeground": "#1A1A1A", "border": "#B5C3D6"}
+})"},
+        {
+            "builtin.dark",
+            "dark.json",
+            R"({
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {"id": "builtin.dark", "name": "Built-in Dark"},
+  "appChrome": {"windowBackground": "#1B1E23", "windowForeground": "#E6EAF2", "menuBackground": "#242933", "menuForeground": "#E6EAF2", "statusBackground": "#20242D", "statusForeground": "#DCE2EC", "accent": "#4FA3FF"},
+  "editor": {"background": "#15181E", "foreground": "#DDE3EE", "lineNumberBackground": "#20242D", "lineNumberForeground": "#77839A", "caretLineBackground": "#1F2530", "selectionBackground": "#304764", "selectionForeground": "#F3F7FF", "comment": "#7FA06E", "keyword": "#6CB6FF", "number": "#C78AF3", "stringColor": "#FFB86B", "operatorColor": "#DDE3EE"},
+  "dialogs": {"background": "#242933", "foreground": "#E6EAF2", "buttonBackground": "#2C3442", "buttonForeground": "#E6EAF2", "border": "#41506A"}
+})"},
+        {
+            "builtin.high_contrast",
+            "high-contrast.json",
+            R"({
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {"id": "builtin.high_contrast", "name": "Built-in High Contrast"},
+  "appChrome": {"windowBackground": "#000000", "windowForeground": "#FFFFFF", "menuBackground": "#000000", "menuForeground": "#FFFFFF", "statusBackground": "#000000", "statusForeground": "#FFFFFF", "accent": "#FFD700"},
+  "editor": {"background": "#000000", "foreground": "#FFFFFF", "lineNumberBackground": "#000000", "lineNumberForeground": "#FFD700", "caretLineBackground": "#111111", "selectionBackground": "#0033CC", "selectionForeground": "#FFFFFF", "comment": "#00FF00", "keyword": "#FFD700", "number": "#00FFFF", "stringColor": "#FF8C00", "operatorColor": "#FFFFFF"},
+  "dialogs": {"background": "#000000", "foreground": "#FFFFFF", "buttonBackground": "#1A1A1A", "buttonForeground": "#FFFFFF", "border": "#FFD700"}
+})"},
+    };
+
+    for (const BuiltInSkin &skin : kBuiltIns) {
+        const std::string skinPath = SkinDirectoryPath() + "/" + skin.fileName;
+        const auto exists = _fileSystemService.Exists(skinPath);
+        if (exists.ok() && *exists.value) {
+            continue;
+        }
+
+        npp::platform::WriteFileOptions options;
+        options.atomic = true;
+        options.createParentDirs = true;
+        _fileSystemService.WriteTextFile(skinPath, std::string(skin.json), options);
+    }
+}
+
 void MainWindow::EnsureThemeFile() {
     EnsureConfigRoot();
     const auto exists = _fileSystemService.Exists(ThemeFilePath());
@@ -1932,7 +2091,18 @@ void MainWindow::EnsureThemeFile() {
 
 void MainWindow::LoadTheme() {
     EnsureThemeFile();
-    const auto themeJson = _fileSystemService.ReadTextFile(ThemeFilePath());
+    std::string selectedThemePath = ThemeFilePath();
+    if (!_editorSettings.skinId.empty()) {
+        const std::string builtInSkinPath = SkinFilePathForId(_editorSettings.skinId);
+        if (!builtInSkinPath.empty()) {
+            selectedThemePath = builtInSkinPath;
+        }
+    }
+
+    auto themeJson = _fileSystemService.ReadTextFile(selectedThemePath);
+    if (!themeJson.ok() && selectedThemePath != ThemeFilePath()) {
+        themeJson = _fileSystemService.ReadTextFile(ThemeFilePath());
+    }
     if (!themeJson.ok()) {
         return;
     }
@@ -2172,6 +2342,38 @@ std::string MainWindow::ConfigRootPath() const {
         return std::string{};
     }
     return *configPath.value;
+}
+
+std::string MainWindow::SkinDirectoryPath() const {
+    return ConfigRootPath() + "/skins";
+}
+
+std::string MainWindow::SkinFilePathForId(const std::string &skinId) const {
+    std::string fileName;
+    if (skinId == "builtin.light") {
+        fileName = "light.json";
+    } else if (skinId == "builtin.dark") {
+        fileName = "dark.json";
+    } else if (skinId == "builtin.high_contrast") {
+        fileName = "high-contrast.json";
+    } else {
+        return std::string{};
+    }
+
+    const std::vector<std::string> candidatePaths = {
+        SkinDirectoryPath() + "/" + fileName,
+        std::string("/usr/share/notepad-plus-plus-linux/skins/") + fileName,
+        std::string("packaging/linux/skins/") + fileName,
+    };
+
+    for (const std::string &candidate : candidatePaths) {
+        const auto exists = _fileSystemService.Exists(candidate);
+        if (exists.ok() && *exists.value) {
+            return candidate;
+        }
+    }
+
+    return std::string{};
 }
 
 std::string MainWindow::SettingsFilePath() const {

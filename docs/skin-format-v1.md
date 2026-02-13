@@ -90,3 +90,15 @@ To apply one manually now, copy it to the user theme path:
 ```bash
 cp /usr/share/notepad-plus-plus-linux/skins/dark.json ~/.config/notepad-plus-plus-linux/theme-linux.json
 ```
+
+## Runtime selection and persistence
+
+- Runtime switcher is available at `View > Skins`.
+- Current options: `Light`, `Dark`, `High Contrast`.
+- Selected skin is persisted in `editor-settings.json` as:
+
+```json
+{
+  "skinId": "builtin.dark"
+}
+```

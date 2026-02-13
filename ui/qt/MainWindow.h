@@ -54,6 +54,7 @@ private:
 		bool wrapEnabled = false;
 		bool showLineNumbers = true;
 		bool autoCloseHtmlTags = true;
+		std::string skinId = "builtin.light";
 	};
 
 	struct ThemeSettings {
@@ -112,8 +113,10 @@ private:
 	void OnRunCommand();
 	void OnAutoDetectLanguage();
 	void OnToggleLexerLock();
+	void OnSetSkin(const std::string &skinId);
 	void SetCurrentEditorManualLexer(const std::string &lexerName);
 	void UpdateLanguageActionState();
+	void UpdateSkinActionState();
 
 	bool FindNextInEditor(ScintillaEditBase *editor, const std::string &needleUtf8, bool matchCase);
 	int ReplaceAllInEditor(
@@ -154,6 +157,7 @@ private:
 	void ApplyLexerStyles(ScintillaEditBase *editor, const std::string &lexerName);
 
 	void EnsureConfigRoot();
+	void EnsureBuiltInSkins();
 	void EnsureThemeFile();
 	void LoadTheme();
 	void EnsureShortcutConfigFile();
@@ -165,6 +169,8 @@ private:
 	void SaveSession() const;
 
 	std::string ConfigRootPath() const;
+	std::string SkinDirectoryPath() const;
+	std::string SkinFilePathForId(const std::string &skinId) const;
 	std::string SettingsFilePath() const;
 	std::string ShortcutFilePath() const;
 	std::string ThemeFilePath() const;
