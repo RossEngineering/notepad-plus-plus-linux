@@ -12,6 +12,7 @@
 !scripts/release/
 !scripts/release/*.sh
 /build/
+/build-*/
 /out/
 x64/
 x86/
