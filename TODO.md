@@ -16,7 +16,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Define `core` boundary (buffer, undo/redo, search, encoding, session state).
 - [x] Define `platform` boundary (filesystem, clipboard, process, settings, dialogs).
 - [x] Define `ui` boundary and message/event flow.
-- [ ] Add coding rules that block new direct Win32 calls outside platform layer.
+- [x] Add coding rules that block new direct Win32 calls outside platform layer.
 
 ## Phase 2: Build system modernization
 

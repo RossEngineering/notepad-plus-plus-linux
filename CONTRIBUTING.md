@@ -24,6 +24,19 @@ However, they may not be accepted for various reasons. If you want to make some 
 
 Opening an issue beforehand allows the administrators and the community to discuss bugs and enhancements before work begins, preventing wasted effort.
 
+### Linux migration boundary rule
+
+This fork is actively migrating to a Linux-native architecture.
+
+To prevent deeper platform lock-in:
+
+1. Do not add new direct Win32 usage outside `platform/win32`.
+2. Route OS integration through interfaces in `platform/include`.
+3. Prefer Linux implementations in `platform/linux`.
+
+See `docs/coding-rules.md` for details.  
+Automated check: `scripts/check_win32_boundaries.sh` (also enforced in CI).
+
 ### Guidelines for pull requests
 
 1. Respect existing Notepad++ coding style. Observe the code near your intended change, and attempt to preserve the style of that code with the changes you make.

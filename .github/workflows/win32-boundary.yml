@@ -1,0 +1,33 @@
+name: Win32 Boundary Guard
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  boundary-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Win32 boundary checker
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" =~ ^0+$ ]]; then
+            BASE_SHA="baseline-2026-02-13"
+          fi
+
+          echo "Using base ref: ${BASE_SHA}"
+          ./scripts/check_win32_boundaries.sh "${BASE_SHA}"
