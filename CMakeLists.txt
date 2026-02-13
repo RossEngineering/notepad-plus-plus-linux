@@ -175,6 +175,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
             AUTOMOC ON
             AUTOUIC OFF
             AUTORCC OFF
+            OUTPUT_NAME "notepad-plus-plus-linux"
         )
 
         target_include_directories(npp_linux_shell
@@ -204,6 +205,21 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
 
         install(TARGETS npp_linux_shell
             RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/notepad-plus-plus-linux.desktop"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications"
+        )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/icons/hicolor/scalable/apps/notepad-plus-plus-linux.svg"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps"
+        )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/mime/notepad-plus-plus-linux.xml"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mime/packages"
         )
     else()
         message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Notepad++ Linux
+GenericName=Text Editor
+Comment=Linux-native Notepad++ fork
+Exec=notepad-plus-plus-linux %F
+TryExec=notepad-plus-plus-linux
+Icon=notepad-plus-plus-linux
+Terminal=false
+StartupNotify=true
+Categories=Utility;TextEditor;Development;IDE;
+MimeType=text/plain;text/markdown;text/x-csrc;text/x-c++src;text/x-python;text/x-java-source;text/x-shellscript;application/json;application/xml;application/x-notepad-plus-plus-linux-session;
+Keywords=notepad;editor;code;text;
