@@ -238,6 +238,20 @@ if(BUILD_TESTING AND TARGET npp_lexilla)
     add_test(NAME lexilla_smoke_test COMMAND lexilla_smoke_test)
 endif()
 
+if(BUILD_TESTING AND TARGET npp_lexilla AND TARGET npp_scintilla)
+    add_executable(syntax_highlighting_smoke_test tests/smoke/syntax_highlighting_smoke_test.cpp)
+    target_sources(syntax_highlighting_smoke_test PRIVATE
+        tests/support/scintilla_debug_stubs.cpp
+    )
+    target_include_directories(syntax_highlighting_smoke_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/lexilla/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
+    )
+    target_link_libraries(syntax_highlighting_smoke_test PRIVATE npp_lexilla npp_scintilla)
+    add_test(NAME syntax_highlighting_smoke_test COMMAND syntax_highlighting_smoke_test)
+endif()
+
 if(BUILD_TESTING AND TARGET npp_scintilla)
     add_executable(scintilla_document_smoke_test tests/smoke/scintilla_document_smoke.cpp)
     target_include_directories(scintilla_document_smoke_test PRIVATE
