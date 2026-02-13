@@ -1,50 +1,55 @@
-What is Notepad++ ?
-===================
+# notepad-plus-plus-linux
 
-[![GitHub release](https://img.shields.io/github/release/notepad-plus-plus/notepad-plus-plus.svg)](../../releases/latest)&nbsp;&nbsp;&nbsp;&nbsp;[![Build Status](https://img.shields.io/github/actions/workflow/status/notepad-plus-plus/notepad-plus-plus/CI_build.yml)](https://github.com/notepad-plus-plus/notepad-plus-plus/actions/workflows/CI_build.yml)
-&nbsp;&nbsp;&nbsp;&nbsp;[![Join the discussions at https://community.notepad-plus-plus.org/](https://notepad-plus-plus.org/assets/images/NppCommunityBadge.svg)](https://community.notepad-plus-plus.org/)
+Linux-native fork and reengineering effort based on Notepad++.
 
-Notepad++ is a free (free as in both "free speech" and "free beer") source code
-editor and Notepad replacement that supports several programming languages and
-natural languages. Running in the MS Windows environment, its use is governed by
-[GPL License](LICENSE).
+This repository tracks a transition from the original Windows-first architecture to a native Linux application, with Manjaro as the primary target environment.
 
-See the [Notepad++ official site](https://notepad-plus-plus.org/) for more information.
+## Project status
 
+Current state:
 
-Notepad++ GPG Release Key
--------------------------
-_Since the release of version 7.6.5 Notepad++ is signed using GPG with the following key:_
+- Codebase is largely upstream Notepad++ and remains Windows-centric.
+- Build and platform docs still describe Windows and MinGW workflows.
+- Linux-native application shell is not implemented yet.
 
-- **Signer:** Notepad++
-- **E-mail:** don.h@free.fr
-- **Key ID:** 0x8D84F46E
-- **Key fingerprint:** 14BC E436 2749 B2B5 1F8C 7122 6C42 9F1D 8D84 F46E
-- **Key type:** RSA 4096/4096
-- **Created:** 2019-03-11
-- **Expires:** 2027-03-13
+Planned state:
 
-https://github.com/notepad-plus-plus/notepad-plus-plus/blob/master/nppGpgPub.asc
+- Native Linux desktop app (no Wine dependency).
+- Modernized architecture with clear separation between editor core, platform services, and UI.
+- Linux-first build, packaging, and release process.
 
+See [`TODO.md`](TODO.md) for the migration roadmap and active work items.
 
-Supported OS
-------------
+## Goals
 
-All the Windows systems still supported by Microsoft are supported by Notepad++. However, not all Notepad++ users can or want to use the newest system. Here is the [Supported systems information](SUPPORTED_SYSTEM.md) you may need in case you are one of them.
+- Preserve Notepad++ editing strengths (performance, usability, language tooling).
+- Replace Win32-only dependencies with cross-platform or Linux-native implementations.
+- Make Manjaro the reference distribution for development and packaging.
 
+## Repository layout (high level)
 
+- `PowerEditor/`: current Notepad++ application code (Windows-oriented).
+- `scintilla/`: Scintilla editing component.
+- `lexilla/`: Lexers and syntax highlighting support.
+- `boostregex/`: bundled Boost regex subset used by current build.
 
+## Build notes
 
-Build Notepad++
----------------
+The existing build documentation in [`BUILD.md`](BUILD.md) is still upstream-oriented and primarily Windows focused.
 
-Please follow [build guide](BUILD.md) to build Notepad++ from source.
+As Linux-native build support is introduced, this README and `BUILD.md` will be updated with:
 
+- Linux dependency list
+- CMake presets / build commands
+- Manjaro packaging instructions
 
-Contribution
-------------
+## Contributing
 
-Contributions are welcome. Be mindful of our [Contribution Rules](CONTRIBUTING.md) to increase the likelihood of your contribution getting accepted.
+Contributions are welcome. Please follow [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-[Notepad++ Contributors](https://github.com/notepad-plus-plus/notepad-plus-plus/graphs/contributors)
+For migration priorities and sequencing, check [`TODO.md`](TODO.md).
+
+## License
+
+This project remains under the GPL. See [`LICENSE`](LICENSE).
 
