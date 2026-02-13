@@ -45,7 +45,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 ## Phase 5: Feature parity (MVP)
 
 - [x] File open/save/reload with encoding and EOL handling.
-- [ ] Multi-tab editing and session restore.
+- [x] Multi-tab editing and session restore.
 - [ ] Search/replace (document and multi-file basic mode).
 - [ ] Syntax highlighting and theme loading.
 - [ ] External tools / run command support.

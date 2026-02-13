@@ -5,11 +5,13 @@
 
 #include <QAction>
 #include <QCheckBox>
+#include <QCloseEvent>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QInputDialog>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QKeySequence>
@@ -128,9 +130,26 @@ MainWindow::MainWindow(QWidget *parent)
     EnsureShortcutConfigFile();
     LoadShortcutOverrides();
     ApplyShortcuts();
-    NewTab();
+    if (!RestoreSession()) {
+        NewTab();
+    }
     UpdateWindowTitle();
     UpdateCursorStatus();
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    _closingApplication = true;
+    for (int index = _tabs->count() - 1; index >= 0; --index) {
+        if (!CloseTabAt(index)) {
+            _closingApplication = false;
+            event->ignore();
+            return;
+        }
+    }
+
+    SaveSession();
+    _closingApplication = false;
+    event->accept();
 }
 
 void MainWindow::BuildUi() {
@@ -408,7 +427,7 @@ bool MainWindow::CloseTabAt(int index) {
     _editorStates.erase(editor);
     editor->deleteLater();
 
-    if (_tabs->count() == 0) {
+    if (_tabs->count() == 0 && !_closingApplication) {
         NewTab();
     }
 
@@ -1151,6 +1170,107 @@ std::string MainWindow::SettingsFilePath() const {
 
 std::string MainWindow::ShortcutFilePath() const {
     return ConfigRootPath() + "/shortcuts-linux.json";
+}
+
+bool MainWindow::RestoreSession() {
+    EnsureConfigRoot();
+    const auto exists = _fileSystemService.Exists(SessionFilePath());
+    if (!exists.ok() || !(*exists.value)) {
+        return false;
+    }
+
+    const auto sessionJson = _fileSystemService.ReadTextFile(SessionFilePath());
+    if (!sessionJson.ok()) {
+        return false;
+    }
+
+    QJsonParseError parseError{};
+    const QByteArray jsonBytes(sessionJson.value->c_str(), static_cast<int>(sessionJson.value->size()));
+    const QJsonDocument doc = QJsonDocument::fromJson(jsonBytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QJsonArray files = root.value(QStringLiteral("openFiles")).toArray();
+    if (files.isEmpty()) {
+        return false;
+    }
+
+    int opened = 0;
+    for (const QJsonValue &fileValue : files) {
+        if (!fileValue.isString()) {
+            continue;
+        }
+
+        const std::string pathUtf8 = ToUtf8(fileValue.toString());
+        if (pathUtf8.empty()) {
+            continue;
+        }
+
+        const auto fileExists = _fileSystemService.Exists(pathUtf8);
+        if (!fileExists.ok() || !(*fileExists.value)) {
+            continue;
+        }
+
+        NewTab();
+        ScintillaEditBase *editor = CurrentEditor();
+        if (editor && LoadFileIntoEditor(editor, pathUtf8)) {
+            ++opened;
+            continue;
+        }
+
+        const int currentIndex = _tabs->currentIndex();
+        if (currentIndex >= 0 && editor) {
+            _tabs->removeTab(currentIndex);
+            _editorStates.erase(editor);
+            editor->deleteLater();
+        }
+    }
+
+    if (opened <= 0) {
+        return false;
+    }
+
+    const int activeIndex = root.value(QStringLiteral("activeIndex")).toInt(0);
+    const int boundedIndex = std::clamp(activeIndex, 0, _tabs->count() - 1);
+    _tabs->setCurrentIndex(boundedIndex);
+    return true;
+}
+
+void MainWindow::SaveSession() const {
+    const_cast<MainWindow *>(this)->EnsureConfigRoot();
+
+    QJsonArray files;
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ScintillaEditBase *editor = EditorAt(index);
+        if (!editor) {
+            continue;
+        }
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end() || stateIt->second.filePathUtf8.empty()) {
+            continue;
+        }
+        files.append(ToQString(stateIt->second.filePathUtf8));
+    }
+
+    QJsonObject root;
+    root.insert(QStringLiteral("openFiles"), files);
+    root.insert(QStringLiteral("activeIndex"), _tabs->currentIndex());
+    const QJsonDocument doc(root);
+    const QByteArray json = doc.toJson(QJsonDocument::Indented);
+
+    npp::platform::WriteFileOptions options;
+    options.atomic = true;
+    options.createParentDirs = true;
+    const_cast<MainWindow *>(this)->_fileSystemService.WriteTextFile(
+        SessionFilePath(),
+        std::string(json.constData(), static_cast<size_t>(json.size())),
+        options);
+}
+
+std::string MainWindow::SessionFilePath() const {
+    return ConfigRootPath() + "/session.json";
 }
 
 QString MainWindow::EncodingLabel(TextEncoding encoding) {

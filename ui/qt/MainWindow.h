@@ -14,6 +14,7 @@
 #include "LinuxProcessService.h"
 
 class QAction;
+class QCloseEvent;
 class QLabel;
 class QTabWidget;
 class ScintillaEditBase;
@@ -24,6 +25,9 @@ class MainWindow final : public QMainWindow {
 public:
 	explicit MainWindow(QWidget *parent = nullptr);
 	~MainWindow() override = default;
+
+protected:
+	void closeEvent(QCloseEvent *event) override;
 
 private:
 	enum class TextEncoding {
@@ -106,10 +110,13 @@ private:
 	void ApplyShortcuts();
 	void ReloadShortcuts();
 	void OpenShortcutConfigFile();
+	bool RestoreSession();
+	void SaveSession() const;
 
 	std::string ConfigRootPath() const;
 	std::string SettingsFilePath() const;
 	std::string ShortcutFilePath() const;
+	std::string SessionFilePath() const;
 	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
 	static QString ToQString(const std::string &value);
@@ -125,6 +132,7 @@ private:
 	EditorSettings _editorSettings;
 	QJsonObject _shortcutOverrides;
 	std::string _lastFindUtf8;
+	bool _closingApplication = false;
 
 	npp::platform::LinuxPathService _pathService;
 	npp::platform::LinuxFileSystemService _fileSystemService;
