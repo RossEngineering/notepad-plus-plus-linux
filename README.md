@@ -28,6 +28,7 @@ Architecture decisions are tracked in [`docs/adr`](docs/adr).
 Imported RossEngineering ADR snapshot is in [`docs/adr/rossengineering-bafc82c7`](docs/adr/rossengineering-bafc82c7).
 Versioning policy is in [`docs/versioning-policy.md`](docs/versioning-policy.md).
 Repository decision index is in [`docs/decisions.md`](docs/decisions.md).
+Performance benchmark baseline is in [`docs/performance-baseline.md`](docs/performance-baseline.md).
 Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
 
 ## Goals

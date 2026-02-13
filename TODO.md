@@ -64,7 +64,7 @@ This file tracks the Linux-native migration and modernization work for this fork
 - [x] Add unit tests for core text operations and undo/redo behavior.
 - [x] Add regression tests for encoding conversion and large-file handling.
 - [x] Add syntax highlighting smoke tests across representative languages.
-- [ ] Benchmark startup time and typing latency against baseline.
+- [x] Benchmark startup time and typing latency against baseline.
 - [ ] Add memory/leak checks in CI for Linux builds.
 
 ## Phase 8: Documentation and developer UX

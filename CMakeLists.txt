@@ -250,6 +250,17 @@ if(BUILD_TESTING AND TARGET npp_lexilla AND TARGET npp_scintilla)
     )
     target_link_libraries(syntax_highlighting_smoke_test PRIVATE npp_lexilla npp_scintilla)
     add_test(NAME syntax_highlighting_smoke_test COMMAND syntax_highlighting_smoke_test)
+
+    add_executable(startup_typing_benchmark tests/perf/startup_typing_benchmark.cpp)
+    target_sources(startup_typing_benchmark PRIVATE
+        tests/support/scintilla_debug_stubs.cpp
+    )
+    target_include_directories(startup_typing_benchmark PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/lexilla/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
+    )
+    target_link_libraries(startup_typing_benchmark PRIVATE npp_lexilla npp_scintilla)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_scintilla)
