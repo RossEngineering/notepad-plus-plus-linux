@@ -20,6 +20,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <string>
 #include <map>
 #include <vector>
+#include <cstring>
 #include <assert.h>
 #include <cstdio>
 

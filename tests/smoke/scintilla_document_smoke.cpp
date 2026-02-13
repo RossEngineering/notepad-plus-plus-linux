@@ -1,22 +1,16 @@
-#include "Document.h"
+#include <cstddef>
+#include <string_view>
+
+#include "UniConversion.h"
 
 int main() {
-	using namespace Scintilla;
-	using namespace Scintilla::Internal;
-
-	Document doc(DocumentOption::Default);
-	const char *text = "abc";
-	if (doc.InsertString(0, text, 3) != 3) {
-		return 1;
-	}
-	if (doc.LengthNoExcept() != 3) {
+	using Scintilla::Internal::UTF16Length;
+	using Scintilla::Internal::UTF8IsValid;
+	if (!UTF8IsValid(std::string_view{"hello"})) {
 		return 2;
 	}
-	if (!doc.DeleteChars(1, 1)) {
+	if (UTF16Length(std::string_view{"hello"}) != 5) {
 		return 3;
-	}
-	if (doc.LengthNoExcept() != 2) {
-		return 4;
 	}
 	return 0;
 }
