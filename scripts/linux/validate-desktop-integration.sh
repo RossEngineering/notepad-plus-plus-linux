@@ -90,6 +90,23 @@ require_contains "${desktop_file}" "application/x-notepad-plus-plus-linux-sessio
 require_contains "${mime_file}" "application/x-notepad-plus-plus-linux-session"
 require_contains "${mime_file}" "*.nppsession"
 
+find_command_path() {
+  local cmd="$1"
+  local resolved=""
+  if resolved="$(command -v "${cmd}" 2>/dev/null)"; then
+    echo "${resolved}"
+    return 0
+  fi
+  local sbin_candidate
+  for sbin_candidate in /usr/sbin /usr/local/sbin /sbin; do
+    if [[ -x "${sbin_candidate}/${cmd}" ]]; then
+      echo "${sbin_candidate}/${cmd}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 if command -v desktop-file-validate >/dev/null 2>&1; then
   desktop-file-validate "${desktop_file}"
 elif [[ "${strict}" -eq 1 ]]; then
@@ -118,10 +135,13 @@ elif [[ "${strict}" -eq 1 ]]; then
   exit 1
 fi
 
-if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-  gtk-update-icon-cache -qtf "${root}/share/icons/hicolor" || true
+icon_cache_cmd=""
+if icon_cache_cmd="$(find_command_path gtk-update-icon-cache)"; then
+  "${icon_cache_cmd}" -qtf "${root}/share/icons/hicolor" || true
+elif icon_cache_cmd="$(find_command_path gtk4-update-icon-cache)"; then
+  "${icon_cache_cmd}" -qtf "${root}/share/icons/hicolor" || true
 elif [[ "${strict}" -eq 1 ]]; then
-  echo "gtk-update-icon-cache not found (strict mode)" >&2
+  echo "gtk-update-icon-cache/gtk4-update-icon-cache not found (strict mode)" >&2
   exit 1
 fi
 

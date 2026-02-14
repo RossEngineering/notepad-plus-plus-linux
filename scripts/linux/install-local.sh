@@ -100,14 +100,31 @@ fi
 update_if_present() {
   local cmd="$1"
   shift
-  if command -v "${cmd}" >/dev/null 2>&1; then
-    "${cmd}" "$@" || true
+  local resolved=""
+  if resolved="$(command -v "${cmd}" 2>/dev/null)"; then
+    "${resolved}" "$@" || true
+    return 0
+  fi
+  local sbin_candidate
+  for sbin_candidate in /usr/sbin /usr/local/sbin /sbin; do
+    if [[ -x "${sbin_candidate}/${cmd}" ]]; then
+      "${sbin_candidate}/${cmd}" "$@" || true
+      return 0
+    fi
+  done
+  return 1
+}
+
+update_icon_cache_if_present() {
+  local icon_root="$1"
+  if ! update_if_present gtk-update-icon-cache -qtf "${icon_root}"; then
+    update_if_present gtk4-update-icon-cache -qtf "${icon_root}"
   fi
 }
 
 update_if_present update-desktop-database -q "${prefix}/share/applications"
 update_if_present update-mime-database "${prefix}/share/mime"
-update_if_present gtk-update-icon-cache -qtf "${prefix}/share/icons/hicolor"
+update_icon_cache_if_present "${prefix}/share/icons/hicolor"
 
 if [[ "${set_default}" -eq 1 ]]; then
   if command -v xdg-mime >/dev/null 2>&1; then
