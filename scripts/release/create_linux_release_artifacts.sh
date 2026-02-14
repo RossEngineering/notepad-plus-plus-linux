@@ -10,7 +10,17 @@ STAGE_DIR="$OUTPUT_DIR/stage"
 export LANG="C.UTF-8"
 export LC_ALL="C.UTF-8"
 export TZ="UTC"
-export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT_DIR" log -1 --pretty=%ct)}"
+
+MAX_SOURCE_DATE_EPOCH=253402300799
+SOURCE_DATE_EPOCH_CANDIDATE="${SOURCE_DATE_EPOCH:-}"
+if [[ -z "${SOURCE_DATE_EPOCH_CANDIDATE}" ]]; then
+  SOURCE_DATE_EPOCH_CANDIDATE="$(git -C "$ROOT_DIR" log -1 --pretty=%ct 2>/dev/null || true)"
+fi
+if [[ ! "${SOURCE_DATE_EPOCH_CANDIDATE}" =~ ^[0-9]+$ ]] || \
+   (( SOURCE_DATE_EPOCH_CANDIDATE < 0 || SOURCE_DATE_EPOCH_CANDIDATE > MAX_SOURCE_DATE_EPOCH )); then
+  SOURCE_DATE_EPOCH_CANDIDATE="$(date +%s)"
+fi
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH_CANDIDATE}"
 
 rm -rf "$BUILD_DIR" "$STAGE_DIR"
 mkdir -p "$OUTPUT_DIR" "$STAGE_DIR"
@@ -33,6 +43,11 @@ fi
 
 ARTIFACT_BASE="notepad-plus-plus-linux-${VERSION}-x86_64"
 TARBALL="$OUTPUT_DIR/${ARTIFACT_BASE}.tar.xz"
+
+if ! command -v xz >/dev/null 2>&1; then
+  echo "release artifact staging failed: xz is required to create .tar.xz artifacts" >&2
+  exit 1
+fi
 
 # Create deterministic archive from staged install tree.
 tar \
