@@ -25,15 +25,15 @@ fi
 case "${distro}" in
   arch-derivative)
     image="archlinux:latest"
-    setup_cmd='pacman -Syu --noconfirm --needed base-devel cmake ninja git pkgconf qt6-base qt6-5compat desktop-file-utils shared-mime-info libxml2 xdg-utils xz'
+    setup_cmd='pacman -Sy --noconfirm --needed base-devel cmake ninja git pkgconf qt6-base qt6-5compat desktop-file-utils shared-mime-info libxml2 xdg-utils xz gtk-update-icon-cache'
     ;;
   ubuntu-lts)
     image="ubuntu:24.04"
-    setup_cmd='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y cmake ninja-build g++ git pkg-config qt6-base-dev qt6-5compat-dev desktop-file-utils shared-mime-info libxml2-utils xdg-utils xz-utils'
+    setup_cmd='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y cmake ninja-build g++ git pkg-config qt6-base-dev qt6-5compat-dev desktop-file-utils shared-mime-info libxml2-utils xdg-utils xz-utils gtk-update-icon-cache'
     ;;
   fedora-stable)
     image="fedora:41"
-    setup_cmd='dnf -y install cmake ninja-build gcc-c++ git pkgconf-pkg-config qt6-qtbase-devel qt6-qt5compat-devel desktop-file-utils shared-mime-info libxml2 xdg-utils xz && dnf clean all'
+    setup_cmd='dnf -y install cmake ninja-build gcc-c++ git pkgconf-pkg-config qt6-qtbase-devel qt6-qt5compat-devel desktop-file-utils shared-mime-info libxml2 xdg-utils xz gtk-update-icon-cache && dnf clean all'
     ;;
   *)
     echo "unsupported distro key: ${distro}" >&2

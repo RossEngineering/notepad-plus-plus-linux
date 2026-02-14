@@ -13,8 +13,8 @@ This list tracks prioritized blockers that must be resolved or explicitly deferr
 
 | ID | Priority | Area | Source | Status | Exit criteria |
 | --- | --- | --- | --- | --- | --- |
-| RC3-B01 | P0 | Consumer install UX | RC2 distro validation + RC3 roadmap | In Progress | Consumer install/uninstall flow is consistent across target distros, with no unresolved desktop integration defects. |
-| RC3-B02 | P0 | File-handler integration | RC2 distro validation + RC3 roadmap | In Progress | File associations/default app/open-with behavior validates across Arch derivatives, Ubuntu LTS, and Fedora stable. |
+| RC3-B01 | P0 | Consumer install UX | RC2 distro validation + RC3 roadmap | Closed | Consumer install/uninstall flow is consistent across target distros, with no unresolved desktop integration defects. |
+| RC3-B02 | P0 | File-handler integration | RC2 distro validation + RC3 roadmap | Closed | File associations/default app/open-with behavior validates across Arch derivatives, Ubuntu LTS, and Fedora stable. |
 | RC3-B03 | P1 | Release engineering dry-run | RC2 release notes follow-up + RC3 roadmap | Open | Reproducible artifact/checksum/signing flow completed and rollback path validated. |
 | RC3-B04 | P1 | Full regression confidence | RC2 release notes follow-up + RC3 roadmap | Open | Required regression matrix passes (editor core, language workflows, skinning, extension lifecycle, crash recovery). |
 
@@ -36,6 +36,12 @@ This list tracks prioritized blockers that must be resolved or explicitly deferr
    - `scripts/linux/run-desktop-integration-matrix.sh`
    - `scripts/linux/validate-desktop-integration.sh`
    - `scripts/linux/validate-file-handler-defaults.sh`
+3. Validated full integration matrix across all required distros (2026-02-14):
+   - `./scripts/linux/run-desktop-integration-matrix.sh arch-derivative`
+   - `./scripts/linux/run-desktop-integration-matrix.sh ubuntu-lts`
+   - `./scripts/linux/run-desktop-integration-matrix.sh fedora-stable`
+4. Recorded RC3 distro integration evidence:
+   - `docs/distro-validation-report-rc3-2026-02-14.md`
 
 ## Intake process
 
