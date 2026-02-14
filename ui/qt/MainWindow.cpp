@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <iomanip>
 #include <map>
@@ -668,6 +669,11 @@ ScintillaEditBase *MainWindow::CreateEditor() {
             return;
         }
         it->second.dirty = true;
+        if (_editorSettings.autoDetectLanguage &&
+            !it->second.lexerManualLock &&
+            (it->second.lexerName.empty() || it->second.lexerName == "null")) {
+            AutoDetectAndApplyLexer(editor, it->second.filePathUtf8, GetEditorText(editor), "edit");
+        }
         UpdateTabTitle(editor);
     });
 
@@ -1335,6 +1341,8 @@ void MainWindow::OnPreferences() {
     wrapCheck->setChecked(_editorSettings.wrapEnabled);
     auto *lineNumbersCheck = new QCheckBox(tr("Show line numbers"), &dialog);
     lineNumbersCheck->setChecked(_editorSettings.showLineNumbers);
+    auto *autoDetectLanguageCheck = new QCheckBox(tr("Auto-detect language"), &dialog);
+    autoDetectLanguageCheck->setChecked(_editorSettings.autoDetectLanguage);
     auto *autoCloseHtmlTagsCheck = new QCheckBox(tr("Auto-close HTML/XML tags"), &dialog);
     autoCloseHtmlTagsCheck->setChecked(_editorSettings.autoCloseHtmlTags);
     auto *autoCloseDelimitersCheck = new QCheckBox(tr("Auto-close paired delimiters"), &dialog);
@@ -1343,6 +1351,7 @@ void MainWindow::OnPreferences() {
     form->addRow(tr("Tab width:"), tabWidthSpin);
     form->addRow(QString(), wrapCheck);
     form->addRow(QString(), lineNumbersCheck);
+    form->addRow(QString(), autoDetectLanguageCheck);
     form->addRow(QString(), autoCloseHtmlTagsCheck);
     form->addRow(QString(), autoCloseDelimitersCheck);
     layout->addLayout(form);
@@ -1359,6 +1368,7 @@ void MainWindow::OnPreferences() {
     _editorSettings.tabWidth = tabWidthSpin->value();
     _editorSettings.wrapEnabled = wrapCheck->isChecked();
     _editorSettings.showLineNumbers = lineNumbersCheck->isChecked();
+    _editorSettings.autoDetectLanguage = autoDetectLanguageCheck->isChecked();
     _editorSettings.autoCloseHtmlTags = autoCloseHtmlTagsCheck->isChecked();
     _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
     ApplyEditorSettingsToAllEditors();
@@ -1474,7 +1484,7 @@ void MainWindow::OnOpenHelpWiki() {
 
 void MainWindow::OnReportBug() {
     OpenExternalLink(
-        RepositoryUrl(QStringLiteral("/issues/new?template=1-bug.yml")),
+        RepositoryUrl(QStringLiteral("/issues/new?template=bug_report.yml")),
         tr("bug report form"));
 }
 
@@ -1519,7 +1529,7 @@ void MainWindow::OnAboutDialog() {
            "<a href=\"%4\">Request Feature</a></p>")
             .arg(RepositoryUrl(QStringLiteral("/blob/master/docs/help-and-support.md")))
             .arg(RepositoryUrl(QStringLiteral("/wiki")))
-            .arg(RepositoryUrl(QStringLiteral("/issues/new?template=1-bug.yml")))
+            .arg(RepositoryUrl(QStringLiteral("/issues/new?template=bug_report.yml")))
             .arg(RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml"))),
         &dialog);
     linksLabel->setTextFormat(Qt::RichText);
@@ -1678,7 +1688,7 @@ void MainWindow::OnAutoDetectLanguage() {
         return;
     }
     stateIt->second.lexerManualLock = false;
-    AutoDetectAndApplyLexer(editor, stateIt->second.filePathUtf8, GetEditorText(editor), "manual-auto-detect");
+    AutoDetectAndApplyLexer(editor, stateIt->second.filePathUtf8, GetEditorText(editor), "manual-auto-detect", true);
     UpdateLanguageActionState();
 }
 
@@ -2551,6 +2561,7 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.tabWidth = std::clamp(obj.value(QStringLiteral("tabWidth")).toInt(4), 1, 12);
     _editorSettings.wrapEnabled = obj.value(QStringLiteral("wrapEnabled")).toBool(false);
     _editorSettings.showLineNumbers = obj.value(QStringLiteral("showLineNumbers")).toBool(true);
+    _editorSettings.autoDetectLanguage = obj.value(QStringLiteral("autoDetectLanguage")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
     _editorSettings.extensionGuardrailsEnabled =
@@ -2582,6 +2593,7 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("tabWidth"), _editorSettings.tabWidth);
     settingsObject.insert(QStringLiteral("wrapEnabled"), _editorSettings.wrapEnabled);
     settingsObject.insert(QStringLiteral("showLineNumbers"), _editorSettings.showLineNumbers);
+    settingsObject.insert(QStringLiteral("autoDetectLanguage"), _editorSettings.autoDetectLanguage);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
     settingsObject.insert(QStringLiteral("extensionGuardrailsEnabled"), _editorSettings.extensionGuardrailsEnabled);
@@ -2705,13 +2717,18 @@ void MainWindow::AutoDetectAndApplyLexer(
     ScintillaEditBase *editor,
     const std::string &pathUtf8,
     const std::string &contentUtf8,
-    const char *trigger) {
+    const char *trigger,
+    bool force) {
     if (!editor) {
         return;
     }
 
     auto stateIt = _editorStates.find(editor);
     if (stateIt == _editorStates.end()) {
+        return;
+    }
+    if (!force && !_editorSettings.autoDetectLanguage) {
+        UpdateLanguageActionState();
         return;
     }
     if (stateIt->second.lexerManualLock) {
@@ -2721,9 +2738,18 @@ void MainWindow::AutoDetectAndApplyLexer(
     }
 
     constexpr double kAutoApplyThreshold = 0.60;
+    const std::string previousLexer = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    const std::string previousReason = stateIt->second.lexerReason;
+    const double previousConfidence = stateIt->second.lexerConfidence;
     const npp::ui::LanguageDetectionResult detection = npp::ui::DetectLanguage(pathUtf8, contentUtf8);
     const bool shouldAutoApply = detection.confidence >= kAutoApplyThreshold || detection.reason == "extension";
     const std::string chosenLexer = shouldAutoApply ? detection.lexerName : std::string("null");
+    const bool unchanged = chosenLexer == previousLexer &&
+        detection.reason == previousReason &&
+        std::abs(detection.confidence - previousConfidence) < 0.0001;
+    if (!force && unchanged) {
+        return;
+    }
 
     stateIt->second.lexerName = chosenLexer;
     stateIt->second.lexerConfidence = detection.confidence;

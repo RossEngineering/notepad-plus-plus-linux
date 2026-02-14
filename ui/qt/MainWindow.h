@@ -57,6 +57,7 @@ private:
 		int tabWidth = 4;
 		bool wrapEnabled = false;
 		bool showLineNumbers = true;
+		bool autoDetectLanguage = true;
 		bool autoCloseHtmlTags = true;
 		bool autoCloseDelimiters = true;
 		bool extensionGuardrailsEnabled = true;
@@ -176,7 +177,8 @@ private:
 		ScintillaEditBase *editor,
 		const std::string &pathUtf8,
 		const std::string &contentUtf8,
-		const char *trigger);
+		const char *trigger,
+		bool force = false);
 	void ApplyLexerStyles(ScintillaEditBase *editor, const std::string &lexerName);
 
 	void EnsureConfigRoot();
