@@ -2464,6 +2464,7 @@ void MainWindow::ApplyChromeTheme() {
                                    "selection-background-color: %5; selection-color: %11; }"
                                    "QLineEdit:focus, QSpinBox:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus { "
                                    "border: 2px solid %5; }"
+                                   "QDialog QLabel { color: %9; }"
                                    "QCheckBox { color: %9; }"
                                    "QCheckBox::indicator { width: 14px; height: 14px; border: 1px solid %12; "
                                    "background-color: %16; }"
