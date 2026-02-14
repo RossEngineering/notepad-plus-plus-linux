@@ -19,6 +19,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Cut RC3b maintenance release `v0.9.9-rc.3b`.
 - [x] Cut section-close prerelease `v0.10.0-beta.1` for completed `Editor UX and workflows`.
 - [x] Cut section-close prerelease `v0.10.0-beta.2` for completed `Formatting, language intelligence, and coding tools`.
+- [x] Cut section-close prerelease `v0.10.0-beta.3` for completed `Linux integration and distribution`.
 - [ ] Complete GA scope and cut `v1.0.0`.
 - [ ] Promote `v1.0.0` after RC3 maintenance validation.
 
@@ -143,11 +144,12 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### Linux integration and distribution
 
-- [ ] Add native package outputs for Arch (`.pkg.tar.zst`), Debian/Ubuntu (`.deb`), and Fedora (`.rpm`).
-- [ ] Add optional auto-update channel model (stable/candidate) for packaged installs.
-- [ ] Add desktop action entries (new file, open recent) in `.desktop` integration.
-- [ ] Add portal-aware open/save handling improvements for sandboxed desktop environments.
-- [ ] Add Wayland-focused QA pass and issue tracker labels for Wayland-specific regressions.
+- [x] Add native package outputs for Arch (`.pkg.tar.zst`), Debian/Ubuntu (`.deb`), and Fedora (`.rpm`).
+- [x] Add optional auto-update channel model (stable/candidate) for packaged installs.
+- [x] Add desktop action entries (new file, open recent) in `.desktop` integration.
+- [x] Add portal-aware open/save handling improvements for sandboxed desktop environments.
+- [x] Add issue tracker labels for Wayland-specific regressions.
+- [x] Add Wayland-focused QA pass.
 
 ### Reliability, performance, and observability
 

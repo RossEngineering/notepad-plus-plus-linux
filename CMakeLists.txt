@@ -262,6 +262,11 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
             "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/high-contrast.json"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux/skins"
         )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/default-update-channel"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux"
+        )
     else()
         message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")
     endif()

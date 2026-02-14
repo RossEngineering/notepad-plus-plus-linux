@@ -83,9 +83,23 @@ if ! grep -Fq "TryExec=notepad-plus-plus-linux" "${desktop_file}" && \
 fi
 require_contains "${desktop_file}" "Icon=notepad-plus-plus-linux"
 require_contains "${desktop_file}" "StartupWMClass=notepad-plus-plus-linux"
+require_contains "${desktop_file}" "Categories=Utility;TextEditor;"
 require_contains "${desktop_file}" "MimeType="
 require_contains "${desktop_file}" "text/plain"
 require_contains "${desktop_file}" "application/x-notepad-plus-plus-linux-session"
+require_contains "${desktop_file}" "Actions=NewFile;OpenRecent;"
+require_contains "${desktop_file}" "[Desktop Action NewFile]"
+require_contains "${desktop_file}" "[Desktop Action OpenRecent]"
+if ! grep -Fq "Exec=notepad-plus-plus-linux --new-file" "${desktop_file}" && \
+   ! grep -Fq "Exec=${root}/bin/notepad-plus-plus-linux --new-file" "${desktop_file}"; then
+  echo "missing supported NewFile desktop action Exec entry in ${desktop_file}" >&2
+  exit 1
+fi
+if ! grep -Fq "Exec=notepad-plus-plus-linux --open-recent" "${desktop_file}" && \
+   ! grep -Fq "Exec=${root}/bin/notepad-plus-plus-linux --open-recent" "${desktop_file}"; then
+  echo "missing supported OpenRecent desktop action Exec entry in ${desktop_file}" >&2
+  exit 1
+fi
 
 require_contains "${mime_file}" "application/x-notepad-plus-plus-linux-session"
 require_contains "${mime_file}" "*.nppsession"

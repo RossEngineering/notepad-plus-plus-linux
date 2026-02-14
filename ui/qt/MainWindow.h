@@ -32,6 +32,8 @@ class MainWindow final : public QMainWindow {
 public:
 	explicit MainWindow(QWidget *parent = nullptr);
 	~MainWindow() override = default;
+	bool OpenPathFromCli(const QString &path);
+	bool OpenMostRecentFileFromSession();
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
@@ -82,6 +84,7 @@ private:
 		int extensionPerExtensionBudgetMs = 250;
 		int crashRecoveryAutosaveSeconds = 15;
 		std::string skinId = "builtin.light";
+		std::string updateChannel = "stable";
 	};
 
 	struct ThemeSettings {
@@ -160,6 +163,7 @@ private:
 	void OnOpenHelpWiki();
 	void OnReportBug();
 	void OnRequestFeature();
+	void OnCheckForUpdates();
 	void OnAboutDialog();
 	void OnInstallExtensionFromDirectory();
 	void OnManageExtensions();
@@ -254,6 +258,7 @@ private:
 	std::string ThemeFilePath() const;
 	std::string SessionFilePath() const;
 	std::string CrashRecoveryJournalPath() const;
+	std::string ResolveDefaultUpdateChannelFromInstall() const;
 	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
 	static QString ToQString(const std::string &value);

@@ -10,6 +10,15 @@ Icon=notepad-plus-plus-linux
 Terminal=false
 StartupNotify=true
 StartupWMClass=notepad-plus-plus-linux
-Categories=Utility;TextEditor;Development;IDE;
+Categories=Utility;TextEditor;
 MimeType=text/plain;text/markdown;text/x-csrc;text/x-c++src;text/x-python;text/x-java-source;text/x-shellscript;application/json;application/xml;application/x-notepad-plus-plus-linux-session;
 Keywords=notepad;editor;code;text;
+Actions=NewFile;OpenRecent;
+
+[Desktop Action NewFile]
+Name=New File
+Exec=notepad-plus-plus-linux --new-file
+
+[Desktop Action OpenRecent]
+Name=Open Recent
+Exec=notepad-plus-plus-linux --open-recent

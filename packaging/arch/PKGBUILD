@@ -1,13 +1,13 @@
 # Maintainer: Dan Ross <danross2683@gmail.com>
 
 pkgname=notepad-plus-plus-linux
-pkgver=0.6.0
+pkgver=0.10.0
 pkgrel=1
-pkgdesc='Linux-native Notepad++ fork focused on Manjaro/Arch systems'
+pkgdesc='Linux-native Notepad++ fork for Arch Linux and derivatives'
 arch=('x86_64')
-url='https://github.com/notepad-plus-plus/notepad-plus-plus'
+url='https://github.com/RossEngineering/notepad-plus-plus-linux'
 license=('GPL-3.0-or-later')
-depends=('qt6-base' 'gcc-libs' 'glibc' 'hicolor-icon-theme')
+depends=('qt6-base' 'qt6-5compat' 'gcc-libs' 'glibc' 'hicolor-icon-theme')
 makedepends=('cmake' 'ninja')
 install='notepad-plus-plus-linux.install'
 options=('!lto')

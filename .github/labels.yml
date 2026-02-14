@@ -2,6 +2,10 @@
   color: 0E8A16
   description: Linux-specific behavior, packaging, runtime, or compatibility work.
 
+- name: area:wayland
+  color: 006B75
+  description: Wayland-specific behavior, regressions, and compatibility tracking.
+
 - name: area:migration
   color: 1D76DB
   description: Architecture or implementation work tied to Windows-to-Linux migration.
@@ -37,3 +41,7 @@
 - name: priority:p2
   color: FBCA04
   description: Normal-priority backlog work.
+
+- name: env:wayland
+  color: BFD4F2
+  description: Reproduces on Wayland sessions (GNOME/KDE/Sway and derivatives).

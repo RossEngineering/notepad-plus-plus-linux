@@ -28,6 +28,7 @@
 #include <QDateTime>
 #include <QEvent>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QInputDialog>
@@ -253,6 +254,20 @@ std::string NormalizeFormatterProfile(std::string profile) {
         return profile;
     }
     return "auto";
+}
+
+std::string NormalizeUpdateChannel(std::string channel) {
+    channel = AsciiLower(TrimAsciiWhitespace(channel));
+    if (channel == "candidate") {
+        return "candidate";
+    }
+    return "stable";
+}
+
+QString UpdateChannelLabel(const std::string &channel) {
+    return NormalizeUpdateChannel(channel) == "candidate"
+        ? QStringLiteral("Candidate")
+        : QStringLiteral("Stable");
 }
 
 QString FormatterProfileToLabel(const std::string &profile) {
@@ -785,6 +800,7 @@ void MainWindow::BuildMenus() {
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(_actionsById.at("help.docs"));
     helpMenu->addAction(_actionsById.at("help.wiki"));
+    helpMenu->addAction(_actionsById.at("help.checkUpdates"));
     helpMenu->addSeparator();
     helpMenu->addAction(_actionsById.at("help.reportBug"));
     helpMenu->addAction(_actionsById.at("help.requestFeature"));
@@ -888,6 +904,7 @@ void MainWindow::BuildActions() {
 
     registerAction("help.docs", tr("Open Help Docs"), [this]() { OnOpenHelpDocs(); });
     registerAction("help.wiki", tr("Open Project Wiki"), [this]() { OnOpenHelpWiki(); });
+    registerAction("help.checkUpdates", tr("Check for Updates"), [this]() { OnCheckForUpdates(); });
     registerAction("help.reportBug", tr("Report Bug..."), [this]() { OnReportBug(); });
     registerAction("help.requestFeature", tr("Request Feature..."), [this]() { OnRequestFeature(); });
     registerAction("help.about", tr("About Notepad++ Linux"), [this]() { OnAboutDialog(); });
@@ -1073,10 +1090,10 @@ void MainWindow::NewTab() {
     UpdateLanguageActionState();
 }
 
-void MainWindow::OpenFile() {
-    const QString chosen = QFileDialog::getOpenFileName(this, tr("Open File"));
-    if (chosen.isEmpty()) {
-        return;
+bool MainWindow::OpenPathFromCli(const QString &path) {
+    const QString normalized = QDir::fromNativeSeparators(path).trimmed();
+    if (normalized.isEmpty()) {
+        return false;
     }
 
     auto *editor = CurrentEditor();
@@ -1091,7 +1108,100 @@ void MainWindow::OpenFile() {
         editor = CurrentEditor();
     }
 
-    if (LoadFileIntoEditor(editor, ToUtf8(chosen))) {
+    if (!editor) {
+        return false;
+    }
+    return LoadFileIntoEditor(editor, ToUtf8(normalized));
+}
+
+bool MainWindow::OpenMostRecentFileFromSession() {
+    EnsureConfigRoot();
+    const std::string sessionPath = SessionFilePath();
+    const auto exists = _fileSystemService.Exists(sessionPath);
+    if (!exists.ok() || !(*exists.value)) {
+        return false;
+    }
+
+    const auto sessionJson = _fileSystemService.ReadTextFile(sessionPath);
+    if (!sessionJson.ok()) {
+        return false;
+    }
+
+    QJsonParseError parseError{};
+    const QByteArray jsonBytes(sessionJson.value->c_str(), static_cast<int>(sessionJson.value->size()));
+    const QJsonDocument doc = QJsonDocument::fromJson(jsonBytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QJsonArray files = root.value(QStringLiteral("openFiles")).toArray();
+    if (files.isEmpty()) {
+        return false;
+    }
+
+    const int fileCount = static_cast<int>(files.size());
+    const int preferredIndex = std::clamp(root.value(QStringLiteral("activeIndex")).toInt(0), 0, fileCount - 1);
+    std::vector<int> candidateIndices;
+    candidateIndices.reserve(static_cast<size_t>(files.size()));
+    candidateIndices.push_back(preferredIndex);
+    for (int i = 0; i < files.size(); ++i) {
+        if (i != preferredIndex) {
+            candidateIndices.push_back(i);
+        }
+    }
+
+    for (const int index : candidateIndices) {
+        const QJsonValue value = files.at(index);
+        if (!value.isString()) {
+            continue;
+        }
+        const QString candidatePath = value.toString().trimmed();
+        if (candidatePath.isEmpty()) {
+            continue;
+        }
+        const auto fileExists = _fileSystemService.Exists(ToUtf8(candidatePath));
+        if (!fileExists.ok() || !(*fileExists.value)) {
+            continue;
+        }
+        if (OpenPathFromCli(candidatePath)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MainWindow::OpenFile() {
+    QString initialDirectory;
+    auto *editor = CurrentEditor();
+    if (editor) {
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt != _editorStates.end() && !stateIt->second.filePathUtf8.empty()) {
+            initialDirectory = QFileInfo(ToQString(stateIt->second.filePathUtf8)).absolutePath();
+        }
+    }
+    if (initialDirectory.isEmpty()) {
+        initialDirectory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    }
+    if (initialDirectory.isEmpty()) {
+        initialDirectory = QDir::homePath();
+    }
+
+    QFileDialog dialog(this, tr("Open File"), initialDirectory);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, false);
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setViewMode(QFileDialog::Detail);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const QStringList selected = dialog.selectedFiles();
+    const QString chosen = selected.isEmpty() ? QString{} : selected.front();
+    if (chosen.isEmpty()) {
+        return;
+    }
+
+    if (OpenPathFromCli(chosen)) {
         statusBar()->showMessage(tr("Opened %1").arg(chosen), 2000);
     }
 }
@@ -1170,7 +1280,16 @@ bool MainWindow::SaveCurrentFileAs() {
         suggestedPath = QDir(defaultDirectory).filePath(defaultFileName);
     }
 
-    QString target = QFileDialog::getSaveFileName(this, tr("Save File As"), suggestedPath);
+    QFileDialog dialog(this, tr("Save File As"), suggestedPath);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, false);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setViewMode(QFileDialog::Detail);
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+    const QStringList selected = dialog.selectedFiles();
+    QString target = selected.isEmpty() ? QString{} : selected.front();
     if (target.isEmpty()) {
         return false;
     }
@@ -1768,6 +1887,14 @@ void MainWindow::OnPreferences() {
     autoCloseHtmlTagsCheck->setChecked(_editorSettings.autoCloseHtmlTags);
     auto *autoCloseDelimitersCheck = new QCheckBox(tr("Auto-close paired delimiters"), &dialog);
     autoCloseDelimitersCheck->setChecked(_editorSettings.autoCloseDelimiters);
+    auto *updateChannelCombo = new QComboBox(&dialog);
+    updateChannelCombo->addItem(tr("Stable"), QStringLiteral("stable"));
+    updateChannelCombo->addItem(tr("Candidate"), QStringLiteral("candidate"));
+    int updateChannelIndex = updateChannelCombo->findData(ToQString(NormalizeUpdateChannel(_editorSettings.updateChannel)));
+    if (updateChannelIndex < 0) {
+        updateChannelIndex = 0;
+    }
+    updateChannelCombo->setCurrentIndex(updateChannelIndex);
     auto *formatOnSaveCheck = new QCheckBox(tr("Format on save"), &dialog);
     formatOnSaveCheck->setChecked(_editorSettings.formatOnSaveEnabled);
     auto *formatOnSaveLanguagesEdit = new QLineEdit(&dialog);
@@ -1809,6 +1936,7 @@ void MainWindow::OnPreferences() {
     form->addRow(QString(), autoDetectLanguageCheck);
     form->addRow(QString(), autoCloseHtmlTagsCheck);
     form->addRow(QString(), autoCloseDelimitersCheck);
+    form->addRow(tr("Update channel:"), updateChannelCombo);
     form->addRow(QString(), formatOnSaveCheck);
     form->addRow(tr("Format-on-save languages:"), formatOnSaveLanguagesEdit);
     form->addRow(tr("Default formatter profile:"), formatterDefaultProfileCombo);
@@ -1854,6 +1982,7 @@ void MainWindow::OnPreferences() {
     _editorSettings.autoDetectLanguage = autoDetectLanguageCheck->isChecked();
     _editorSettings.autoCloseHtmlTags = autoCloseHtmlTagsCheck->isChecked();
     _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
+    _editorSettings.updateChannel = NormalizeUpdateChannel(ToUtf8(updateChannelCombo->currentData().toString()));
     _editorSettings.formatOnSaveEnabled = formatOnSaveCheck->isChecked();
     _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesEdit->text()));
     _editorSettings.formatterDefaultProfile =
@@ -2208,6 +2337,17 @@ void MainWindow::OnRequestFeature() {
     OpenExternalLink(
         RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml")),
         tr("feature request form"));
+}
+
+void MainWindow::OnCheckForUpdates() {
+    const std::string channel = NormalizeUpdateChannel(_editorSettings.updateChannel);
+    const QString releaseUrl = channel == "candidate"
+        ? RepositoryUrl(QStringLiteral("/releases"))
+        : RepositoryUrl(QStringLiteral("/releases/latest"));
+    OpenExternalLink(releaseUrl, tr("release updates"));
+    statusBar()->showMessage(
+        tr("Update channel: %1").arg(UpdateChannelLabel(channel)),
+        2000);
 }
 
 void MainWindow::OnAboutDialog() {
@@ -3761,6 +3901,7 @@ std::string MainWindow::NormalizeEol(const std::string &textUtf8, int eolMode) c
 }
 
 void MainWindow::LoadEditorSettings() {
+    _editorSettings.updateChannel = ResolveDefaultUpdateChannelFromInstall();
     EnsureConfigRoot();
     const auto exists = _fileSystemService.Exists(SettingsFilePath());
     if (!exists.ok() || !(*exists.value)) {
@@ -3788,6 +3929,10 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.autoDetectLanguage = obj.value(QStringLiteral("autoDetectLanguage")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
+    const QJsonValue updateChannelValue = obj.value(QStringLiteral("updateChannel"));
+    if (updateChannelValue.isString()) {
+        _editorSettings.updateChannel = NormalizeUpdateChannel(ToUtf8(updateChannelValue.toString()));
+    }
     _editorSettings.formatOnSaveEnabled = obj.value(QStringLiteral("formatOnSaveEnabled")).toBool(false);
     _editorSettings.formatterDefaultProfile = NormalizeFormatterProfile(
         ToUtf8(obj.value(QStringLiteral("formatterDefaultProfile")).toString(QStringLiteral("auto"))));
@@ -3879,6 +4024,7 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("autoDetectLanguage"), _editorSettings.autoDetectLanguage);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
+    settingsObject.insert(QStringLiteral("updateChannel"), ToQString(NormalizeUpdateChannel(_editorSettings.updateChannel)));
     settingsObject.insert(QStringLiteral("formatOnSaveEnabled"), _editorSettings.formatOnSaveEnabled);
     settingsObject.insert(
         QStringLiteral("formatterDefaultProfile"),
@@ -4747,6 +4893,36 @@ std::string MainWindow::ShortcutFilePath() const {
 
 std::string MainWindow::ThemeFilePath() const {
     return ConfigRootPath() + "/theme-linux.json";
+}
+
+std::string MainWindow::ResolveDefaultUpdateChannelFromInstall() const {
+    std::vector<std::string> candidatePaths;
+
+    const std::string appDirUtf8 = ToUtf8(QCoreApplication::applicationDirPath());
+    if (!appDirUtf8.empty()) {
+        const std::filesystem::path appDirPath(appDirUtf8);
+        candidatePaths.push_back(
+            (appDirPath / ".." / "share" / "notepad-plus-plus-linux" / "default-update-channel")
+                .lexically_normal()
+                .string());
+    }
+
+    candidatePaths.push_back("/usr/local/share/notepad-plus-plus-linux/default-update-channel");
+    candidatePaths.push_back("/usr/share/notepad-plus-plus-linux/default-update-channel");
+
+    for (const std::string &candidatePath : candidatePaths) {
+        const auto exists = _fileSystemService.Exists(candidatePath);
+        if (!exists.ok() || !(*exists.value)) {
+            continue;
+        }
+        const auto channelFile = _fileSystemService.ReadTextFile(candidatePath);
+        if (!channelFile.ok()) {
+            continue;
+        }
+        return NormalizeUpdateChannel(*channelFile.value);
+    }
+
+    return "stable";
 }
 
 void MainWindow::SaveCrashRecoveryJournal() const {

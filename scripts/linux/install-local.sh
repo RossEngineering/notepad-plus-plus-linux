@@ -6,7 +6,7 @@ usage() {
 Install Notepad++ Linux into a user-local prefix and register desktop integration.
 
 Usage:
-  scripts/linux/install-local.sh [--from-stage <dir>] [--from-tar <file>] [--prefix <dir>] [--set-default]
+  scripts/linux/install-local.sh [--from-stage <dir>] [--from-tar <file>] [--prefix <dir>] [--set-default] [--update-channel <stable|candidate>]
 
 Defaults:
   --from-stage out/release/stage
@@ -17,6 +17,7 @@ Options:
   --from-tar <file>    Extract a release tar.xz and install from its root.
   --prefix <dir>       Install prefix (recommended: ~/.local for user installs).
   --set-default        Register notepad-plus-plus-linux.desktop as default for common text mime types.
+  --update-channel     Override packaged update channel metadata (stable or candidate).
   -h, --help           Show this help.
 EOF
 }
@@ -25,6 +26,7 @@ stage_dir="out/release/stage"
 tar_file=""
 prefix="${HOME}/.local"
 set_default=0
+update_channel=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,6 +46,10 @@ while [[ $# -gt 0 ]]; do
       set_default=1
       shift
       ;;
+    --update-channel)
+      update_channel="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -55,6 +61,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -n "${update_channel}" && "${update_channel}" != "stable" && "${update_channel}" != "candidate" ]]; then
+  echo "invalid --update-channel value: ${update_channel} (expected stable or candidate)" >&2
+  exit 2
+fi
 
 if [[ -n "${tar_file}" && "${stage_dir}" != "out/release/stage" ]]; then
   echo "use only one source: --from-stage or --from-tar" >&2
@@ -92,9 +103,40 @@ cp -a "${stage_dir}/usr/share/." "${prefix}/share/"
 desktop_entry="${prefix}/share/applications/notepad-plus-plus-linux.desktop"
 binary_target="${prefix}/bin/notepad-plus-plus-linux"
 if [[ -f "${desktop_entry}" ]]; then
-  escaped_binary_target="${binary_target//\//\\/}"
-  sed -i "s|^Exec=.*$|Exec=${escaped_binary_target} %F|" "${desktop_entry}"
-  sed -i "s|^TryExec=.*$|TryExec=${escaped_binary_target}|" "${desktop_entry}"
+  desktop_tmp="${desktop_entry}.tmp"
+  awk -v binary_path="${binary_target}" '
+    BEGIN {
+      section = "";
+    }
+    /^\[/ {
+      section = $0;
+    }
+    section == "[Desktop Entry]" && /^Exec=/ {
+      print "Exec=" binary_path " %F";
+      next;
+    }
+    section == "[Desktop Entry]" && /^TryExec=/ {
+      print "TryExec=" binary_path;
+      next;
+    }
+    section == "[Desktop Action NewFile]" && /^Exec=/ {
+      print "Exec=" binary_path " --new-file";
+      next;
+    }
+    section == "[Desktop Action OpenRecent]" && /^Exec=/ {
+      print "Exec=" binary_path " --open-recent";
+      next;
+    }
+    {
+      print;
+    }
+  ' "${desktop_entry}" > "${desktop_tmp}"
+  mv "${desktop_tmp}" "${desktop_entry}"
+fi
+
+if [[ -n "${update_channel}" ]]; then
+  mkdir -p "${prefix}/share/notepad-plus-plus-linux"
+  printf '%s\n' "${update_channel}" > "${prefix}/share/notepad-plus-plus-linux/default-update-channel"
 fi
 
 update_if_present() {

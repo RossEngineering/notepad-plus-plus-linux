@@ -89,7 +89,9 @@ run_create_artifacts() {
   local run_output_dir="$2"
   local run_build_dir
   run_build_dir="$(mktemp -d)"
-  NPP_RELEASE_BUILD_DIR="${run_build_dir}" "${CREATE_SCRIPT}" "${run_version}" "${run_output_dir}"
+  NPP_RELEASE_BUILD_DIR="${run_build_dir}" \
+    NPP_RELEASE_NATIVE_PACKAGES="${NPP_RELEASE_NATIVE_PACKAGES:-0}" \
+    "${CREATE_SCRIPT}" "${run_version}" "${run_output_dir}"
   rm -rf "${run_build_dir}"
 }
 
