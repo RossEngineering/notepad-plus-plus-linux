@@ -3,15 +3,15 @@
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
 This timeline reflects project direction as of February 14, 2026.
-`v0.10.0-rc.4` is published and marked latest, and incubator exit is complete.
-Current focus is GA closeout (`v1.0.0`) followed by post-GA feature delivery.
+`v1.0.0` is published and marked latest.
+Current focus is post-GA feature delivery.
 
 ## Milestones
 
 | Milestone | Target | Scope | Status |
 | --- | --- | --- | --- |
-| M7: General Availability (`v1.0.0`) | Now | Close GA blockers, hold CI continuity, cut production tag. | In Progress |
-| M8: Post-GA Wave 1 (`v1.1.x`) | Next | Editor productivity and workflow quality improvements. | Planned |
+| M7: General Availability (`v1.0.0`) | Completed | GA blockers closed, release cut, and publication complete. | Done |
+| M8: Post-GA Wave 1 (`v1.1.x`) | Current | Editor productivity and workflow quality improvements. | In Progress |
 | M9: Post-GA Wave 2 (`v1.2.x`) | Next | Language intelligence and formatter ecosystem maturity. | Planned |
 | M10: Post-GA Wave 3 (`v1.3.x`) | Next | Linux packaging/distribution hardening and install lifecycle polish. | Planned |
 | M11: Post-GA Wave 4 (`v1.4.x`) | Next | Reliability, observability, and scale/soak quality gates. | Planned |
@@ -24,6 +24,8 @@ Current focus is GA closeout (`v1.0.0`) followed by post-GA feature delivery.
 3. No unresolved data-loss or crash-recovery regressions.
 4. `docs/releases/v1.0.0.md` and `docs/releases/v1.0.0-checklist.md` finalized.
 5. Go/no-go review updated and approved in `docs/v1.0.0-go-no-go-review-2026-02-14.md`.
+
+GA status: complete (`https://github.com/RossEngineering/notepad-plus-plus-linux/releases/tag/v1.0.0`).
 
 ## Post-GA roadmap proposal
 

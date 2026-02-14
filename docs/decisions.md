@@ -17,6 +17,7 @@ This file indexes architecture and governance decisions used by this repository.
 - GA blocker tracker: `docs/ga-blockers.md`
 - GA CI continuity log: `docs/ga-ci-continuity-log-2026-02.md`
 - GA gate exception for `v1.0.0` continuity veto: `docs/ga-gate-exception-2026-02-14.md`
+- GA release publication (`v1.0.0`): `docs/releases/v1.0.0.md`
 - RC4 consolidation release + incubator exit: `docs/releases/v0.10.0-rc.4.md`
 
 ## ADR records (repo-local)

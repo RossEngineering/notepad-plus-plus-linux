@@ -13,11 +13,11 @@ Previous plan snapshots:
 
 - [x] Close all open `P0` entries in `docs/ga-blockers.md`.
 - [x] Record `v1.0.0` continuity-gate veto with compensating controls (`docs/ga-gate-exception-2026-02-14.md`).
-- [ ] Verify required Linux lanes are green on the selected GA candidate commit.
+- [x] Verify required Linux lanes are green on the selected GA candidate commit.
 - [ ] Keep continuity log updates running as operational monitoring (`docs/ga-ci-continuity-log-2026-02.md`).
 - [ ] Triage new community issues daily and route confirmed GA-impacting defects into `docs/ga-blockers.md`.
 - [x] Finalize `docs/releases/v1.0.0.md` migration guidance and known limitations.
-- [ ] Complete `docs/releases/v1.0.0-checklist.md` and cut `v1.0.0`.
+- [x] Complete `docs/releases/v1.0.0-checklist.md` and cut `v1.0.0`.
 
 ## Post-GA operating cadence
 
