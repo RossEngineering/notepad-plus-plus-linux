@@ -66,6 +66,8 @@ private:
 		bool autoCloseDelimiters = true;
 		bool formatOnSaveEnabled = false;
 		std::vector<std::string> formatOnSaveLanguages;
+		std::string formatterDefaultProfile = "auto";
+		std::map<std::string, std::string> formatterProfilesByLanguage;
 		int splitViewMode = 0;
 		bool minimapEnabled = false;
 		bool restoreSessionOnStartup = true;
@@ -140,6 +142,9 @@ private:
 		bool showUserMessages,
 		bool *formattedApplied = nullptr);
 	bool ShouldFormatOnSaveForLexer(const std::string &lexerName) const;
+	std::string ResolveFormatterProfileForLanguage(
+		const std::string &lexerName,
+		const std::string &languageId) const;
 	void OnDisableSplitView();
 	void OnEnableSplitVertical();
 	void OnEnableSplitHorizontal();
@@ -165,6 +170,9 @@ private:
 	void OnLspShowHover();
 	void OnLspGoToDefinition();
 	void OnLspShowDiagnostics();
+	void OnLspShowDocumentSymbols();
+	void OnLspRenameSymbol();
+	void OnLspCodeActions();
 	void OnSetSkin(const std::string &skinId);
 	void SetCurrentEditorManualLexer(const std::string &lexerName);
 	void UpdateLanguageActionState();

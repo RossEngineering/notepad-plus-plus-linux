@@ -19,6 +19,7 @@
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QColor>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDialog>
@@ -107,6 +108,9 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"language.lsp.hover", QKeySequence(QStringLiteral("Ctrl+K"))},
         {"language.lsp.gotoDefinition", QKeySequence(QStringLiteral("F12"))},
         {"language.lsp.diagnostics", QKeySequence(QStringLiteral("Alt+F8"))},
+        {"language.lsp.symbols", QKeySequence(QStringLiteral("Ctrl+Shift+O"))},
+        {"language.lsp.rename", QKeySequence(QStringLiteral("F2"))},
+        {"language.lsp.codeActions", QKeySequence(QStringLiteral("Ctrl+."))},
         {"tools.commandPalette", QKeySequence(QStringLiteral("Ctrl+Shift+P"))},
         {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
@@ -235,6 +239,117 @@ QString LanguageCsvListString(const std::vector<std::string> &languages) {
         }
     }
     return parts.join(QStringLiteral(", "));
+}
+
+std::string NormalizeFormatterProfile(std::string profile) {
+    profile = AsciiLower(TrimAsciiWhitespace(profile));
+    if (profile.empty()) {
+        return "auto";
+    }
+    if (profile == "auto" || profile == "builtin" || profile == "extension") {
+        return profile;
+    }
+    if (profile.rfind("extension:", 0) == 0 && profile.size() > std::string("extension:").size()) {
+        return profile;
+    }
+    return "auto";
+}
+
+QString FormatterProfileToLabel(const std::string &profile) {
+    if (profile == "builtin") {
+        return QStringLiteral("Built-in only");
+    }
+    if (profile == "extension") {
+        return QStringLiteral("Extension only");
+    }
+    if (profile.rfind("extension:", 0) == 0) {
+        return QStringLiteral("Specific extension (%1)")
+            .arg(QString::fromStdString(profile.substr(std::string("extension:").size())));
+    }
+    return QStringLiteral("Auto");
+}
+
+bool IsValidFormatterProfile(std::string_view profile) {
+    return profile == "auto" ||
+        profile == "builtin" ||
+        profile == "extension" ||
+        (profile.rfind("extension:", 0) == 0 && profile.size() > std::string_view("extension:").size());
+}
+
+bool ParseFormatterOverrideCsv(
+    const std::string &csv,
+    std::map<std::string, std::string> *overrides,
+    std::string *errorMessage) {
+    if (overrides == nullptr) {
+        return false;
+    }
+    overrides->clear();
+
+    size_t cursor = 0;
+    while (cursor <= csv.size()) {
+        const size_t commaPos = csv.find(',', cursor);
+        const size_t endPos = commaPos == std::string::npos ? csv.size() : commaPos;
+        const std::string token = TrimAsciiWhitespace(csv.substr(cursor, endPos - cursor));
+        if (!token.empty()) {
+            const size_t equalsPos = token.find('=');
+            if (equalsPos == std::string::npos) {
+                if (errorMessage) {
+                    *errorMessage = "Invalid formatter override entry: '" + token + "' (expected language=profile)";
+                }
+                overrides->clear();
+                return false;
+            }
+
+            const std::string language = AsciiLower(TrimAsciiWhitespace(token.substr(0, equalsPos)));
+            const std::string profile = AsciiLower(TrimAsciiWhitespace(token.substr(equalsPos + 1)));
+            if (language.empty()) {
+                if (errorMessage) {
+                    *errorMessage = "Invalid formatter override entry: empty language key";
+                }
+                overrides->clear();
+                return false;
+            }
+            if (!IsValidFormatterProfile(profile)) {
+                if (errorMessage) {
+                    *errorMessage =
+                        "Invalid formatter profile '" + profile +
+                        "'. Supported values: auto, builtin, extension, extension:<id>";
+                }
+                overrides->clear();
+                return false;
+            }
+            overrides->insert_or_assign(language, profile);
+        }
+
+        if (commaPos == std::string::npos) {
+            break;
+        }
+        cursor = commaPos + 1;
+    }
+
+    return true;
+}
+
+QString FormatterOverrideCsvString(const std::map<std::string, std::string> &overrides) {
+    QStringList entries;
+    for (const auto &[language, profile] : overrides) {
+        entries.append(QStringLiteral("%1=%2").arg(QString::fromStdString(language), QString::fromStdString(profile)));
+    }
+    return entries.join(QStringLiteral(", "));
+}
+
+bool IsAsciiIdentifierToken(const std::string &token) {
+    if (token.empty()) {
+        return false;
+    }
+    for (char ch : token) {
+        const unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isalnum(uch) != 0 || ch == '_' || ch == '-') {
+            continue;
+        }
+        return false;
+    }
+    return true;
 }
 
 std::string PercentString(double value) {
@@ -651,6 +766,9 @@ void MainWindow::BuildMenus() {
     languageMenu->addAction(_actionsById.at("language.lsp.hover"));
     languageMenu->addAction(_actionsById.at("language.lsp.gotoDefinition"));
     languageMenu->addAction(_actionsById.at("language.lsp.diagnostics"));
+    languageMenu->addAction(_actionsById.at("language.lsp.symbols"));
+    languageMenu->addAction(_actionsById.at("language.lsp.rename"));
+    languageMenu->addAction(_actionsById.at("language.lsp.codeActions"));
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     QMenu *skinsMenu = viewMenu->addMenu(tr("Skins"));
@@ -731,6 +849,9 @@ void MainWindow::BuildActions() {
     registerAction("language.lsp.hover", tr("Hover (Baseline)"), [this]() { OnLspShowHover(); });
     registerAction("language.lsp.gotoDefinition", tr("Go To Definition (Baseline)"), [this]() { OnLspGoToDefinition(); });
     registerAction("language.lsp.diagnostics", tr("Diagnostics (Baseline)"), [this]() { OnLspShowDiagnostics(); });
+    registerAction("language.lsp.symbols", tr("Document Symbols (Baseline)"), [this]() { OnLspShowDocumentSymbols(); });
+    registerAction("language.lsp.rename", tr("Rename Symbol (Baseline)"), [this]() { OnLspRenameSymbol(); });
+    registerAction("language.lsp.codeActions", tr("Code Actions (Baseline)"), [this]() { OnLspCodeActions(); });
     _actionsById.at("language.set.plain")->setCheckable(true);
     _actionsById.at("language.set.markdown")->setCheckable(true);
     _actionsById.at("language.set.html")->setCheckable(true);
@@ -1447,90 +1568,107 @@ bool MainWindow::FormatEditorWithAvailableFormatter(
     const std::string languageId = npp::ui::MapLexerToLspLanguageId(lexerName).empty()
         ? lexerName
         : npp::ui::MapLexerToLspLanguageId(lexerName);
+    const std::string formatterProfile = ResolveFormatterProfileForLanguage(lexerName, languageId);
 
     std::string formatterName;
     std::string outputText;
     bool formatterSupported = false;
     bool extensionFormatterSucceeded = false;
+    bool allowExtensionFormatter = true;
+    bool allowBuiltInFormatter = true;
+    std::string requiredExtensionId;
+    if (formatterProfile == "builtin") {
+        allowExtensionFormatter = false;
+    } else if (formatterProfile == "extension") {
+        allowBuiltInFormatter = false;
+    } else if (formatterProfile.rfind("extension:", 0) == 0) {
+        allowBuiltInFormatter = false;
+        requiredExtensionId = formatterProfile.substr(std::string("extension:").size());
+    }
 
-    const auto installedExtensions = _extensionService.DiscoverInstalled();
-    if (installedExtensions.ok()) {
-        for (const npp::platform::InstalledExtension& extension : *installedExtensions.value) {
-            if (!extension.enabled) {
-                continue;
-            }
-            if (extension.manifest.type == npp::platform::ExtensionType::kLanguagePack) {
-                continue;
-            }
-            if (extension.manifest.entrypoint.empty()) {
-                continue;
-            }
-            if (extension.manifest.formatters.empty()) {
-                continue;
-            }
-
-            for (const auto& contribution : extension.manifest.formatters) {
-                if (!FormatterContributionMatchesLanguage(contribution, lexerName, languageId)) {
+    if (allowExtensionFormatter) {
+        const auto installedExtensions = _extensionService.DiscoverInstalled();
+        if (installedExtensions.ok()) {
+            for (const npp::platform::InstalledExtension& extension : *installedExtensions.value) {
+                if (!requiredExtensionId.empty() && extension.manifest.id != requiredExtensionId) {
+                    continue;
+                }
+                if (!extension.enabled) {
+                    continue;
+                }
+                if (extension.manifest.type == npp::platform::ExtensionType::kLanguagePack) {
+                    continue;
+                }
+                if (extension.manifest.entrypoint.empty()) {
+                    continue;
+                }
+                if (extension.manifest.formatters.empty()) {
                     continue;
                 }
 
-                const auto permissionGranted = _extensionService.RequestPermission(
-                    extension.manifest.id,
-                    "process.spawn",
-                    "format document");
-                if (!permissionGranted.ok() || !(*permissionGranted.value)) {
-                    continue;
+                for (const auto& contribution : extension.manifest.formatters) {
+                    if (!FormatterContributionMatchesLanguage(contribution, lexerName, languageId)) {
+                        continue;
+                    }
+
+                    const auto permissionGranted = _extensionService.RequestPermission(
+                        extension.manifest.id,
+                        "process.spawn",
+                        "format document");
+                    if (!permissionGranted.ok() || !(*permissionGranted.value)) {
+                        continue;
+                    }
+
+                    std::filesystem::path formatterEntrypoint(extension.manifest.entrypoint);
+                    if (formatterEntrypoint.is_relative()) {
+                        formatterEntrypoint = std::filesystem::path(extension.installPath) / formatterEntrypoint;
+                    }
+
+                    QProcess process(this);
+                    process.setProgram(ToQString(formatterEntrypoint.string()));
+                    process.setArguments(BuildFormatterArguments(
+                        contribution.args,
+                        stateIt->second.filePathUtf8,
+                        languageId,
+                        _editorSettings.tabWidth));
+                    process.setWorkingDirectory(ToQString(extension.installPath));
+                    process.start();
+                    if (!process.waitForStarted(5000)) {
+                        continue;
+                    }
+
+                    process.write(inputText.data(), static_cast<qint64>(inputText.size()));
+                    process.closeWriteChannel();
+                    if (!process.waitForFinished(60000)) {
+                        process.kill();
+                        process.waitForFinished(1000);
+                        continue;
+                    }
+                    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+                        continue;
+                    }
+
+                    const QByteArray stdOut = process.readAllStandardOutput();
+                    const std::string formattedUtf8(stdOut.constData(), static_cast<size_t>(stdOut.size()));
+                    if (!IsValidUtf8(formattedUtf8)) {
+                        continue;
+                    }
+
+                    formatterSupported = true;
+                    extensionFormatterSucceeded = true;
+                    formatterName = extension.manifest.name.empty() ? extension.manifest.id : extension.manifest.name;
+                    outputText = NormalizeEol(formattedUtf8, stateIt->second.eolMode);
+                    break;
                 }
 
-                std::filesystem::path formatterEntrypoint(extension.manifest.entrypoint);
-                if (formatterEntrypoint.is_relative()) {
-                    formatterEntrypoint = std::filesystem::path(extension.installPath) / formatterEntrypoint;
+                if (extensionFormatterSucceeded) {
+                    break;
                 }
-
-                QProcess process(this);
-                process.setProgram(ToQString(formatterEntrypoint.string()));
-                process.setArguments(BuildFormatterArguments(
-                    contribution.args,
-                    stateIt->second.filePathUtf8,
-                    languageId,
-                    _editorSettings.tabWidth));
-                process.setWorkingDirectory(ToQString(extension.installPath));
-                process.start();
-                if (!process.waitForStarted(5000)) {
-                    continue;
-                }
-
-                process.write(inputText.data(), static_cast<qint64>(inputText.size()));
-                process.closeWriteChannel();
-                if (!process.waitForFinished(60000)) {
-                    process.kill();
-                    process.waitForFinished(1000);
-                    continue;
-                }
-                if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
-                    continue;
-                }
-
-                const QByteArray stdOut = process.readAllStandardOutput();
-                const std::string formattedUtf8(stdOut.constData(), static_cast<size_t>(stdOut.size()));
-                if (!IsValidUtf8(formattedUtf8)) {
-                    continue;
-                }
-
-                formatterSupported = true;
-                extensionFormatterSucceeded = true;
-                formatterName = extension.manifest.name.empty() ? extension.manifest.id : extension.manifest.name;
-                outputText = NormalizeEol(formattedUtf8, stateIt->second.eolMode);
-                break;
-            }
-
-            if (extensionFormatterSucceeded) {
-                break;
             }
         }
     }
 
-    if (!extensionFormatterSucceeded) {
+    if (!extensionFormatterSucceeded && allowBuiltInFormatter) {
         const npp::ui::LanguageAwareFormatResult builtInResult = npp::ui::FormatDocumentLanguageAware(
             inputText,
             lexerName,
@@ -1543,7 +1681,9 @@ bool MainWindow::FormatEditorWithAvailableFormatter(
     if (!formatterSupported) {
         if (showUserMessages) {
             statusBar()->showMessage(
-                tr("No formatter available for language: %1").arg(ToQString(lexerName)),
+                tr("No formatter available for %1 (profile: %2)")
+                    .arg(ToQString(lexerName))
+                    .arg(FormatterProfileToLabel(formatterProfile)),
                 2500);
         }
         return false;
@@ -1570,6 +1710,19 @@ bool MainWindow::FormatEditorWithAvailableFormatter(
             2500);
     }
     return true;
+}
+
+std::string MainWindow::ResolveFormatterProfileForLanguage(
+    const std::string &lexerName,
+    const std::string &languageId) const {
+    const std::vector<std::string> candidates = FormatterLanguageCandidates(lexerName, languageId);
+    for (const std::string &candidate : candidates) {
+        const auto overrideIt = _editorSettings.formatterProfilesByLanguage.find(candidate);
+        if (overrideIt != _editorSettings.formatterProfilesByLanguage.end()) {
+            return NormalizeFormatterProfile(overrideIt->second);
+        }
+    }
+    return NormalizeFormatterProfile(_editorSettings.formatterDefaultProfile);
 }
 
 bool MainWindow::ShouldFormatOnSaveForLexer(const std::string &lexerName) const {
@@ -1621,6 +1774,19 @@ void MainWindow::OnPreferences() {
     formatOnSaveLanguagesEdit->setPlaceholderText(tr("all languages"));
     formatOnSaveLanguagesEdit->setText(LanguageCsvListString(_editorSettings.formatOnSaveLanguages));
     formatOnSaveLanguagesEdit->setEnabled(_editorSettings.formatOnSaveEnabled);
+    auto *formatterDefaultProfileCombo = new QComboBox(&dialog);
+    formatterDefaultProfileCombo->addItem(tr("Auto (extensions then built-in)"), QStringLiteral("auto"));
+    formatterDefaultProfileCombo->addItem(tr("Built-in only"), QStringLiteral("builtin"));
+    formatterDefaultProfileCombo->addItem(tr("Extension only"), QStringLiteral("extension"));
+    const QString currentProfile = ToQString(NormalizeFormatterProfile(_editorSettings.formatterDefaultProfile));
+    int formatterProfileIndex = formatterDefaultProfileCombo->findData(currentProfile);
+    if (formatterProfileIndex < 0) {
+        formatterProfileIndex = 0;
+    }
+    formatterDefaultProfileCombo->setCurrentIndex(formatterProfileIndex);
+    auto *formatterOverridesEdit = new QLineEdit(&dialog);
+    formatterOverridesEdit->setPlaceholderText(tr("python=builtin, json=extension:ross.sample.formatter"));
+    formatterOverridesEdit->setText(FormatterOverrideCsvString(_editorSettings.formatterProfilesByLanguage));
     auto *restoreSessionOnStartupCheck = new QCheckBox(tr("Restore previous session on startup"), &dialog);
     restoreSessionOnStartupCheck->setChecked(_editorSettings.restoreSessionOnStartup);
     auto *perProjectSessionStorageCheck = new QCheckBox(tr("Use per-project session storage"), &dialog);
@@ -1645,6 +1811,8 @@ void MainWindow::OnPreferences() {
     form->addRow(QString(), autoCloseDelimitersCheck);
     form->addRow(QString(), formatOnSaveCheck);
     form->addRow(tr("Format-on-save languages:"), formatOnSaveLanguagesEdit);
+    form->addRow(tr("Default formatter profile:"), formatterDefaultProfileCombo);
+    form->addRow(tr("Formatter overrides:"), formatterOverridesEdit);
     form->addRow(QString(), restoreSessionOnStartupCheck);
     form->addRow(QString(), perProjectSessionStorageCheck);
     form->addRow(QString(), autoSaveOnFocusLostCheck);
@@ -1670,6 +1838,16 @@ void MainWindow::OnPreferences() {
         return;
     }
 
+    std::map<std::string, std::string> formatterOverrides;
+    std::string overrideParseError;
+    if (!ParseFormatterOverrideCsv(ToUtf8(formatterOverridesEdit->text()), &formatterOverrides, &overrideParseError)) {
+        QMessageBox::warning(
+            this,
+            tr("Preferences"),
+            tr("Formatter override parse error:\n%1").arg(ToQString(overrideParseError)));
+        return;
+    }
+
     _editorSettings.tabWidth = tabWidthSpin->value();
     _editorSettings.wrapEnabled = wrapCheck->isChecked();
     _editorSettings.showLineNumbers = lineNumbersCheck->isChecked();
@@ -1678,6 +1856,9 @@ void MainWindow::OnPreferences() {
     _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
     _editorSettings.formatOnSaveEnabled = formatOnSaveCheck->isChecked();
     _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesEdit->text()));
+    _editorSettings.formatterDefaultProfile =
+        NormalizeFormatterProfile(ToUtf8(formatterDefaultProfileCombo->currentData().toString()));
+    _editorSettings.formatterProfilesByLanguage = std::move(formatterOverrides);
     _editorSettings.restoreSessionOnStartup = restoreSessionOnStartupCheck->isChecked();
     _editorSettings.usePerProjectSessionStorage =
         _editorSettings.restoreSessionOnStartup &&
@@ -2398,15 +2579,358 @@ void MainWindow::OnLspShowDiagnostics() {
         return;
     }
 
-    std::ostringstream output;
-    for (const auto& diag : diagnostics) {
-        output << "line " << diag.line << ": " << diag.message << "\n";
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Diagnostics Panel (Baseline)"));
+    dialog.resize(860, 520);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *headerLayout = new QHBoxLayout();
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Filter diagnostics"));
+    filterEdit->setClearButtonEnabled(true);
+    auto *severityCombo = new QComboBox(&dialog);
+    severityCombo->addItem(tr("All severities"), QStringLiteral("all"));
+    severityCombo->addItem(tr("Warning"), QStringLiteral("warning"));
+    severityCombo->addItem(tr("Info"), QStringLiteral("info"));
+    headerLayout->addWidget(filterEdit, 1);
+    headerLayout->addWidget(severityCombo);
+    layout->addLayout(headerLayout);
+
+    auto *diagnosticList = new QListWidget(&dialog);
+    diagnosticList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(diagnosticList, 1);
+
+    auto *summaryLabel = new QLabel(&dialog);
+    layout->addWidget(summaryLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    QPushButton *goToButton = buttons->addButton(tr("Go To"), QDialogButtonBox::ActionRole);
+    layout->addWidget(buttons);
+
+    const auto goToDiagnosticLine = [this, editor](int line) {
+        if (line <= 0) {
+            return;
+        }
+        editor->send(SCI_GOTOLINE, static_cast<uptr_t>(line - 1));
+        editor->send(SCI_SCROLLCARET);
+        UpdateCursorStatus();
+    };
+
+    const auto refillDiagnostics = [&]() {
+        diagnosticList->clear();
+        const QString query = filterEdit->text().trimmed().toLower();
+        const QString severityFilter = severityCombo->currentData().toString();
+        int visibleCount = 0;
+        for (const auto& diagnostic : diagnostics) {
+            const QString severity = ToQString(diagnostic.severity).toLower();
+            if (severityFilter != QStringLiteral("all") && severity != severityFilter) {
+                continue;
+            }
+
+            const QString searchable = QStringLiteral("%1 %2 %3")
+                .arg(ToQString(diagnostic.code), ToQString(diagnostic.message), ToQString(diagnostic.severity))
+                .toLower();
+            if (!query.isEmpty() && !searchable.contains(query)) {
+                continue;
+            }
+
+            ++visibleCount;
+            auto *item = new QListWidgetItem(
+                tr("[%1] line %2: %3")
+                    .arg(ToQString(diagnostic.severity))
+                    .arg(diagnostic.line)
+                    .arg(ToQString(diagnostic.message)),
+                diagnosticList);
+            item->setData(Qt::UserRole, diagnostic.line);
+            item->setData(Qt::UserRole + 1, ToQString(diagnostic.code));
+        }
+
+        summaryLabel->setText(
+            tr("%1 of %2 diagnostics").arg(visibleCount).arg(static_cast<int>(diagnostics.size())));
+        if (diagnosticList->count() > 0) {
+            diagnosticList->setCurrentRow(0);
+            goToButton->setEnabled(true);
+        } else {
+            goToButton->setEnabled(false);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillDiagnostics);
+    connect(severityCombo, &QComboBox::currentTextChanged, &dialog, [&](const QString &) {
+        refillDiagnostics();
+    });
+    connect(diagnosticList, &QListWidget::itemDoubleClicked, &dialog, [&](QListWidgetItem *item) {
+        goToDiagnosticLine(item == nullptr ? 0 : item->data(Qt::UserRole).toInt());
+    });
+    connect(goToButton, &QPushButton::clicked, &dialog, [&]() {
+        QListWidgetItem *selectedItem = diagnosticList->currentItem();
+        goToDiagnosticLine(selectedItem == nullptr ? 0 : selectedItem->data(Qt::UserRole).toInt());
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+
+    refillDiagnostics();
+    filterEdit->setFocus();
+    dialog.exec();
+}
+
+void MainWindow::OnLspShowDocumentSymbols() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
     }
 
-    QMessageBox::information(
+    const auto symbols = npp::ui::CollectBaselineDocumentSymbols(GetEditorText(editor));
+    if (symbols.empty()) {
+        QMessageBox::information(this, tr("Document Symbols"), tr("No baseline symbols found in this document."));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Document Symbols (Baseline)"));
+    dialog.resize(760, 500);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Filter symbols by name or kind"));
+    filterEdit->setClearButtonEnabled(true);
+    layout->addWidget(filterEdit);
+
+    auto *symbolList = new QListWidget(&dialog);
+    symbolList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(symbolList, 1);
+
+    auto *summaryLabel = new QLabel(&dialog);
+    layout->addWidget(summaryLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    QPushButton *goToButton = buttons->addButton(tr("Go To"), QDialogButtonBox::ActionRole);
+    layout->addWidget(buttons);
+
+    const auto goToSymbolLine = [this, editor](int line) {
+        if (line <= 0) {
+            return;
+        }
+        editor->send(SCI_GOTOLINE, static_cast<uptr_t>(line - 1));
+        editor->send(SCI_SCROLLCARET);
+        UpdateCursorStatus();
+    };
+
+    const auto refillSymbols = [&]() {
+        symbolList->clear();
+        const QString query = filterEdit->text().trimmed().toLower();
+        int visibleCount = 0;
+        for (const auto& symbol : symbols) {
+            const QString searchable = QStringLiteral("%1 %2")
+                .arg(ToQString(symbol.name), ToQString(symbol.kind))
+                .toLower();
+            if (!query.isEmpty() && !searchable.contains(query)) {
+                continue;
+            }
+
+            ++visibleCount;
+            auto *item = new QListWidgetItem(
+                tr("%1  [%2]  line %3")
+                    .arg(ToQString(symbol.name), ToQString(symbol.kind))
+                    .arg(symbol.line),
+                symbolList);
+            item->setData(Qt::UserRole, symbol.line);
+        }
+
+        summaryLabel->setText(
+            tr("%1 of %2 symbols").arg(visibleCount).arg(static_cast<int>(symbols.size())));
+        if (symbolList->count() > 0) {
+            symbolList->setCurrentRow(0);
+            goToButton->setEnabled(true);
+        } else {
+            goToButton->setEnabled(false);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillSymbols);
+    connect(symbolList, &QListWidget::itemDoubleClicked, &dialog, [&](QListWidgetItem *item) {
+        goToSymbolLine(item == nullptr ? 0 : item->data(Qt::UserRole).toInt());
+    });
+    connect(goToButton, &QPushButton::clicked, &dialog, [&]() {
+        QListWidgetItem *selectedItem = symbolList->currentItem();
+        goToSymbolLine(selectedItem == nullptr ? 0 : selectedItem->data(Qt::UserRole).toInt());
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+
+    refillSymbols();
+    filterEdit->setFocus();
+    dialog.exec();
+}
+
+void MainWindow::OnLspRenameSymbol() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+
+    const std::string lexerName = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    if (npp::ui::MapLexerToLspLanguageId(lexerName).empty()) {
+        QMessageBox::information(
+            this,
+            tr("Rename Symbol"),
+            tr("Rename baseline is not available for lexer: %1").arg(ToQString(lexerName)));
+        return;
+    }
+
+    const std::size_t caretPos = static_cast<std::size_t>(editor->send(SCI_GETCURRENTPOS));
+    const std::string textUtf8 = GetEditorText(editor);
+    const std::string symbol = npp::ui::ExtractWordAt(textUtf8, caretPos);
+    if (symbol.empty()) {
+        QMessageBox::information(this, tr("Rename Symbol"), tr("No symbol under cursor."));
+        return;
+    }
+
+    bool renameAccepted = false;
+    const QString newName = QInputDialog::getText(
         this,
-        tr("Diagnostics (Baseline)"),
-        ToQString(output.str()));
+        tr("Rename Symbol (Baseline)"),
+        tr("New name for '%1':").arg(ToQString(symbol)),
+        QLineEdit::Normal,
+        ToQString(symbol),
+        &renameAccepted);
+    if (!renameAccepted) {
+        return;
+    }
+
+    const std::string replacement = ToUtf8(newName);
+    if (replacement.empty() || replacement == symbol) {
+        return;
+    }
+    if (!IsAsciiIdentifierToken(replacement)) {
+        QMessageBox::warning(
+            this,
+            tr("Rename Symbol"),
+            tr("Invalid symbol name. Use letters, numbers, hyphen, and underscore only."));
+        return;
+    }
+
+    std::string updatedText = textUtf8;
+    const int replacements = npp::ui::RenameBaselineSymbol(&updatedText, symbol, replacement);
+    if (replacements <= 0 || updatedText == textUtf8) {
+        QMessageBox::information(this, tr("Rename Symbol"), tr("No replaceable symbol occurrences found."));
+        return;
+    }
+
+    SetEditorText(editor, updatedText);
+    editor->send(SCI_COLOURISE, 0, -1);
+    const sptr_t currentLength = editor->send(SCI_GETTEXTLENGTH);
+    editor->send(SCI_GOTOPOS, std::min<sptr_t>(static_cast<sptr_t>(caretPos), currentLength));
+
+    auto mutableStateIt = _editorStates.find(editor);
+    if (mutableStateIt != _editorStates.end()) {
+        mutableStateIt->second.dirty = true;
+    }
+    UpdateTabTitle(editor);
+    statusBar()->showMessage(
+        tr("Renamed %1 occurrences of %2 to %3")
+            .arg(replacements)
+            .arg(ToQString(symbol))
+            .arg(ToQString(replacement)),
+        2500);
+}
+
+void MainWindow::OnLspCodeActions() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const auto diagnostics = npp::ui::CollectBaselineDiagnostics(GetEditorText(editor));
+    const auto actions = npp::ui::CollectBaselineCodeActions(diagnostics);
+    if (actions.empty()) {
+        QMessageBox::information(this, tr("Code Actions"), tr("No baseline quick fixes available."));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Code Actions (Baseline)"));
+    dialog.resize(760, 460);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Filter code actions"));
+    filterEdit->setClearButtonEnabled(true);
+    layout->addWidget(filterEdit);
+
+    auto *actionList = new QListWidget(&dialog);
+    actionList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(actionList, 1);
+
+    auto *summaryLabel = new QLabel(&dialog);
+    layout->addWidget(summaryLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, &dialog);
+    QPushButton *applyButton = buttons->addButton(tr("Apply"), QDialogButtonBox::AcceptRole);
+    layout->addWidget(buttons);
+
+    const auto refillActions = [&]() {
+        actionList->clear();
+        const QString query = filterEdit->text().trimmed().toLower();
+        int visibleCount = 0;
+        for (const auto& action : actions) {
+            const QString title = ToQString(action.title);
+            if (!query.isEmpty() && !title.toLower().contains(query)) {
+                continue;
+            }
+            ++visibleCount;
+            auto *item = new QListWidgetItem(title, actionList);
+            item->setData(Qt::UserRole, ToQString(action.id));
+            item->setData(Qt::UserRole + 1, action.line);
+        }
+
+        summaryLabel->setText(
+            tr("%1 of %2 code actions").arg(visibleCount).arg(static_cast<int>(actions.size())));
+        if (actionList->count() > 0) {
+            actionList->setCurrentRow(0);
+            applyButton->setEnabled(true);
+        } else {
+            applyButton->setEnabled(false);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillActions);
+    connect(actionList, &QListWidget::itemDoubleClicked, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    refillActions();
+    filterEdit->setFocus();
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    QListWidgetItem *selectedAction = actionList->currentItem();
+    if (!selectedAction) {
+        return;
+    }
+
+    std::string updatedText = GetEditorText(editor);
+    const std::string actionId = ToUtf8(selectedAction->data(Qt::UserRole).toString());
+    const int line = selectedAction->data(Qt::UserRole + 1).toInt();
+    if (!npp::ui::ApplyBaselineCodeAction(&updatedText, actionId, line, _editorSettings.tabWidth)) {
+        QMessageBox::information(this, tr("Code Actions"), tr("Selected action produced no changes."));
+        return;
+    }
+
+    SetEditorText(editor, updatedText);
+    editor->send(SCI_COLOURISE, 0, -1);
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt != _editorStates.end()) {
+        stateIt->second.dirty = true;
+    }
+    UpdateTabTitle(editor);
+    statusBar()->showMessage(tr("Applied baseline code action"), 2000);
 }
 
 void MainWindow::SetCurrentEditorManualLexer(const std::string &lexerName) {
@@ -2451,6 +2975,9 @@ void MainWindow::UpdateLanguageActionState() {
         "language.lsp.hover",
         "language.lsp.gotoDefinition",
         "language.lsp.diagnostics",
+        "language.lsp.symbols",
+        "language.lsp.rename",
+        "language.lsp.codeActions",
     };
 
     const auto setLanguageActionsEnabled = [this, &languageActionIds](bool enabled) {
@@ -3262,6 +3789,8 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
     _editorSettings.formatOnSaveEnabled = obj.value(QStringLiteral("formatOnSaveEnabled")).toBool(false);
+    _editorSettings.formatterDefaultProfile = NormalizeFormatterProfile(
+        ToUtf8(obj.value(QStringLiteral("formatterDefaultProfile")).toString(QStringLiteral("auto"))));
     _editorSettings.splitViewMode = std::clamp(
         obj.value(QStringLiteral("splitViewMode")).toInt(kSplitModeDisabled),
         kSplitModeDisabled,
@@ -3287,6 +3816,22 @@ void MainWindow::LoadEditorSettings() {
         _editorSettings.formatOnSaveLanguages.assign(dedupe.begin(), dedupe.end());
     } else if (formatOnSaveLanguagesValue.isString()) {
         _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesValue.toString()));
+    }
+    _editorSettings.formatterProfilesByLanguage.clear();
+    const QJsonValue formatterOverrideValue = obj.value(QStringLiteral("formatterProfileOverrides"));
+    if (formatterOverrideValue.isObject()) {
+        const QJsonObject overrideObject = formatterOverrideValue.toObject();
+        for (auto it = overrideObject.begin(); it != overrideObject.end(); ++it) {
+            if (!it.value().isString()) {
+                continue;
+            }
+            const std::string language = AsciiLower(TrimAsciiWhitespace(ToUtf8(it.key())));
+            const std::string profile = NormalizeFormatterProfile(ToUtf8(it.value().toString()));
+            if (language.empty() || !IsValidFormatterProfile(profile)) {
+                continue;
+            }
+            _editorSettings.formatterProfilesByLanguage.insert_or_assign(language, profile);
+        }
     }
     _editorSettings.restoreSessionOnStartup = obj.value(QStringLiteral("restoreSessionOnStartup")).toBool(true);
     _editorSettings.usePerProjectSessionStorage =
@@ -3335,6 +3880,9 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
     settingsObject.insert(QStringLiteral("formatOnSaveEnabled"), _editorSettings.formatOnSaveEnabled);
+    settingsObject.insert(
+        QStringLiteral("formatterDefaultProfile"),
+        ToQString(NormalizeFormatterProfile(_editorSettings.formatterDefaultProfile)));
     settingsObject.insert(QStringLiteral("splitViewMode"), _editorSettings.splitViewMode);
     settingsObject.insert(QStringLiteral("minimapEnabled"), _editorSettings.minimapEnabled);
     QJsonArray formatOnSaveLanguagesArray;
@@ -3342,6 +3890,11 @@ void MainWindow::SaveEditorSettings() const {
         formatOnSaveLanguagesArray.append(ToQString(language));
     }
     settingsObject.insert(QStringLiteral("formatOnSaveLanguages"), formatOnSaveLanguagesArray);
+    QJsonObject formatterOverrideObject;
+    for (const auto &[language, profile] : _editorSettings.formatterProfilesByLanguage) {
+        formatterOverrideObject.insert(ToQString(language), ToQString(profile));
+    }
+    settingsObject.insert(QStringLiteral("formatterProfileOverrides"), formatterOverrideObject);
     settingsObject.insert(QStringLiteral("restoreSessionOnStartup"), _editorSettings.restoreSessionOnStartup);
     settingsObject.insert(
         QStringLiteral("usePerProjectSessionStorage"),

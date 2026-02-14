@@ -18,6 +18,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Cut RC3a maintenance release `v0.9.9-rc.3a`.
 - [x] Cut RC3b maintenance release `v0.9.9-rc.3b`.
 - [x] Cut section-close prerelease `v0.10.0-beta.1` for completed `Editor UX and workflows`.
+- [x] Cut section-close prerelease `v0.10.0-beta.2` for completed `Formatting, language intelligence, and coding tools`.
 - [ ] Complete GA scope and cut `v1.0.0`.
 - [ ] Promote `v1.0.0` after RC3 maintenance validation.
 
@@ -125,12 +126,12 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### Formatting, language intelligence, and coding tools
 
-- [ ] Add formatter selection per language (default + override).
+- [x] Add formatter selection per language (default + override).
 - [x] Add format-on-save toggle globally and per language.
-- [ ] Add in-editor diagnostics panel with quick navigation and filtering.
-- [ ] Add symbol outline and document symbol search.
-- [ ] Add rename symbol baseline through LSP where supported.
-- [ ] Add code actions baseline (quick fixes where language server supports it).
+- [x] Add in-editor diagnostics panel with quick navigation and filtering.
+- [x] Add symbol outline and document symbol search.
+- [x] Add rename symbol baseline through LSP where supported.
+- [x] Add code actions baseline (quick fixes where language server supports it).
 
 ### Extensions ecosystem
 
