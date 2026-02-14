@@ -19,7 +19,8 @@ Current focus is GA closeout (`v1.0.0`) followed by post-GA feature delivery.
 ## GA closeout gate (`v1.0.0`)
 
 1. Zero open `P0` defects in `docs/ga-blockers.md`.
-2. Linux required CI lanes green for 7 consecutive days before final tag.
+2. Linux required CI lanes green on the selected GA candidate commit.
+   - 7-day continuity gate is vetoed for `v1.0.0` only (`docs/ga-gate-exception-2026-02-14.md`).
 3. No unresolved data-loss or crash-recovery regressions.
 4. `docs/releases/v1.0.0.md` and `docs/releases/v1.0.0-checklist.md` finalized.
 5. Go/no-go review updated and approved in `docs/v1.0.0-go-no-go-review-2026-02-14.md`.

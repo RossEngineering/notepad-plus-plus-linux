@@ -2,8 +2,10 @@
 
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
-This log tracks the `v1.0.0` gate requiring required Linux lanes to remain green
-for 7 consecutive days.
+This log tracks required Linux-lane continuity evidence during `v1.0.0` closeout.
+
+As of 2026-02-14, this continuity threshold is informational (non-blocking) for
+`v1.0.0` under `docs/ga-gate-exception-2026-02-14.md`.
 
 ## Required lanes
 
@@ -33,10 +35,13 @@ for 7 consecutive days.
 
 ## Notes
 
-1. Only days where all required lanes are green count toward the 7-day gate.
-2. If any required lane fails on a counted day, continuity resets to 0 and a
-   new 7-day window starts.
-3. Multiple green commits on the same UTC day do not increment the continuity
+1. Only days where all required lanes are green count toward the continuity
+   streak.
+2. For `v1.0.0`, this streak is informational (exception-approved), not a hard
+   release blocker.
+3. If any required lane fails on a counted day, continuity resets to 0 and a
+   new window starts.
+4. Multiple green commits on the same UTC day do not increment the continuity
    counter beyond that day's single count.
-4. Keep this log updated daily until the gate is closed in
-   `docs/releases/v1.0.0-checklist.md`.
+5. Keep this log updated daily until GA cut, then retain it as post-GA
+   monitoring evidence.

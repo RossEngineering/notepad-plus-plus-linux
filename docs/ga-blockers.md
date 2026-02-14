@@ -4,7 +4,7 @@
 
 Last updated: 2026-02-14
 Owner: Maintainers
-Status: Active
+Status: No open P0 blockers (maintain active monitoring)
 
 This list tracks prioritized blockers that must be resolved or explicitly
 deferred before cutting `v1.0.0`.
@@ -13,7 +13,7 @@ deferred before cutting `v1.0.0`.
 
 | ID | Priority | Area | Source | Status | Exit criteria |
 | --- | --- | --- | --- | --- | --- |
-| GA-B01 | P0 | CI continuity gate | `docs/releases/v1.0.0-checklist.md` | Open | Required Linux CI lanes remain green for 7 consecutive days on the GA candidate path, with evidence logged in `docs/ga-ci-continuity-log-2026-02.md`. |
+| GA-B01 | P0 | CI continuity gate | `docs/releases/v1.0.0-checklist.md` | Closed | 7-day continuity gate vetoed for `v1.0.0` under maintainer-approved exception; compensating controls and rationale recorded in `docs/ga-gate-exception-2026-02-14.md`. |
 | GA-B02 | P0 | Release notes and migration docs | `docs/v1.0.0-go-no-go-review-2026-02-14.md` | Closed | `docs/releases/v1.0.0.md` finalized on 2026-02-14 with migration guidance and accepted known limitations. |
 | GA-B03 | P0 | Incubator lifecycle decision | `docs/incubator-promotion-validation-2026-02-14.md` | Closed | Promotion approved and recorded at `v0.10.0-rc.4`; repository status/governance text synchronized. |
 
