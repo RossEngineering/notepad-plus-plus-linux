@@ -84,11 +84,23 @@ jobs:
             fi
             TAG_NAME="${VERSION}"
           fi
+
+          RELEASE_NOTES_FILE=""
+          if [[ "${PUBLISH}" == "true" ]]; then
+            CANDIDATE_NOTES_FILE="docs/releases/${VERSION}.md"
+            if [[ ! -f "${CANDIDATE_NOTES_FILE}" ]]; then
+              echo "::error::Expected release notes file not found: ${CANDIDATE_NOTES_FILE}"
+              exit 1
+            fi
+            RELEASE_NOTES_FILE="${CANDIDATE_NOTES_FILE}"
+          fi
+
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
           echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
           echo "make_latest=${MAKE_LATEST}" >> "$GITHUB_OUTPUT"
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "release_notes_file=${RELEASE_NOTES_FILE}" >> "$GITHUB_OUTPUT"
           echo "release_name=Notepad++ Linux ${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build release artifacts
@@ -133,7 +145,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: ${{ steps.release_meta.outputs.release_name }}
           prerelease: ${{ steps.release_meta.outputs.prerelease }}
-          generate_release_notes: true
+          body_path: ${{ steps.release_meta.outputs.release_notes_file }}
           make_latest: ${{ steps.release_meta.outputs.make_latest }}
           fail_on_unmatched_files: true
           files: out/release/*
