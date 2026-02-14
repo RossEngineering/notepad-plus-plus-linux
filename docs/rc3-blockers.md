@@ -16,7 +16,7 @@ This list tracks prioritized blockers that must be resolved or explicitly deferr
 | RC3-B01 | P0 | Consumer install UX | RC2 distro validation + RC3 roadmap | Closed | Consumer install/uninstall flow is consistent across target distros, with no unresolved desktop integration defects. |
 | RC3-B02 | P0 | File-handler integration | RC2 distro validation + RC3 roadmap | Closed | File associations/default app/open-with behavior validates across Arch derivatives, Ubuntu LTS, and Fedora stable. |
 | RC3-B03 | P1 | Release engineering dry-run | RC2 release notes follow-up + RC3 roadmap | Open | Reproducible artifact/checksum/signing flow completed and rollback path validated. |
-| RC3-B04 | P1 | Full regression confidence | RC2 release notes follow-up + RC3 roadmap | Open | Required regression matrix passes (editor core, language workflows, skinning, extension lifecycle, crash recovery). |
+| RC3-B04 | P1 | Full regression confidence | RC2 release notes follow-up + RC3 roadmap | Closed | Required regression matrix passes (editor core, language workflows, skinning, extension lifecycle, crash recovery). |
 
 ## RC2 exit signals used for RC3 intake
 
@@ -42,6 +42,11 @@ This list tracks prioritized blockers that must be resolved or explicitly deferr
    - `./scripts/linux/run-desktop-integration-matrix.sh fedora-stable`
 4. Recorded RC3 distro integration evidence:
    - `docs/distro-validation-report-rc3-2026-02-14.md`
+5. Added explicit RC3 regression matrix gate and crash-recovery persistence regression coverage:
+   - `scripts/linux/run_rc3_regression_matrix.sh`
+   - `.github/workflows/linux-cmake.yml` (`rc3-regression-matrix`)
+   - `tests/regression/crash_recovery_persistence_regression_test.cpp`
+   - `docs/rc3-regression-report-2026-02-14.md`
 
 ## Intake process
 

@@ -384,6 +384,18 @@ if(BUILD_TESTING AND TARGET npp_platform_linux)
     target_link_libraries(extension_lifecycle_smoke_test PRIVATE npp_platform_linux)
     add_test(NAME extension_lifecycle_smoke_test COMMAND extension_lifecycle_smoke_test)
 
+    add_executable(
+        crash_recovery_persistence_regression_test
+        tests/regression/crash_recovery_persistence_regression_test.cpp)
+    target_include_directories(crash_recovery_persistence_regression_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+    )
+    target_link_libraries(crash_recovery_persistence_regression_test PRIVATE npp_platform_linux)
+    add_test(
+        NAME crash_recovery_persistence_regression_test
+        COMMAND crash_recovery_persistence_regression_test)
+
     add_executable(lsp_client_foundation_smoke_test tests/platform/lsp_client_foundation_smoke_test.cpp)
     target_include_directories(lsp_client_foundation_smoke_test PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"

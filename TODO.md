@@ -39,7 +39,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Enter feature freeze (bug fixes, docs, packaging, and release reliability only).
 - [x] Deliver consumer-friendly Linux install flow (package install, desktop registration, launcher/dock visibility, clean uninstall behavior).
 - [x] Validate file-handler integration end-to-end (MIME/app defaults, open-with behavior, double-click launch) across Arch derivatives, Ubuntu LTS, and Fedora stable.
-- [ ] Run full regression on editor, skinning, extension lifecycle, crash recovery, and language workflows.
+- [x] Run full regression on editor, skinning, extension lifecycle, crash recovery, and language workflows.
 - [ ] Complete release engineering dry-run (artifacts, checksums, signing, rollback plan).
 - [ ] Resolve all open release blockers and cut `v0.9.9-rc.3`.
 - [ ] Perform go/no-go review for `v1.0.0`.
