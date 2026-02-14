@@ -3,128 +3,72 @@
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
 This timeline reflects project direction as of February 14, 2026.
-RC3, RC3a, RC3b, and RC4 are complete and published. The project now focuses on final
-1.0.0 promotion.
-Repository lifecycle status is promoted (incubator exit executed at `v0.10.0-rc.4`).
+`v0.10.0-rc.4` is published and marked latest, and incubator exit is complete.
+Current focus is GA closeout (`v1.0.0`) followed by post-GA feature delivery.
 
 ## Milestones
 
-| Milestone | Target Range | Scope | Status |
+| Milestone | Target | Scope | Status |
 | --- | --- | --- | --- |
-| M0: Foundation Complete | Completed | Phases 0-7 complete (architecture boundaries, Linux shell, packaging, quality baseline). | Done |
-| M1: Developer UX Baseline | Completed | Phase 8 complete (Linux-first docs, migration issue workflows, dashboard). | Done |
-| M2: Beta 1 (`v0.8.0-beta.1`) | Completed | Phase 9 complete (automatic language detection + stable auto-highlighting behavior). | Done |
-| M3: Beta 2 (`v0.9.0-beta.2`) | Completed | Phases 10-12 complete (skinning, extension platform, hardening/language intelligence). | Done |
-| M4: RC1 (`v0.9.3-rc.1`) | Completed | Correctness/stability pass, distro matrix baseline, extension permission hardening. | Done |
-| M5: RC2 (`v0.9.6-rc.2`) | Completed | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Done |
-| M6: RC3 (`v0.9.9-rc.3`) | Completed | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Done |
-| M6a: RC3a (`v0.9.9-rc.3a`) | Completed | Post-freeze maintenance respin for formatter UX and targeted low-risk fixes. | Done |
-| M6b: RC3b (`v0.9.9-rc.3b`) | Completed | Post-freeze maintenance respin for language auto-detect default/toggle and issue-link correctness fixes. | Done |
-| M6c: RC4 (`v0.10.0-rc.4`) | Completed | Consolidate GA-dev scope to `master`, close adoption/polish section, and execute incubator exit. | Done |
-| M7: General Availability (`v1.0.0`) | Current | Final go/no-go and production release. | In Progress |
+| M7: General Availability (`v1.0.0`) | Now | Close GA blockers, hold CI continuity, cut production tag. | In Progress |
+| M8: Post-GA Wave 1 (`v1.1.x`) | Next | Editor productivity and workflow quality improvements. | Planned |
+| M9: Post-GA Wave 2 (`v1.2.x`) | Next | Language intelligence and formatter ecosystem maturity. | Planned |
+| M10: Post-GA Wave 3 (`v1.3.x`) | Next | Linux packaging/distribution hardening and install lifecycle polish. | Planned |
+| M11: Post-GA Wave 4 (`v1.4.x`) | Next | Reliability, observability, and scale/soak quality gates. | Planned |
 
-## RC train structure
+## GA closeout gate (`v1.0.0`)
 
-1. RC1 train: `v0.9.1` through `v0.9.3-rc.1`
-2. RC2 train: `v0.9.4` through `v0.9.6-rc.2`
-3. RC3 train: `v0.9.7` through `v0.9.9-rc.3`
-4. RC3a maintenance respin: `v0.9.9-rc.3a` (exception lane)
-5. RC3b maintenance respin: `v0.9.9-rc.3b` (exception lane)
-6. RC4 consolidation lane: `v0.10.0-rc.4` (merge + governance closure lane)
+1. Zero open `P0` defects in `docs/ga-blockers.md`.
+2. Linux required CI lanes green for 7 consecutive days before final tag.
+3. No unresolved data-loss or crash-recovery regressions.
+4. `docs/releases/v1.0.0.md` and `docs/releases/v1.0.0-checklist.md` finalized.
+5. Go/no-go review updated and approved in `docs/v1.0.0-go-no-go-review-2026-02-14.md`.
 
-## Proposed scope by RC
+## Post-GA roadmap proposal
 
-### RC1 (`v0.9.3-rc.1`) - stabilization baseline
+### M8 - Editor UX and workflows (`v1.1.x`)
 
-1. Resolve highest-impact beta defects (crash, recovery, incorrect editor behavior, extension permission edge cases).
-2. Complete first required distro validation evidence set:
-   - Arch Linux derivatives baseline
-   - Ubuntu LTS baseline
-   - Fedora stable baseline
-3. Ensure color-coded syntax behavior is consistent across targeted languages/themes.
-4. Produce a strict RC1 release checklist and pass all required CI/sanitizer lanes.
+1. Ship dockable layout presets and persistent panel/workspace profiles.
+2. Ship shortcut profile presets + import/export for team portability.
+3. Improve search/replace workflows (saved queries, grouped results, scope history).
+4. Expand session templates and startup modes for common project types.
+5. Add customizable status bar modules for fast context switching.
 
-### RC2 (`v0.9.6-rc.2`) - integration hardening
+### M9 - Language intelligence and formatting (`v1.2.x`)
 
-1. Move LSP from foundation to baseline user value (diagnostics, hover, go-to-definition minimum viable path).
-2. Expand VS Code language-asset compatibility coverage and regression corpus.
-3. Enforce startup and extension performance budgets in CI (not diagnostics-only).
-4. Validate packaging/documentation quality for all required distros in the matrix.
+1. Add robust formatter orchestration (timeouts, retries, deterministic fallbacks).
+2. Add project-local language/formatter overrides.
+3. Expand code-action UX with preview + selective apply support.
+4. Increase built-in language defaults and smarter auto-detect confidence handling.
+5. Improve diagnostics navigation and inline quick-fix flow.
 
-### RC3 (`v0.9.9-rc.3`) - release readiness
+### M10 - Linux integration and distribution (`v1.3.x`)
 
-1. Enter feature freeze; accept only bug fixes, docs, release engineering, and reliability changes.
-   - Freeze policy: `docs/feature-freeze-rc3.md`
-2. Deliver consumer-friendly install UX across target distros:
-   - package install/uninstall polish
-   - desktop/launcher/dock registration
-   - file-handler and default app integration
-3. Execute full cross-feature regression suite (editor core, language features, skinning, extension lifecycle, crash recovery).
-4. Run release dry-run (artifacts, checksums, optional signing, rollback plan) and verify reproducibility controls.
-5. Reach zero open release blockers for go/no-go review.
+1. Harden package publish/sign/verify pipeline for Arch/DEB/RPM outputs.
+2. Add distro-specific install/upgrade/uninstall playbooks.
+3. Add channelized updates (stable/candidate/nightly) with safe rollback path.
+4. Improve sandbox/Desktop Portal behavior for Flatpak/Snap workflows.
+5. Add self-heal flow for file associations and launcher integration.
 
-### RC3a (`v0.9.9-rc.3a`) - maintenance respin
+### M11 - Reliability and observability (`v1.4.x`)
 
-1. Keep freeze discipline:
-   - only user-visible correctness/polish and release documentation alignment
-   - no broad net-new platform surface
-2. Deliver language-aware formatting baseline behavior for core workflows.
-3. Allow extension-declared formatter providers with explicit permission gating.
-4. Re-run targeted regression and CI quality gates for formatter and editor safety.
-5. Publish `v0.9.9-rc.3a` and carry forward as the final pre-GA baseline.
+1. Add local diagnostic bundle export for bug-report attachment quality.
+2. Expand regression suites for large files, mixed encodings, and extension lifecycle.
+3. Add soak/performance CI lanes with explicit budgets and alert thresholds.
+4. Harden config migration across multiple version hops.
+5. Strengthen crash-recovery and extension-host restart semantics.
 
-### RC3b (`v0.9.9-rc.3b`) - maintenance respin
+## Delivery cadence
 
-1. Keep freeze discipline:
-   - only user-visible correctness/polish and release-link consistency fixes
-   - no broad net-new platform surface
-2. Enable language auto-detection by default with explicit opt-out in preferences.
-3. Preserve manual language lock/manual auto-detect behavior.
-4. Re-run targeted CI gates (Linux CMake Build, Linux Desktop Integration, Win32 boundary guard).
-5. Publish `v0.9.9-rc.3b` and carry forward as the final pre-GA baseline.
+1. Execute work by roadmap stream section.
+2. At each section close, publish a tagged prerelease and corresponding release docs.
+3. Promote selected prerelease trains into stable tags when gate criteria pass.
+4. Keep `master` releasable; use `ga-dev-weekN` branches for forward batching.
 
-### RC4 (`v0.10.0-rc.4`) - consolidation and governance closure
+## Reference artifacts
 
-1. Merge GA development branch scope back to `master`.
-2. Close adoption/product-polish user-facing scope.
-3. Refresh packaged assets/install payloads for new skin/icon variants.
-4. Re-run release dry-run and targeted regression coverage.
-5. Record incubator promotion decision and update project status text.
-
-## 1.0.0 promotion gate
-
-1. Zero open P0 defects.
-2. No unresolved data-loss or crash-recovery regressions.
-3. Required Linux CI lanes green for 7 consecutive days before final tag.
-4. `v1.0.0` release notes and migration guidance finalized and reviewed.
-5. Maintain promoted repository status text and governance alignment through GA cut.
-
-## GA execution artifacts
-
-1. GA blocker tracker: `docs/ga-blockers.md`
-2. CI continuity evidence log: `docs/ga-ci-continuity-log-2026-02.md`
-3. Final go/no-go review: `docs/v1.0.0-go-no-go-review-2026-02-14.md`
-4. GA release checklist: `docs/releases/v1.0.0-checklist.md`
-
-## Delivery cadence rule
-
-1. Complete work by TODO section.
-2. At the end of each completed TODO section, publish a tagged prerelease.
-3. Update release checklist and release notes in the same section-close pass.
-
-## Next planning outputs
-
-1. `docs/releases/v0.9.3-rc.1-checklist.md`
-2. `docs/releases/v0.9.6-rc.2-checklist.md`
-3. `docs/releases/v0.9.9-rc.3-checklist.md`
-4. `docs/releases/v0.9.9-rc.3a-checklist.md`
-5. `docs/releases/v0.9.9-rc.3b-checklist.md`
-6. `docs/releases/v1.0.0-checklist.md`
-7. `docs/releases/v0.10.0-beta.1-checklist.md`
-8. `docs/releases/v0.10.0-beta.2-checklist.md`
-9. `docs/releases/v0.10.0-beta.3-checklist.md`
-10. `docs/releases/v0.10.0-beta.4-checklist.md`
-11. `docs/releases/v0.10.0-beta.5-checklist.md`
-12. `docs/releases/v0.10.0-beta.6-checklist.md`
-13. `docs/releases/v0.10.0-beta.7-checklist.md`
-14. `docs/releases/v0.10.0-rc.4-checklist.md`
+1. GA blockers: `docs/ga-blockers.md`
+2. GA continuity evidence: `docs/ga-ci-continuity-log-2026-02.md`
+3. GA release notes/checklist: `docs/releases/v1.0.0.md`, `docs/releases/v1.0.0-checklist.md`
+4. Go/no-go review: `docs/v1.0.0-go-no-go-review-2026-02-14.md`
+5. Pre-GA TODO archive: `docs/todo-archive-pre-ga-2026-02-14.md`
