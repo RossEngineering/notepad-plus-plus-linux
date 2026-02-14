@@ -56,4 +56,4 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Add consumer local installer/uninstaller flow with desktop, MIME, and icon-cache registration support.
 - [x] Add automated desktop/file-handler integration validation lane for Arch derivatives, Ubuntu LTS, and Fedora stable.
 - [x] Create and prioritize RC3 blocker list from RC2 exit signals.
-- [ ] Create `v0.9.9-rc.3` release checklist and notes stub in `docs/releases/`.
+- [x] Create `v0.9.9-rc.3` release checklist and notes stub in `docs/releases/`.
