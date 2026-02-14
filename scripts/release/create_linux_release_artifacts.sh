@@ -154,12 +154,27 @@ depend = glibc
 depend = gcc-libs
 EOF
 
-  tar \
-    --sort=name \
-    --mtime="@${SOURCE_DATE_EPOCH}" \
-    --owner=0 --group=0 --numeric-owner \
-    --zstd -cf "${ARCH_PKG}" \
-    -C "${arch_package_root}" .
+  arch_entries=(
+    ".PKGINFO"
+    "usr"
+  )
+  if [[ -f "${arch_package_root}/.INSTALL" ]]; then
+    arch_entries=(
+      ".PKGINFO"
+      ".INSTALL"
+      "usr"
+    )
+  fi
+
+  (
+    cd "${arch_package_root}"
+    tar \
+      --sort=name \
+      --mtime="@${SOURCE_DATE_EPOCH}" \
+      --owner=0 --group=0 --numeric-owner \
+      --zstd -cf "${ARCH_PKG}" \
+      "${arch_entries[@]}"
+  )
 
   # Create Debian package (.deb).
   mkdir -p "${deb_package_root}/DEBIAN"

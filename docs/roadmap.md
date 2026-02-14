@@ -115,3 +115,4 @@ RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 10. `docs/releases/v0.10.0-beta.4-checklist.md`
 11. `docs/releases/v0.10.0-beta.5-checklist.md`
 12. `docs/releases/v0.10.0-beta.6-checklist.md`
+13. `docs/releases/v0.10.0-beta.7-checklist.md`
