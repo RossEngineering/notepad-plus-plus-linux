@@ -9,11 +9,15 @@ This repository tracks a transition from the original Windows-first architecture
 Current state:
 
 - Repository status: **Incubator** (intentional migration stage).
-- Linux-native Qt shell builds and runs on Arch Linux derivative environments (including Manjaro).
-- Packaging and release automation foundation is implemented (Phase 6).
-- Upstream codebase heritage remains Windows-centric; migration is ongoing.
-- `v0.8.0-beta.1` and `v0.9.0-beta.2` are published.
-- RC1 (`v0.9.3-rc.1`) is published.
+- Linux-native Qt shell builds and runs on Arch Linux derivatives (Manjaro baseline).
+- Foundation migration phases are complete (`0-12`).
+- Release train progress:
+  - `v0.8.0-beta.1` published.
+  - `v0.9.0-beta.2` published.
+  - `v0.9.3-rc.1` published.
+  - `v0.9.6-rc.2` published.
+- Next target: `v0.9.9-rc.3`, then `v1.0.0`.
+- Upstream codebase heritage remains Windows-centric; Linux-first migration is still active.
 
 Planned state:
 
@@ -21,43 +25,42 @@ Planned state:
 - Modernized architecture with clear separation between editor core, platform services, and UI.
 - Linux-first build, packaging, and release process.
 
-See [`TODO.md`](TODO.md) for the migration roadmap and active work items.
-Plugin direction for Linux is documented in [`docs/plugin-strategy.md`](docs/plugin-strategy.md).
-Extension API v1 boundaries and security model are documented in [`docs/extension-api-v1.md`](docs/extension-api-v1.md).
-Phase 11 implementation evidence is documented in [`docs/phase11-implementation.md`](docs/phase11-implementation.md).
-Phase 12 implementation progress is documented in [`docs/phase12-implementation.md`](docs/phase12-implementation.md).
-Crash recovery journal behavior is documented in [`docs/crash-recovery-journal.md`](docs/crash-recovery-journal.md).
-Extension startup guardrails are documented in [`docs/extension-performance-guardrails.md`](docs/extension-performance-guardrails.md).
-Distro validation expansion is documented in [`docs/distro-validation-plan.md`](docs/distro-validation-plan.md).
-Package split plan is documented in [`docs/package-split-strategy.md`](docs/package-split-strategy.md).
-Reproducible Linux release guidance is in [`docs/reproducible-release.md`](docs/reproducible-release.md).
-Release publishing and signing flow is in [`docs/release-publishing.md`](docs/release-publishing.md).
-Architecture decisions are tracked in [`docs/adr`](docs/adr).
-Imported RossEngineering ADR snapshot is in [`docs/adr/rossengineering-bafc82c7`](docs/adr/rossengineering-bafc82c7).
-Versioning policy is in [`docs/versioning-policy.md`](docs/versioning-policy.md).
-Skin format v1 is in [`docs/skin-format-v1.md`](docs/skin-format-v1.md).
-Repository decision index is in [`docs/decisions.md`](docs/decisions.md).
-Performance benchmark baseline is in [`docs/performance-baseline.md`](docs/performance-baseline.md).
-Beta 2 release notes draft is in [`docs/releases/v0.9.0-beta.2.md`](docs/releases/v0.9.0-beta.2.md).
-Security reporting guidance is in [`SECURITY.md`](SECURITY.md).
-Help and support quick links are in [`docs/help-and-support.md`](docs/help-and-support.md).
+See [`TODO.md`](TODO.md) and [`docs/roadmap.md`](docs/roadmap.md) for active sequencing.
 
-## Migration dashboard
+## Migration and release dashboard
 
-| Phase | Focus | Status | Primary Artifact |
+| Milestone | Scope | Status | Primary Artifact |
 | --- | --- | --- | --- |
-| Phase 0 | Baseline and audit | Complete | `docs/manjaro-build-status.md` |
-| Phase 1 | Architecture boundaries | Complete | `docs/architecture.md` |
-| Phase 2 | Build modernization | Complete | `CMakeLists.txt` |
-| Phase 3 | Platform abstraction | Complete | `platform/include` |
-| Phase 4 | Linux-native UI | Complete | `ui/qt` |
-| Phase 5 | MVP parity | Complete | `docs/plugin-strategy.md` |
-| Phase 6 | Packaging and distribution | Complete | `packaging/arch/PKGBUILD` |
-| Phase 7 | Quality and performance | Complete | `docs/performance-baseline.md` |
-| Phase 8 | Docs and developer UX | Complete | `docs/roadmap.md` |
+| Foundation (Phases `0-8`) | Baseline, architecture, build, platform abstraction, Linux UI, packaging, quality, docs | Complete | `docs/todo-archive-phases-0-8.md` |
+| Beta 1 (`v0.8.0-beta.1`) | Phase `9`: language detection + syntax-highlighting quality gates | Complete | `docs/releases/v0.8.0-beta.1.md` |
+| Beta 2 (`v0.9.0-beta.2`) | Phases `10-12`: skinning, extension platform, hardening/language intelligence | Complete | `docs/releases/v0.9.0-beta.2.md` |
+| RC1 (`v0.9.3-rc.1`) | Stabilization baseline, distro matrix baseline, extension permission hardening | Complete | `docs/releases/v0.9.3-rc.1.md` |
+| RC2 (`v0.9.6-rc.2`) | LSP baseline UX wiring, compatibility expansion, CI performance gates, distro install docs | Complete / Live | `docs/releases/v0.9.6-rc.2.md` |
+| RC3 (`v0.9.9-rc.3`) | Feature freeze, full regression, release dry-run, blocker closure | In progress | `TODO.md` |
+| GA (`v1.0.0`) | Final go/no-go and production release | Planned | `docs/releases/v1.0.0-checklist.md` |
 
-Foundation progress: **8 / 8 foundation phases complete**.
-Post-foundation phases (9+) are now tracked in `TODO.md` and `docs/roadmap.md`.
+## Key documentation
+
+- Roadmap and active backlog:
+  - [`TODO.md`](TODO.md)
+  - [`docs/roadmap.md`](docs/roadmap.md)
+- Build, install, and release:
+  - [`BUILD.md`](BUILD.md)
+  - [`docs/install-linux.md`](docs/install-linux.md)
+  - [`docs/release-publishing.md`](docs/release-publishing.md)
+  - [`docs/reproducible-release.md`](docs/reproducible-release.md)
+- Architecture and compatibility:
+  - [`docs/architecture.md`](docs/architecture.md)
+  - [`docs/compatibility-target.md`](docs/compatibility-target.md)
+  - [`docs/plugin-strategy.md`](docs/plugin-strategy.md)
+  - [`docs/extension-api-v1.md`](docs/extension-api-v1.md)
+- Design decisions and policy:
+  - [`docs/decisions.md`](docs/decisions.md)
+  - [`docs/adr`](docs/adr)
+  - [`docs/versioning-policy.md`](docs/versioning-policy.md)
+- User support:
+  - [`docs/help-and-support.md`](docs/help-and-support.md)
+  - [`SECURITY.md`](SECURITY.md)
 
 ## Goals
 
