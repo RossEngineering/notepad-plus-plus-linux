@@ -10,7 +10,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
 - [x] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
 - [x] Complete RC1 scope and cut `v0.9.3-rc.1`.
-- [ ] Complete RC2 scope and cut `v0.9.6-rc.2`.
+- [x] Complete RC2 scope and cut `v0.9.6-rc.2`.
 - [ ] Complete RC3 scope and cut `v0.9.9-rc.3`.
 - [ ] Promote `v1.0.0` after RC3 validation.
 
@@ -32,7 +32,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Add extension compatibility pass for additional VS Code language assets and edge-case grammars.
 - [x] Tighten startup/performance budgets with CI-enforced thresholds.
 - [x] Finalize packaging/install docs for Arch derivatives and additional validated distros.
-- [ ] Cut and validate `v0.9.6-rc.2`.
+- [x] Cut and validate `v0.9.6-rc.2`.
 
 ### RC3 program (`v0.9.7` to `v0.9.9-rc.3`)
 
@@ -53,5 +53,5 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 - [x] Create `v0.9.6-rc.2` checklist and notes stub in `docs/releases/`.
 - [x] Build and prioritize RC2 blocker list from current gap analysis.
-- [ ] Land RC2 LSP baseline UX wiring and close `RC2-B01`.
-- [ ] Re-run distro validation matrix evidence for RC2 candidate and update report.
+- [x] Land RC2 LSP baseline UX wiring and close `RC2-B01`.
+- [x] Re-run distro validation matrix evidence for RC2 candidate and update report.
