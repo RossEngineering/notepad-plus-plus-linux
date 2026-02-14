@@ -1,0 +1,18 @@
+{
+  "tabWidth": 4,
+  "autoDetectLang": true,
+  "formatOnSaveLanguages": [
+    "json",
+    " Json ",
+    " markdown,cpp "
+  ],
+  "formatterDefaultProfile": " BUILTIN ",
+  "formatterProfileOverrides": {
+    "JSON": "Extension:prettier",
+    " markdown ": " auto "
+  },
+  "splitViewMode": 2,
+  "minimapEnabled": false,
+  "extensionStartupBudgetMs": 1200,
+  "extensionPerExtensionBudgetMs": 250
+}

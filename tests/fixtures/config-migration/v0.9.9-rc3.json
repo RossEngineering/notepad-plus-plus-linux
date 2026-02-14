@@ -1,0 +1,18 @@
+{
+  "tabWidth": 8,
+  "languageAutoDetect": false,
+  "formatOnSave": true,
+  "formatOnSaveLanguages": " Python, cpp,python , YAML ",
+  "formatterDefaultProfile": " EXTENSION:Black ",
+  "formatterProfileOverrides": {
+    "Python": " extension:black ",
+    " cpp ": "builtin",
+    "yaml": 7
+  },
+  "splitMode": 1,
+  "minimap": true,
+  "restoreSession": true,
+  "autoSaveSeconds": 45,
+  "extensionStartupBudget": 1800,
+  "extensionPerExtensionBudget": 350
+}

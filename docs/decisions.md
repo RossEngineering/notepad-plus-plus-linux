@@ -16,6 +16,7 @@ This file indexes architecture and governance decisions used by this repository.
 - Release publishing/signing flow: `docs/release-publishing.md`
 - GA blocker tracker: `docs/ga-blockers.md`
 - GA CI continuity log: `docs/ga-ci-continuity-log-2026-02.md`
+- RC4 consolidation release + incubator exit: `docs/releases/v0.10.0-rc.4.md`
 
 ## ADR records (repo-local)
 
@@ -34,3 +35,4 @@ This file indexes architecture and governance decisions used by this repository.
 - Alignment review against that snapshot: `docs/adr/rossengineering-alignment-2026-02-13.md`
 - Incubator promotion validation: `docs/incubator-promotion-validation-2026-02-13.md`
 - Incubator promotion re-validation (post-RC3): `docs/incubator-promotion-validation-2026-02-14.md`
+- Incubator promotion decision execution (RC4): `docs/releases/v0.10.0-rc.4.md`

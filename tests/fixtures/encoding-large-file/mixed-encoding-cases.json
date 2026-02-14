@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "utf8_greeting",
+      "expect": "valid_utf8",
+      "bytesHex": "48656c6c6f2c20e4b896e7958c0a"
+    },
+    {
+      "name": "latin1_cafe",
+      "expect": "invalid_utf8_fixable",
+      "bytesHex": "436166e9202d20636f6e206c656368650a"
+    },
+    {
+      "name": "mixed_tail_sequence",
+      "expect": "invalid_utf8_fixable",
+      "bytesHex": "6d6978656420e28220ff0a"
+    }
+  ]
+}

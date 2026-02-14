@@ -83,7 +83,11 @@ private:
 		int extensionStartupBudgetMs = 1200;
 		int extensionPerExtensionBudgetMs = 250;
 		int crashRecoveryAutosaveSeconds = 15;
+		bool onboardingCompleted = false;
+		std::string importedSettingsSource;
+		std::string lastSeenAppVersion;
 		std::string skinId = "builtin.light";
+		std::string iconVariant = "auto";
 		std::string updateChannel = "stable";
 	};
 
@@ -159,10 +163,13 @@ private:
 	void OnMultiCursorAddCaretBelow();
 	void OnMultiCursorAddNextMatch();
 	void OnMultiCursorSelectAllMatches();
+	void OnImportSettings();
 	void OnOpenHelpDocs();
 	void OnOpenHelpWiki();
+	void OnOpenTopRequestedFeatures();
 	void OnReportBug();
 	void OnRequestFeature();
+	void OnExportCrashReportBundle();
 	void OnCheckForUpdates();
 	void OnAboutDialog();
 	void OnOpenExtensionMarketplace();
@@ -180,9 +187,11 @@ private:
 	void OnLspRenameSymbol();
 	void OnLspCodeActions();
 	void OnSetSkin(const std::string &skinId);
+	void OnSetIconVariant(const std::string &iconVariant);
 	void SetCurrentEditorManualLexer(const std::string &lexerName);
 	void UpdateLanguageActionState();
 	void UpdateSkinActionState();
+	void UpdateIconVariantActionState();
 
 	bool FindNextInEditor(ScintillaEditBase *editor, const std::string &needleUtf8, bool matchCase);
 	int ReplaceAllInEditor(
@@ -233,7 +242,14 @@ private:
 	void ApplyShortcuts();
 	void ReloadShortcuts();
 	void OpenShortcutConfigFile();
+	void MaybeShowFirstRunOnboarding();
+	void MaybeShowWhatsNewDialog();
+	bool IsHeadlessPlatform() const;
 	void OpenExternalLink(const QString &url, const QString &label);
+	bool ImportSettingsFromSource(
+		const std::string &sourceId,
+		const std::string &sourcePathUtf8,
+		QString *summaryOut);
 	void InitializeLspServers();
 	void StopLspSessionForEditor(ScintillaEditBase *editor);
 	void InitializeExtensionsWithGuardrails();
@@ -261,8 +277,11 @@ private:
 	std::string ThemeFilePath() const;
 	std::string SessionFilePath() const;
 	std::string CrashRecoveryJournalPath() const;
+	std::string IconSvgPathForVariant(const std::string &iconVariant) const;
+	void ApplyWindowIconFromSettings();
 	std::string ResolveDefaultUpdateChannelFromInstall() const;
 	std::string ResolveLocalExtensionMarketplaceIndexPath() const;
+	std::string BuildCrashReportBundleJson();
 	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
 	static QString ToQString(const std::string &value);
@@ -294,6 +313,7 @@ private:
 	std::map<std::string, double> _extensionStartupEstimateMsById;
 	std::map<std::string, double> _extensionManifestScanMsById;
 	bool _safeModeNoExtensions = false;
+	bool _hasPersistedSettings = false;
 	bool _closingApplication = false;
 	bool _suppressAutoCloseHandler = false;
 	QTimer *_crashRecoveryTimer = nullptr;

@@ -23,8 +23,9 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Cut maintenance prerelease `v0.10.0-beta.4` to fix native RPM packaging for Linux integration/distribution artifacts.
 - [x] Cut section-close prerelease `v0.10.0-beta.6` for completed `Extensions ecosystem`.
 - [x] Cut maintenance prerelease `v0.10.0-beta.7` to fix Arch package metadata compatibility.
+- [x] Merge GA development scope into `master`, cut `v0.10.0-rc.4`, and exit incubator status.
 - [ ] Complete GA scope and cut `v1.0.0`.
-- [ ] Promote `v1.0.0` after RC3 maintenance validation.
+- [ ] Promote `v1.0.0` after RC4 maintenance validation.
 
 ## Release track from Beta 2 to 1.0.0
 
@@ -74,11 +75,11 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### GA program (`v1.0.0`)
 
-- [x] Lock final RC baseline at `v0.9.9-rc.3b`.
+- [x] Lock final RC baseline at `v0.10.0-rc.4`.
 - [ ] Close all `P0` GA blockers in `docs/ga-blockers.md`.
 - [ ] Keep the 7-day continuity record current in `docs/ga-ci-continuity-log-2026-02.md`.
 - [ ] Finalize `docs/releases/v1.0.0.md` migration guidance and known limitations.
-- [ ] Record explicit incubator promote/defer decision and sync repository status text.
+- [x] Record explicit incubator promote/defer decision and sync repository status text.
 - [ ] Cut and validate `v1.0.0`.
 
 ### External tester intake (GA window)
@@ -99,8 +100,8 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 ### Incubator promotion gate
 
 - [x] Re-run incubator promotion validation at RC3 completion.
-- [ ] Record explicit promote/defer decision for incubator exit during `v1.0.0` go/no-go.
-- [ ] Update `README.md` repository status and linked governance docs to match incubator decision.
+- [x] Record explicit promote/defer decision for incubator exit during `v1.0.0` go/no-go.
+- [x] Update `README.md` repository status and linked governance docs to match incubator decision.
 
 ## Immediate next actions
 
@@ -156,16 +157,16 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### Reliability, performance, and observability
 
-- [ ] Add startup trace capture mode for profiling cold-start regressions.
-- [ ] Expand performance CI budgets to include large-file open and search workloads.
-- [ ] Add crash report bundle generation (local file) for easier issue attachments.
-- [ ] Add regression fixtures for mixed-encoding and very-large-file editing scenarios.
-- [ ] Add deterministic config migration tests for upgrades between minor versions.
+- [x] Add startup trace capture mode for profiling cold-start regressions.
+- [x] Expand performance CI budgets to include large-file open and search workloads.
+- [x] Add crash report bundle generation (local file) for easier issue attachments.
+- [x] Add regression fixtures for mixed-encoding and very-large-file editing scenarios.
+- [x] Add deterministic config migration tests for upgrades between minor versions.
 
 ### Adoption and product polish
 
-- [ ] Add first-run onboarding page with key settings and keyboard shortcut tips.
-- [ ] Add import wizard for relevant settings from popular Linux editors (opt-in).
-- [ ] Add curated default skin and icon variants tuned for common desktop themes.
-- [ ] Add "what's new" dialog for release-to-release user-facing changes.
-- [ ] Build a public "top requested features" board sourced from GitHub issues/discussions.
+- [x] Add first-run onboarding page with key settings and keyboard shortcut tips.
+- [x] Add import wizard for relevant settings from popular Linux editors (opt-in).
+- [x] Add curated default skin and icon variants tuned for common desktop themes.
+- [x] Add "what's new" dialog for release-to-release user-facing changes.
+- [x] Build a public "top requested features" board sourced from GitHub issues/discussions.

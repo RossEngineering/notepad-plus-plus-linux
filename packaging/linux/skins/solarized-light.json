@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {
+    "id": "builtin.solarized_light",
+    "name": "Built-in Solarized Light",
+    "author": "notepad-plus-plus-linux",
+    "description": "Solarized-inspired light skin tuned for long sessions."
+  },
+  "appChrome": {
+    "windowBackground": "#FDF6E3",
+    "windowForeground": "#4A5E66",
+    "menuBackground": "#EEE8D5",
+    "menuForeground": "#4A5E66",
+    "statusBackground": "#E7DFC6",
+    "statusForeground": "#4A5E66",
+    "accent": "#268BD2"
+  },
+  "editor": {
+    "background": "#FDF6E3",
+    "foreground": "#4A5E66",
+    "lineNumberBackground": "#EEE8D5",
+    "lineNumberForeground": "#657B83",
+    "caretLineBackground": "#F5EED8",
+    "selectionBackground": "#D8E8F5",
+    "selectionForeground": "#073642",
+    "comment": "#93A1A1",
+    "keyword": "#268BD2",
+    "number": "#D33682",
+    "stringColor": "#2AA198",
+    "operatorColor": "#4A5E66"
+  },
+  "dialogs": {
+    "background": "#FDF6E3",
+    "foreground": "#4A5E66",
+    "buttonBackground": "#EEE8D5",
+    "buttonForeground": "#4A5E66",
+    "border": "#C7BEA6"
+  }
+}

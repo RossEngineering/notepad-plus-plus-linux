@@ -66,6 +66,8 @@ remove_mime_defaults() {
 rm -f "${prefix}/bin/notepad-plus-plus-linux"
 rm -f "${prefix}/share/applications/notepad-plus-plus-linux.desktop"
 rm -f "${prefix}/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux.svg"
+rm -f "${prefix}/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux-accent.svg"
+rm -f "${prefix}/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux-monochrome.svg"
 rm -f "${prefix}/share/mime/packages/notepad-plus-plus-linux.xml"
 rm -rf "${prefix}/share/notepad-plus-plus-linux"
 

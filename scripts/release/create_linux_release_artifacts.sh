@@ -287,6 +287,8 @@ fi
 /usr/bin/notepad-plus-plus-linux
 /usr/share/applications/notepad-plus-plus-linux.desktop
 /usr/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux.svg
+/usr/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux-accent.svg
+/usr/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux-monochrome.svg
 /usr/share/mime/packages/notepad-plus-plus-linux.xml
 /usr/share/notepad-plus-plus-linux/skins/*
 /usr/share/notepad-plus-plus-linux/default-update-channel
