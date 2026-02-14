@@ -37,7 +37,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 ### RC3 program (`v0.9.7` to `v0.9.9-rc.3`)
 
 - [x] Enter feature freeze (bug fixes, docs, packaging, and release reliability only).
-- [ ] Deliver consumer-friendly Linux install flow (package install, desktop registration, launcher/dock visibility, clean uninstall behavior).
+- [x] Deliver consumer-friendly Linux install flow (package install, desktop registration, launcher/dock visibility, clean uninstall behavior).
 - [ ] Validate file-handler integration end-to-end (MIME/app defaults, open-with behavior, double-click launch) across Arch derivatives, Ubuntu LTS, and Fedora stable.
 - [ ] Run full regression on editor, skinning, extension lifecycle, crash recovery, and language workflows.
 - [ ] Complete release engineering dry-run (artifacts, checksums, signing, rollback plan).

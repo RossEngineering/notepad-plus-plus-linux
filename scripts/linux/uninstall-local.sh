@@ -35,11 +35,41 @@ done
 
 echo "Removing from ${prefix}"
 
+desktop_id="notepad-plus-plus-linux.desktop"
+
+remove_mime_defaults() {
+  local mimeapps_file="${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list"
+  if [[ ! -f "${mimeapps_file}" ]]; then
+    return 0
+  fi
+
+  local mime
+  for mime in \
+    text/plain \
+    text/markdown \
+    application/json \
+    application/xml \
+    text/x-shellscript \
+    text/x-python \
+    text/x-csrc \
+    text/x-c++src; do
+    local tmp_file
+    tmp_file="$(mktemp)"
+    awk -v key="${mime}=" -v desktop="${desktop_id}" '
+      index($0, key) == 1 && index($0, desktop) > 0 { next }
+      { print }
+    ' "${mimeapps_file}" > "${tmp_file}"
+    mv "${tmp_file}" "${mimeapps_file}"
+  done
+}
+
 rm -f "${prefix}/bin/notepad-plus-plus-linux"
 rm -f "${prefix}/share/applications/notepad-plus-plus-linux.desktop"
 rm -f "${prefix}/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux.svg"
 rm -f "${prefix}/share/mime/packages/notepad-plus-plus-linux.xml"
 rm -rf "${prefix}/share/notepad-plus-plus-linux"
+
+remove_mime_defaults
 
 cleanup_empty_dir() {
   local dir="$1"
@@ -69,7 +99,7 @@ update_if_present() {
 if [[ -d "${prefix}/share/applications" ]]; then
   update_if_present update-desktop-database -q "${prefix}/share/applications"
 fi
-if [[ -d "${prefix}/share/mime" ]]; then
+if [[ -d "${prefix}/share/mime/packages" ]]; then
   update_if_present update-mime-database "${prefix}/share/mime"
 fi
 if [[ -d "${prefix}/share/icons/hicolor" ]]; then

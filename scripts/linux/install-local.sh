@@ -89,6 +89,14 @@ mkdir -p "${prefix}/bin" "${prefix}/share"
 cp -a "${stage_dir}/usr/bin/." "${prefix}/bin/"
 cp -a "${stage_dir}/usr/share/." "${prefix}/share/"
 
+desktop_entry="${prefix}/share/applications/notepad-plus-plus-linux.desktop"
+binary_target="${prefix}/bin/notepad-plus-plus-linux"
+if [[ -f "${desktop_entry}" ]]; then
+  escaped_binary_target="${binary_target//\//\\/}"
+  sed -i "s|^Exec=.*$|Exec=${escaped_binary_target} %F|" "${desktop_entry}"
+  sed -i "s|^TryExec=.*$|TryExec=${escaped_binary_target}|" "${desktop_entry}"
+fi
+
 update_if_present() {
   local cmd="$1"
   shift

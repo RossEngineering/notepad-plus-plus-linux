@@ -59,6 +59,10 @@ docker run --rm \
     ./scripts/linux/validate-desktop-integration.sh --root \"\${prefix}\" --strict
     ./scripts/linux/validate-file-handler-defaults.sh --desktop-id notepad-plus-plus-linux.desktop
     ./scripts/linux/uninstall-local.sh --prefix \"\${prefix}\"
+    test ! -f \"\${prefix}/share/applications/notepad-plus-plus-linux.desktop\"
+    if [[ -f \"\${XDG_CONFIG_HOME}/mimeapps.list\" ]]; then
+      ! grep -Fq notepad-plus-plus-linux.desktop \"\${XDG_CONFIG_HOME}/mimeapps.list\"
+    fi
   "
 
 echo "desktop/file-handler integration matrix validation passed for ${distro}"

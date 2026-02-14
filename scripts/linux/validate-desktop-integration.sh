@@ -71,7 +71,16 @@ require_file "${binary_file}"
 
 require_contains "${desktop_file}" "Type=Application"
 require_contains "${desktop_file}" "Name=Notepad++ Linux"
-require_contains "${desktop_file}" "Exec=notepad-plus-plus-linux %F"
+if ! grep -Fq "Exec=notepad-plus-plus-linux %F" "${desktop_file}" && \
+   ! grep -Fq "Exec=${root}/bin/notepad-plus-plus-linux %F" "${desktop_file}"; then
+  echo "missing supported Exec entry in ${desktop_file}" >&2
+  exit 1
+fi
+if ! grep -Fq "TryExec=notepad-plus-plus-linux" "${desktop_file}" && \
+   ! grep -Fq "TryExec=${root}/bin/notepad-plus-plus-linux" "${desktop_file}"; then
+  echo "missing supported TryExec entry in ${desktop_file}" >&2
+  exit 1
+fi
 require_contains "${desktop_file}" "Icon=notepad-plus-plus-linux"
 require_contains "${desktop_file}" "StartupWMClass=notepad-plus-plus-linux"
 require_contains "${desktop_file}" "MimeType="
