@@ -9,6 +9,7 @@
 #include <QStringList>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QtGlobal>
 
 #include <chrono>
 
@@ -78,7 +79,10 @@ QString ResolveStartupTracePath(const QString &configuredPath) {
         return QDir::current().absoluteFilePath(configuredPath);
     }
 
-    QString base = QStandardPaths::writableLocation(QStandardPaths::StateLocation);
+    QString base;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    base = QStandardPaths::writableLocation(QStandardPaths::StateLocation);
+#endif
     if (base.isEmpty()) {
         base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     }
