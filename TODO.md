@@ -53,7 +53,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ## Immediate next actions
 
-- [x] Create `v0.9.6-rc.2` checklist and notes stub in `docs/releases/`.
-- [x] Build and prioritize RC2 blocker list from current gap analysis.
-- [x] Land RC2 LSP baseline UX wiring and close `RC2-B01`.
-- [x] Re-run distro validation matrix evidence for RC2 candidate and update report.
+- [x] Add consumer local installer/uninstaller flow with desktop, MIME, and icon-cache registration support.
+- [ ] Add automated desktop/file-handler integration validation lane for Arch derivatives, Ubuntu LTS, and Fedora stable.
+- [ ] Create and prioritize RC3 blocker list from RC2 exit signals.
+- [ ] Create `v0.9.9-rc.3` release checklist and notes stub in `docs/releases/`.

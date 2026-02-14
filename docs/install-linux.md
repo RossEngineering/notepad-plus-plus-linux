@@ -79,3 +79,4 @@ Then run the common source flow above.
 - Distro plan: `docs/distro-validation-plan.md`
 - RC1 baseline report: `docs/distro-validation-report-rc1-2026-02-13.md`
 - Build details and variants: `BUILD.md`
+- Consumer local installer/uninstaller flow: `docs/install-consumer-linux.md`

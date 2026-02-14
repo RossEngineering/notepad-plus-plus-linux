@@ -56,6 +56,7 @@ For details, see:
 - **Build, install, and release:**
   - [`BUILD.md`](BUILD.md)
   - [`docs/install-linux.md`](docs/install-linux.md)
+  - [`docs/install-consumer-linux.md`](docs/install-consumer-linux.md)
   - [`docs/release-publishing.md`](docs/release-publishing.md)
   - [`docs/reproducible-release.md`](docs/reproducible-release.md)
 - **Architecture and compatibility:**
@@ -94,6 +95,7 @@ For details, see:
 
 - Linux-first build and test instructions are in [`BUILD.md`](BUILD.md).
 - Validated distro install guidance is in [`docs/install-linux.md`](docs/install-linux.md).
+- Consumer local install/uninstall flow is in [`docs/install-consumer-linux.md`](docs/install-consumer-linux.md).
 - For one-command Arch-family developer setup (validated on Manjaro), see [`docs/dev-setup-manjaro.md`](docs/dev-setup-manjaro.md).
 
 ---
