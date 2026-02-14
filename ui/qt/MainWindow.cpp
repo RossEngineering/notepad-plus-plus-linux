@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <functional>
 #include <iomanip>
 #include <map>
 #include <set>
@@ -493,7 +494,11 @@ MainWindow::MainWindow(QWidget *parent)
     EnsureShortcutConfigFile();
     LoadShortcutOverrides();
     ApplyShortcuts();
-    if (!RestoreCrashRecoveryJournal() && !RestoreSession()) {
+    const bool recoveredFromCrash = RestoreCrashRecoveryJournal();
+    const bool restoredSession = !recoveredFromCrash &&
+        _editorSettings.restoreSessionOnStartup &&
+        RestoreSession();
+    if (!recoveredFromCrash && !restoredSession) {
         NewTab();
     }
     UpdateWindowTitle();
@@ -1488,6 +1493,11 @@ void MainWindow::OnPreferences() {
     formatOnSaveLanguagesEdit->setPlaceholderText(tr("all languages"));
     formatOnSaveLanguagesEdit->setText(LanguageCsvListString(_editorSettings.formatOnSaveLanguages));
     formatOnSaveLanguagesEdit->setEnabled(_editorSettings.formatOnSaveEnabled);
+    auto *restoreSessionOnStartupCheck = new QCheckBox(tr("Restore previous session on startup"), &dialog);
+    restoreSessionOnStartupCheck->setChecked(_editorSettings.restoreSessionOnStartup);
+    auto *perProjectSessionStorageCheck = new QCheckBox(tr("Use per-project session storage"), &dialog);
+    perProjectSessionStorageCheck->setChecked(_editorSettings.usePerProjectSessionStorage);
+    perProjectSessionStorageCheck->setEnabled(_editorSettings.restoreSessionOnStartup);
     auto *autoSaveOnFocusLostCheck = new QCheckBox(tr("Auto-save on focus lost"), &dialog);
     autoSaveOnFocusLostCheck->setChecked(_editorSettings.autoSaveOnFocusLost);
     auto *autoSaveOnIntervalCheck = new QCheckBox(tr("Auto-save on interval"), &dialog);
@@ -1507,6 +1517,8 @@ void MainWindow::OnPreferences() {
     form->addRow(QString(), autoCloseDelimitersCheck);
     form->addRow(QString(), formatOnSaveCheck);
     form->addRow(tr("Format-on-save languages:"), formatOnSaveLanguagesEdit);
+    form->addRow(QString(), restoreSessionOnStartupCheck);
+    form->addRow(QString(), perProjectSessionStorageCheck);
     form->addRow(QString(), autoSaveOnFocusLostCheck);
     form->addRow(QString(), autoSaveOnIntervalCheck);
     form->addRow(tr("Auto-save interval (sec):"), autoSaveIntervalSpin);
@@ -1514,6 +1526,11 @@ void MainWindow::OnPreferences() {
     layout->addLayout(form);
 
     connect(formatOnSaveCheck, &QCheckBox::toggled, formatOnSaveLanguagesEdit, &QLineEdit::setEnabled);
+    connect(
+        restoreSessionOnStartupCheck,
+        &QCheckBox::toggled,
+        perProjectSessionStorageCheck,
+        &QCheckBox::setEnabled);
     connect(autoSaveOnIntervalCheck, &QCheckBox::toggled, autoSaveIntervalSpin, &QSpinBox::setEnabled);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -1533,6 +1550,10 @@ void MainWindow::OnPreferences() {
     _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
     _editorSettings.formatOnSaveEnabled = formatOnSaveCheck->isChecked();
     _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesEdit->text()));
+    _editorSettings.restoreSessionOnStartup = restoreSessionOnStartupCheck->isChecked();
+    _editorSettings.usePerProjectSessionStorage =
+        _editorSettings.restoreSessionOnStartup &&
+        perProjectSessionStorageCheck->isChecked();
     _editorSettings.autoSaveOnFocusLost = autoSaveOnFocusLostCheck->isChecked();
     _editorSettings.autoSaveOnInterval = autoSaveOnIntervalCheck->isChecked();
     _editorSettings.autoSaveBeforeRun = autoSaveBeforeRunCheck->isChecked();
@@ -2978,6 +2999,13 @@ void MainWindow::LoadEditorSettings() {
     } else if (formatOnSaveLanguagesValue.isString()) {
         _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesValue.toString()));
     }
+    _editorSettings.restoreSessionOnStartup = obj.value(QStringLiteral("restoreSessionOnStartup")).toBool(true);
+    _editorSettings.usePerProjectSessionStorage =
+        obj.value(QStringLiteral("usePerProjectSessionStorage")).toBool(false);
+    const QJsonValue lastProjectRootValue = obj.value(QStringLiteral("lastProjectSessionRootUtf8"));
+    if (lastProjectRootValue.isString()) {
+        _editorSettings.lastProjectSessionRootUtf8 = ToUtf8(lastProjectRootValue.toString());
+    }
     _editorSettings.autoSaveOnFocusLost = obj.value(QStringLiteral("autoSaveOnFocusLost")).toBool(false);
     _editorSettings.autoSaveOnInterval = obj.value(QStringLiteral("autoSaveOnInterval")).toBool(false);
     _editorSettings.autoSaveBeforeRun = obj.value(QStringLiteral("autoSaveBeforeRun")).toBool(false);
@@ -3023,6 +3051,13 @@ void MainWindow::SaveEditorSettings() const {
         formatOnSaveLanguagesArray.append(ToQString(language));
     }
     settingsObject.insert(QStringLiteral("formatOnSaveLanguages"), formatOnSaveLanguagesArray);
+    settingsObject.insert(QStringLiteral("restoreSessionOnStartup"), _editorSettings.restoreSessionOnStartup);
+    settingsObject.insert(
+        QStringLiteral("usePerProjectSessionStorage"),
+        _editorSettings.usePerProjectSessionStorage);
+    settingsObject.insert(
+        QStringLiteral("lastProjectSessionRootUtf8"),
+        ToQString(_editorSettings.lastProjectSessionRootUtf8));
     settingsObject.insert(QStringLiteral("autoSaveOnFocusLost"), _editorSettings.autoSaveOnFocusLost);
     settingsObject.insert(QStringLiteral("autoSaveOnInterval"), _editorSettings.autoSaveOnInterval);
     settingsObject.insert(QStringLiteral("autoSaveBeforeRun"), _editorSettings.autoSaveBeforeRun);
@@ -4017,12 +4052,13 @@ bool MainWindow::RestoreCrashRecoveryJournal() {
 
 bool MainWindow::RestoreSession() {
     EnsureConfigRoot();
-    const auto exists = _fileSystemService.Exists(SessionFilePath());
+    const std::string sessionPath = SessionFilePath();
+    const auto exists = _fileSystemService.Exists(sessionPath);
     if (!exists.ok() || !(*exists.value)) {
         return false;
     }
 
-    const auto sessionJson = _fileSystemService.ReadTextFile(SessionFilePath());
+    const auto sessionJson = _fileSystemService.ReadTextFile(sessionPath);
     if (!sessionJson.ok()) {
         return false;
     }
@@ -4081,8 +4117,62 @@ bool MainWindow::RestoreSession() {
     return true;
 }
 
+std::string MainWindow::DetermineProjectSessionRootFromOpenTabs() const {
+    std::vector<std::filesystem::path> parentDirectories;
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ScintillaEditBase *editor = EditorAt(index);
+        if (!editor) {
+            continue;
+        }
+
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end() || stateIt->second.filePathUtf8.empty()) {
+            continue;
+        }
+
+        std::filesystem::path parentPath = std::filesystem::path(stateIt->second.filePathUtf8).parent_path();
+        if (parentPath.empty()) {
+            continue;
+        }
+        parentDirectories.push_back(parentPath.lexically_normal());
+    }
+
+    if (parentDirectories.empty()) {
+        return std::string{};
+    }
+
+    std::vector<std::string> commonComponents;
+    for (const auto &component : parentDirectories.front()) {
+        commonComponents.push_back(component.string());
+    }
+
+    for (size_t pathIndex = 1; pathIndex < parentDirectories.size(); ++pathIndex) {
+        std::vector<std::string> currentComponents;
+        for (const auto &component : parentDirectories[pathIndex]) {
+            currentComponents.push_back(component.string());
+        }
+
+        const size_t maxCommon = std::min(commonComponents.size(), currentComponents.size());
+        size_t matchCount = 0;
+        while (matchCount < maxCommon && commonComponents[matchCount] == currentComponents[matchCount]) {
+            ++matchCount;
+        }
+        commonComponents.resize(matchCount);
+        if (commonComponents.empty()) {
+            return std::string{};
+        }
+    }
+
+    std::filesystem::path commonPath;
+    for (const std::string &component : commonComponents) {
+        commonPath /= component;
+    }
+    return commonPath.string();
+}
+
 void MainWindow::SaveSession() const {
-    const_cast<MainWindow *>(this)->EnsureConfigRoot();
+    MainWindow *self = const_cast<MainWindow *>(this);
+    self->EnsureConfigRoot();
 
     QJsonArray files;
     for (int index = 0; index < _tabs->count(); ++index) {
@@ -4097,6 +4187,14 @@ void MainWindow::SaveSession() const {
         files.append(ToQString(stateIt->second.filePathUtf8));
     }
 
+    if (_editorSettings.usePerProjectSessionStorage) {
+        const std::string projectRoot = DetermineProjectSessionRootFromOpenTabs();
+        if (!projectRoot.empty() && projectRoot != _editorSettings.lastProjectSessionRootUtf8) {
+            self->_editorSettings.lastProjectSessionRootUtf8 = projectRoot;
+            self->SaveEditorSettings();
+        }
+    }
+
     QJsonObject root;
     root.insert(QStringLiteral("openFiles"), files);
     root.insert(QStringLiteral("activeIndex"), _tabs->currentIndex());
@@ -4106,13 +4204,28 @@ void MainWindow::SaveSession() const {
     npp::platform::WriteFileOptions options;
     options.atomic = true;
     options.createParentDirs = true;
-    const_cast<MainWindow *>(this)->_fileSystemService.WriteTextFile(
+    self->_fileSystemService.WriteTextFile(
         SessionFilePath(),
         std::string(json.constData(), static_cast<size_t>(json.size())),
         options);
 }
 
 std::string MainWindow::SessionFilePath() const {
+    if (_editorSettings.usePerProjectSessionStorage) {
+        const std::string projectRoot = _editorSettings.lastProjectSessionRootUtf8;
+        if (!projectRoot.empty()) {
+            const size_t projectHash = std::hash<std::string>{}(projectRoot);
+            std::ostringstream hashStream;
+            hashStream << std::hex << projectHash;
+
+            std::string projectName = std::filesystem::path(projectRoot).filename().string();
+            if (projectName.empty() || projectName == "/" || projectName == ".") {
+                projectName = "root";
+            }
+
+            return ConfigRootPath() + "/sessions/" + projectName + "-" + hashStream.str() + ".json";
+        }
+    }
     return ConfigRootPath() + "/session.json";
 }
 

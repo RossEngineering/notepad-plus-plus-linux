@@ -64,6 +64,9 @@ private:
 		bool autoCloseDelimiters = true;
 		bool formatOnSaveEnabled = false;
 		std::vector<std::string> formatOnSaveLanguages;
+		bool restoreSessionOnStartup = true;
+		bool usePerProjectSessionStorage = false;
+		std::string lastProjectSessionRootUtf8;
 		bool autoSaveOnFocusLost = false;
 		bool autoSaveOnInterval = false;
 		bool autoSaveBeforeRun = false;
@@ -221,6 +224,7 @@ private:
 	void ClearCrashRecoveryJournal() const;
 	bool RestoreSession();
 	void SaveSession() const;
+	std::string DetermineProjectSessionRootFromOpenTabs() const;
 
 	std::string ConfigRootPath() const;
 	std::string SkinDirectoryPath() const;
