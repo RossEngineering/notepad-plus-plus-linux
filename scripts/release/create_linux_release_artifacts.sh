@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VERSION="${1:-$(git -C "$ROOT_DIR" describe --tags --always --dirty)}"
 OUTPUT_DIR="${2:-$ROOT_DIR/out/release}"
-BUILD_DIR="$ROOT_DIR/build/release-artifacts"
-STAGE_DIR="$OUTPUT_DIR/stage"
+BUILD_DIR="${NPP_RELEASE_BUILD_DIR:-$ROOT_DIR/build/release-artifacts}"
+STAGE_DIR="${NPP_RELEASE_STAGE_DIR:-$OUTPUT_DIR/stage}"
 
 export LANG="C.UTF-8"
 export LC_ALL="C.UTF-8"

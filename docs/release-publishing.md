@@ -38,6 +38,12 @@ If no key secret is configured, the workflow still publishes unsigned artifacts 
 ./scripts/release/create_linux_release_artifacts.sh v0.0.0-local out/release
 ```
 
+RC3 release-engineering dry-run (artifacts + checksum + reproducibility + signing path + rollback probe):
+
+```bash
+./scripts/release/run_release_dry_run.sh --version v0.9.9-rc.3-dryrun
+```
+
 ## Tag-based publish flow
 
 ```bash

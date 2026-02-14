@@ -15,7 +15,7 @@ This list tracks prioritized blockers that must be resolved or explicitly deferr
 | --- | --- | --- | --- | --- | --- |
 | RC3-B01 | P0 | Consumer install UX | RC2 distro validation + RC3 roadmap | Closed | Consumer install/uninstall flow is consistent across target distros, with no unresolved desktop integration defects. |
 | RC3-B02 | P0 | File-handler integration | RC2 distro validation + RC3 roadmap | Closed | File associations/default app/open-with behavior validates across Arch derivatives, Ubuntu LTS, and Fedora stable. |
-| RC3-B03 | P1 | Release engineering dry-run | RC2 release notes follow-up + RC3 roadmap | Open | Reproducible artifact/checksum/signing flow completed and rollback path validated. |
+| RC3-B03 | P1 | Release engineering dry-run | RC2 release notes follow-up + RC3 roadmap | Closed | Reproducible artifact/checksum/signing flow completed and rollback path validated. |
 | RC3-B04 | P1 | Full regression confidence | RC2 release notes follow-up + RC3 roadmap | Closed | Required regression matrix passes (editor core, language workflows, skinning, extension lifecycle, crash recovery). |
 
 ## RC2 exit signals used for RC3 intake
@@ -47,6 +47,9 @@ This list tracks prioritized blockers that must be resolved or explicitly deferr
    - `.github/workflows/linux-cmake.yml` (`rc3-regression-matrix`)
    - `tests/regression/crash_recovery_persistence_regression_test.cpp`
    - `docs/rc3-regression-report-2026-02-14.md`
+6. Added release dry-run harness and completed RC3 release-engineering validation:
+   - `scripts/release/run_release_dry_run.sh`
+   - `docs/release-dry-run-report-rc3-2026-02-14.md`
 
 ## Intake process
 
