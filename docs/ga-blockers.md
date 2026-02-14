@@ -24,6 +24,9 @@ deferred before cutting `v1.0.0`.
 2. Each blocker must be linked to a PR/issue before status changes from `Open`.
 3. `P0` blockers must be closed before tagging `v1.0.0`.
 4. Any deferred `P1` blocker must include explicit rationale and an owner.
+5. Triage classification and escalation should follow
+   `docs/ga-triage-playbook.md`, with environment coverage tracked in
+   `docs/tester-coverage-snapshot-2026-02.md`.
 
 ## GA readiness rule
 

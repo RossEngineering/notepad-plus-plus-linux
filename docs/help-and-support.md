@@ -8,6 +8,10 @@ This project uses GitHub as the primary support and collaboration hub.
 
 - Tester quickstart:
   - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/tester-quickstart.md`
+- GA triage playbook:
+  - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/ga-triage-playbook.md`
+- Tester coverage snapshot:
+  - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/tester-coverage-snapshot-2026-02.md`
 - Project wiki:
   - `https://github.com/RossEngineering/notepad-plus-plus-linux/wiki`
 - Project README:

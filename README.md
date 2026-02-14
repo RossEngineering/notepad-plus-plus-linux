@@ -62,6 +62,8 @@ For details, see:
   - [`docs/feature-freeze-rc3.md`](docs/feature-freeze-rc3.md)
   - [`docs/ga-blockers.md`](docs/ga-blockers.md)
   - [`docs/ga-ci-continuity-log-2026-02.md`](docs/ga-ci-continuity-log-2026-02.md)
+  - [`docs/ga-triage-playbook.md`](docs/ga-triage-playbook.md)
+  - [`docs/tester-coverage-snapshot-2026-02.md`](docs/tester-coverage-snapshot-2026-02.md)
 - **Build, install, and release:**
   - [`BUILD.md`](BUILD.md)
   - [`docs/install-linux.md`](docs/install-linux.md)
