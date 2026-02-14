@@ -62,6 +62,8 @@ private:
 		bool autoDetectLanguage = true;
 		bool autoCloseHtmlTags = true;
 		bool autoCloseDelimiters = true;
+		bool formatOnSaveEnabled = false;
+		std::vector<std::string> formatOnSaveLanguages;
 		bool autoSaveOnFocusLost = false;
 		bool autoSaveOnInterval = false;
 		bool autoSaveBeforeRun = false;
@@ -126,6 +128,11 @@ private:
 	void OnFindInFiles();
 	void OnGoToLine();
 	void OnFormatDocument();
+	bool FormatEditorWithAvailableFormatter(
+		ScintillaEditBase *editor,
+		bool showUserMessages,
+		bool *formattedApplied = nullptr);
+	bool ShouldFormatOnSaveForLexer(const std::string &lexerName) const;
 	void OnPreferences();
 	void OnRunCommand();
 	void OnCommandPalette();

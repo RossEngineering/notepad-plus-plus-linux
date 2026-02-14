@@ -185,6 +185,50 @@ std::string AsciiLower(std::string value) {
     return value;
 }
 
+std::string TrimAsciiWhitespace(std::string value) {
+    size_t start = 0;
+    while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start])) != 0) {
+        ++start;
+    }
+
+    size_t end = value.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1])) != 0) {
+        --end;
+    }
+
+    return value.substr(start, end - start);
+}
+
+std::vector<std::string> ParseLanguageCsvList(const std::string &csv) {
+    std::vector<std::string> languages;
+    std::set<std::string> dedupe;
+    size_t cursor = 0;
+    while (cursor <= csv.size()) {
+        const size_t commaPos = csv.find(',', cursor);
+        const size_t endPos = commaPos == std::string::npos ? csv.size() : commaPos;
+        std::string token = TrimAsciiWhitespace(csv.substr(cursor, endPos - cursor));
+        token = AsciiLower(token);
+        if (!token.empty() && dedupe.insert(token).second) {
+            languages.push_back(token);
+        }
+        if (commaPos == std::string::npos) {
+            break;
+        }
+        cursor = commaPos + 1;
+    }
+    return languages;
+}
+
+QString LanguageCsvListString(const std::vector<std::string> &languages) {
+    QStringList parts;
+    for (const std::string &language : languages) {
+        if (!language.empty()) {
+            parts.append(QString::fromStdString(language));
+        }
+    }
+    return parts.join(QStringLiteral(", "));
+}
+
 std::string PercentString(double value) {
     std::ostringstream stream;
     stream << std::fixed << std::setprecision(0) << (value * 100.0);
@@ -1249,14 +1293,20 @@ void MainWindow::OnGoToLine() {
     UpdateCursorStatus();
 }
 
-void MainWindow::OnFormatDocument() {
-    ScintillaEditBase *editor = CurrentEditor();
-    if (!editor) {
-        return;
+bool MainWindow::FormatEditorWithAvailableFormatter(
+    ScintillaEditBase *editor,
+    bool showUserMessages,
+    bool *formattedApplied) {
+    if (formattedApplied) {
+        *formattedApplied = false;
     }
+    if (!editor) {
+        return false;
+    }
+
     const auto stateIt = _editorStates.find(editor);
     if (stateIt == _editorStates.end()) {
-        return;
+        return false;
     }
 
     const std::string inputText = GetEditorText(editor);
@@ -1358,25 +1408,59 @@ void MainWindow::OnFormatDocument() {
     }
 
     if (!formatterSupported) {
-        statusBar()->showMessage(
-            tr("No formatter available for language: %1").arg(ToQString(lexerName)),
-            2500);
-        return;
+        if (showUserMessages) {
+            statusBar()->showMessage(
+                tr("No formatter available for language: %1").arg(ToQString(lexerName)),
+                2500);
+        }
+        return false;
     }
 
     if (outputText == inputText) {
-        statusBar()->showMessage(
-            tr("Document already formatted (%1)").arg(ToQString(formatterName)),
-            2500);
-        return;
+        if (showUserMessages) {
+            statusBar()->showMessage(
+                tr("Document already formatted (%1)").arg(ToQString(formatterName)),
+                2500);
+        }
+        return true;
     }
 
     SetEditorText(editor, outputText);
     SetEditorEolMode(editor, stateIt->second.eolMode);
     editor->send(SCI_COLOURISE, 0, -1);
-    statusBar()->showMessage(
-        tr("Formatted document with %1").arg(ToQString(formatterName)),
-        2500);
+    if (formattedApplied) {
+        *formattedApplied = true;
+    }
+    if (showUserMessages) {
+        statusBar()->showMessage(
+            tr("Formatted document with %1").arg(ToQString(formatterName)),
+            2500);
+    }
+    return true;
+}
+
+bool MainWindow::ShouldFormatOnSaveForLexer(const std::string &lexerName) const {
+    if (!_editorSettings.formatOnSaveEnabled) {
+        return false;
+    }
+    if (_editorSettings.formatOnSaveLanguages.empty()) {
+        return true;
+    }
+
+    const std::string languageId = npp::ui::MapLexerToLspLanguageId(lexerName).empty()
+        ? lexerName
+        : npp::ui::MapLexerToLspLanguageId(lexerName);
+    const std::vector<std::string> candidates = FormatterLanguageCandidates(lexerName, languageId);
+    for (const std::string &configuredLanguage : _editorSettings.formatOnSaveLanguages) {
+        if (std::find(candidates.begin(), candidates.end(), configuredLanguage) != candidates.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MainWindow::OnFormatDocument() {
+    FormatEditorWithAvailableFormatter(CurrentEditor(), true, nullptr);
 }
 
 void MainWindow::OnPreferences() {
@@ -1398,6 +1482,12 @@ void MainWindow::OnPreferences() {
     autoCloseHtmlTagsCheck->setChecked(_editorSettings.autoCloseHtmlTags);
     auto *autoCloseDelimitersCheck = new QCheckBox(tr("Auto-close paired delimiters"), &dialog);
     autoCloseDelimitersCheck->setChecked(_editorSettings.autoCloseDelimiters);
+    auto *formatOnSaveCheck = new QCheckBox(tr("Format on save"), &dialog);
+    formatOnSaveCheck->setChecked(_editorSettings.formatOnSaveEnabled);
+    auto *formatOnSaveLanguagesEdit = new QLineEdit(&dialog);
+    formatOnSaveLanguagesEdit->setPlaceholderText(tr("all languages"));
+    formatOnSaveLanguagesEdit->setText(LanguageCsvListString(_editorSettings.formatOnSaveLanguages));
+    formatOnSaveLanguagesEdit->setEnabled(_editorSettings.formatOnSaveEnabled);
     auto *autoSaveOnFocusLostCheck = new QCheckBox(tr("Auto-save on focus lost"), &dialog);
     autoSaveOnFocusLostCheck->setChecked(_editorSettings.autoSaveOnFocusLost);
     auto *autoSaveOnIntervalCheck = new QCheckBox(tr("Auto-save on interval"), &dialog);
@@ -1415,12 +1505,15 @@ void MainWindow::OnPreferences() {
     form->addRow(QString(), autoDetectLanguageCheck);
     form->addRow(QString(), autoCloseHtmlTagsCheck);
     form->addRow(QString(), autoCloseDelimitersCheck);
+    form->addRow(QString(), formatOnSaveCheck);
+    form->addRow(tr("Format-on-save languages:"), formatOnSaveLanguagesEdit);
     form->addRow(QString(), autoSaveOnFocusLostCheck);
     form->addRow(QString(), autoSaveOnIntervalCheck);
     form->addRow(tr("Auto-save interval (sec):"), autoSaveIntervalSpin);
     form->addRow(QString(), autoSaveBeforeRunCheck);
     layout->addLayout(form);
 
+    connect(formatOnSaveCheck, &QCheckBox::toggled, formatOnSaveLanguagesEdit, &QLineEdit::setEnabled);
     connect(autoSaveOnIntervalCheck, &QCheckBox::toggled, autoSaveIntervalSpin, &QSpinBox::setEnabled);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -1438,6 +1531,8 @@ void MainWindow::OnPreferences() {
     _editorSettings.autoDetectLanguage = autoDetectLanguageCheck->isChecked();
     _editorSettings.autoCloseHtmlTags = autoCloseHtmlTagsCheck->isChecked();
     _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
+    _editorSettings.formatOnSaveEnabled = formatOnSaveCheck->isChecked();
+    _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesEdit->text()));
     _editorSettings.autoSaveOnFocusLost = autoSaveOnFocusLostCheck->isChecked();
     _editorSettings.autoSaveOnInterval = autoSaveOnIntervalCheck->isChecked();
     _editorSettings.autoSaveBeforeRun = autoSaveBeforeRunCheck->isChecked();
@@ -2688,7 +2783,13 @@ bool MainWindow::SaveEditorToFile(ScintillaEditBase *editor, const std::string &
     if (stateIt == _editorStates.end()) {
         return false;
     }
+
     stateIt->second.eolMode = static_cast<int>(editor->send(SCI_GETEOLMODE));
+    const std::string currentLexer = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    if (ShouldFormatOnSaveForLexer(currentLexer)) {
+        FormatEditorWithAvailableFormatter(editor, false, nullptr);
+    }
+
     const std::string bytes = EncodeForWrite(
         GetEditorText(editor),
         stateIt->second.encoding,
@@ -2855,6 +2956,28 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.autoDetectLanguage = obj.value(QStringLiteral("autoDetectLanguage")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
+    _editorSettings.formatOnSaveEnabled = obj.value(QStringLiteral("formatOnSaveEnabled")).toBool(false);
+    _editorSettings.formatOnSaveLanguages.clear();
+    const QJsonValue formatOnSaveLanguagesValue = obj.value(QStringLiteral("formatOnSaveLanguages"));
+    if (formatOnSaveLanguagesValue.isArray()) {
+        const QJsonArray languagesArray = formatOnSaveLanguagesValue.toArray();
+        for (const QJsonValue &value : languagesArray) {
+            if (!value.isString()) {
+                continue;
+            }
+            const std::vector<std::string> parsed = ParseLanguageCsvList(ToUtf8(value.toString()));
+            _editorSettings.formatOnSaveLanguages.insert(
+                _editorSettings.formatOnSaveLanguages.end(),
+                parsed.begin(),
+                parsed.end());
+        }
+        std::set<std::string> dedupe(
+            _editorSettings.formatOnSaveLanguages.begin(),
+            _editorSettings.formatOnSaveLanguages.end());
+        _editorSettings.formatOnSaveLanguages.assign(dedupe.begin(), dedupe.end());
+    } else if (formatOnSaveLanguagesValue.isString()) {
+        _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesValue.toString()));
+    }
     _editorSettings.autoSaveOnFocusLost = obj.value(QStringLiteral("autoSaveOnFocusLost")).toBool(false);
     _editorSettings.autoSaveOnInterval = obj.value(QStringLiteral("autoSaveOnInterval")).toBool(false);
     _editorSettings.autoSaveBeforeRun = obj.value(QStringLiteral("autoSaveBeforeRun")).toBool(false);
@@ -2894,6 +3017,12 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("autoDetectLanguage"), _editorSettings.autoDetectLanguage);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
+    settingsObject.insert(QStringLiteral("formatOnSaveEnabled"), _editorSettings.formatOnSaveEnabled);
+    QJsonArray formatOnSaveLanguagesArray;
+    for (const std::string &language : _editorSettings.formatOnSaveLanguages) {
+        formatOnSaveLanguagesArray.append(ToQString(language));
+    }
+    settingsObject.insert(QStringLiteral("formatOnSaveLanguages"), formatOnSaveLanguagesArray);
     settingsObject.insert(QStringLiteral("autoSaveOnFocusLost"), _editorSettings.autoSaveOnFocusLost);
     settingsObject.insert(QStringLiteral("autoSaveOnInterval"), _editorSettings.autoSaveOnInterval);
     settingsObject.insert(QStringLiteral("autoSaveBeforeRun"), _editorSettings.autoSaveBeforeRun);
