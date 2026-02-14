@@ -275,6 +275,7 @@ fi
 /usr/share/mime/packages/notepad-plus-plus-linux.xml
 /usr/share/notepad-plus-plus-linux/skins/*
 /usr/share/notepad-plus-plus-linux/default-update-channel
+/usr/share/notepad-plus-plus-linux/extensions/index.json
 EOF
 
   rpmbuild \
