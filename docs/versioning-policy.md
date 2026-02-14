@@ -26,7 +26,8 @@ This repository is in pre-1.0 migration status.
   - `v0.9.9-rc.3` (RC3)
 - RC3a maintenance respin: `v0.9.9-rc.3a` (published).
 - RC3b maintenance respin: `v0.9.9-rc.3b` (published).
-- Latest development prerelease (ongoing dev branch): `v0.10.0-beta.3` (Linux integration/distribution section close).
+- Development prerelease section close: `v0.10.0-beta.3` (Linux integration/distribution).
+- Latest development prerelease (ongoing dev branch): `v0.10.0-beta.4` (RPM packaging maintenance fix for beta.3 artifacts).
 - RC3 feature freeze remains the base policy: `docs/feature-freeze-rc3.md`
 - `v1.0.0` is targeted after satisfactory RC3 maintenance validation.
 
