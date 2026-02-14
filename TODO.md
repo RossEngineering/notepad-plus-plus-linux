@@ -108,3 +108,55 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Add tester quickstart and Linux-focused bug intake template for community validation.
 - [x] Add GA issue triage playbook and tester coverage snapshot scaffolding.
 - [ ] Update GA continuity log daily until 7/7 pass window is closed.
+
+## Post-GA feature wishlist (ongoing dev branch)
+
+### Editor UX and workflows
+
+- [ ] Add split editor view (vertical and horizontal) with synchronized tab/session behavior.
+- [ ] Add minimap toggle and viewport highlight for large files.
+- [ ] Add multi-cursor editing baseline (add cursor, next match, all matches).
+- [ ] Add command palette for discoverable quick actions.
+- [ ] Add configurable autosave modes (focus lost, interval, on build/run).
+- [ ] Add persistent workspace/session restore options with per-project settings.
+
+### Formatting, language intelligence, and coding tools
+
+- [ ] Add formatter selection per language (default + override).
+- [ ] Add format-on-save toggle globally and per language.
+- [ ] Add in-editor diagnostics panel with quick navigation and filtering.
+- [ ] Add symbol outline and document symbol search.
+- [ ] Add rename symbol baseline through LSP where supported.
+- [ ] Add code actions baseline (quick fixes where language server supports it).
+
+### Extensions ecosystem
+
+- [ ] Publish extension authoring guide for formatter and language contributions.
+- [ ] Add in-app extension marketplace placeholder view (local index first).
+- [ ] Add extension update notifications and one-click update flow.
+- [ ] Add per-extension resource usage and startup impact visibility.
+- [ ] Add safe mode launch option to disable all extensions for troubleshooting.
+
+### Linux integration and distribution
+
+- [ ] Add native package outputs for Arch (`.pkg.tar.zst`), Debian/Ubuntu (`.deb`), and Fedora (`.rpm`).
+- [ ] Add optional auto-update channel model (stable/candidate) for packaged installs.
+- [ ] Add desktop action entries (new file, open recent) in `.desktop` integration.
+- [ ] Add portal-aware open/save handling improvements for sandboxed desktop environments.
+- [ ] Add Wayland-focused QA pass and issue tracker labels for Wayland-specific regressions.
+
+### Reliability, performance, and observability
+
+- [ ] Add startup trace capture mode for profiling cold-start regressions.
+- [ ] Expand performance CI budgets to include large-file open and search workloads.
+- [ ] Add crash report bundle generation (local file) for easier issue attachments.
+- [ ] Add regression fixtures for mixed-encoding and very-large-file editing scenarios.
+- [ ] Add deterministic config migration tests for upgrades between minor versions.
+
+### Adoption and product polish
+
+- [ ] Add first-run onboarding page with key settings and keyboard shortcut tips.
+- [ ] Add import wizard for relevant settings from popular Linux editors (opt-in).
+- [ ] Add curated default skin and icon variants tuned for common desktop themes.
+- [ ] Add "what's new" dialog for release-to-release user-facing changes.
+- [ ] Build a public "top requested features" board sourced from GitHub issues/discussions.
