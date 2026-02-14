@@ -3,7 +3,7 @@
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
 This timeline reflects project direction as of February 14, 2026.
-RC3 and RC3a are complete and published. The project now focuses on final
+RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 1.0.0 promotion.
 
 ## Milestones
@@ -18,6 +18,7 @@ RC3 and RC3a are complete and published. The project now focuses on final
 | M5: RC2 (`v0.9.6-rc.2`) | Completed | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Done |
 | M6: RC3 (`v0.9.9-rc.3`) | Completed | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Done |
 | M6a: RC3a (`v0.9.9-rc.3a`) | Completed | Post-freeze maintenance respin for formatter UX and targeted low-risk fixes. | Done |
+| M6b: RC3b (`v0.9.9-rc.3b`) | Completed | Post-freeze maintenance respin for language auto-detect default/toggle and issue-link correctness fixes. | Done |
 | M7: General Availability (`v1.0.0`) | Current | Final go/no-go and production release. | In Progress |
 
 ## RC train structure
@@ -26,6 +27,7 @@ RC3 and RC3a are complete and published. The project now focuses on final
 2. RC2 train: `v0.9.4` through `v0.9.6-rc.2`
 3. RC3 train: `v0.9.7` through `v0.9.9-rc.3`
 4. RC3a maintenance respin: `v0.9.9-rc.3a` (exception lane)
+5. RC3b maintenance respin: `v0.9.9-rc.3b` (exception lane)
 
 ## Proposed scope by RC
 
@@ -68,6 +70,16 @@ RC3 and RC3a are complete and published. The project now focuses on final
 4. Re-run targeted regression and CI quality gates for formatter and editor safety.
 5. Publish `v0.9.9-rc.3a` and carry forward as the final pre-GA baseline.
 
+### RC3b (`v0.9.9-rc.3b`) - maintenance respin
+
+1. Keep freeze discipline:
+   - only user-visible correctness/polish and release-link consistency fixes
+   - no broad net-new platform surface
+2. Enable language auto-detection by default with explicit opt-out in preferences.
+3. Preserve manual language lock/manual auto-detect behavior.
+4. Re-run targeted CI gates (Linux CMake Build, Linux Desktop Integration, Win32 boundary guard).
+5. Publish `v0.9.9-rc.3b` and carry forward as the final pre-GA baseline.
+
 ## 1.0.0 promotion gate
 
 1. Zero open P0 defects.
@@ -89,4 +101,5 @@ RC3 and RC3a are complete and published. The project now focuses on final
 2. `docs/releases/v0.9.6-rc.2-checklist.md`
 3. `docs/releases/v0.9.9-rc.3-checklist.md`
 4. `docs/releases/v0.9.9-rc.3a-checklist.md`
-5. `docs/releases/v1.0.0-checklist.md`
+5. `docs/releases/v0.9.9-rc.3b-checklist.md`
+6. `docs/releases/v1.0.0-checklist.md`

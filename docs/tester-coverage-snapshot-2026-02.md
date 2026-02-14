@@ -4,7 +4,7 @@
 
 Last updated: 2026-02-14
 Owner: Maintainers
-Scope: External tester signals during GA window (`v0.9.9-rc.3a` -> `v1.0.0`)
+Scope: External tester signals during GA window (`v0.9.9-rc.3b` -> `v1.0.0`)
 
 This file tracks real-world coverage from incoming tester issues.
 

@@ -15,8 +15,9 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete RC2 scope and cut `v0.9.6-rc.2`.
 - [x] Complete RC3 scope and cut `v0.9.9-rc.3`.
 - [x] Cut RC3a maintenance release `v0.9.9-rc.3a`.
+- [x] Cut RC3b maintenance release `v0.9.9-rc.3b`.
 - [ ] Complete GA scope and cut `v1.0.0`.
-- [ ] Promote `v1.0.0` after RC3/RC3a validation.
+- [ ] Promote `v1.0.0` after RC3 maintenance validation.
 
 ## Release track from Beta 2 to 1.0.0
 
@@ -56,9 +57,17 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Validate formatter paths in debug/release CI and regression runs.
 - [x] Cut and validate `v0.9.9-rc.3a`.
 
+### RC3b maintenance program (`v0.9.9-rc.3b`)
+
+- [x] Enable language auto-detection by default for out-of-box behavior.
+- [x] Add Preferences toggle to disable automatic language detection.
+- [x] Preserve manual language lock and manual auto-detect behavior.
+- [x] Align in-app bug reporting links to `bug_report.yml`.
+- [x] Cut and validate `v0.9.9-rc.3b`.
+
 ### GA program (`v1.0.0`)
 
-- [x] Lock final RC baseline at `v0.9.9-rc.3a`.
+- [x] Lock final RC baseline at `v0.9.9-rc.3b`.
 - [ ] Close all `P0` GA blockers in `docs/ga-blockers.md`.
 - [ ] Keep the 7-day continuity record current in `docs/ga-ci-continuity-log-2026-02.md`.
 - [ ] Finalize `docs/releases/v1.0.0.md` migration guidance and known limitations.
@@ -93,6 +102,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Create and prioritize RC3 blocker list from RC2 exit signals.
 - [x] Create `v0.9.9-rc.3` release checklist and notes stub in `docs/releases/`.
 - [x] Create `v0.9.9-rc.3a` release checklist and notes stub in `docs/releases/`.
+- [x] Create `v0.9.9-rc.3b` release checklist and notes stub in `docs/releases/`.
 - [x] Create GA blocker tracker and continuity log scaffolding (`docs/ga-blockers.md`, `docs/ga-ci-continuity-log-2026-02.md`).
 - [x] Add tester quickstart and Linux-focused bug intake template for community validation.
 - [x] Add GA issue triage playbook and tester coverage snapshot scaffolding.
