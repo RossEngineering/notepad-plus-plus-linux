@@ -44,9 +44,13 @@ Beta 2 is complete and published. The project now moves through three RC cuts be
 ### RC3 (`v0.9.9-rc.3`) - release readiness
 
 1. Enter feature freeze; accept only bug fixes, docs, release engineering, and reliability changes.
-2. Execute full cross-feature regression suite (editor core, language features, skinning, extension lifecycle, crash recovery).
-3. Run release dry-run (artifacts, checksums, optional signing, rollback plan) and verify reproducibility controls.
-4. Reach zero open release blockers for go/no-go review.
+2. Deliver consumer-friendly install UX across target distros:
+   - package install/uninstall polish
+   - desktop/launcher/dock registration
+   - file-handler and default app integration
+3. Execute full cross-feature regression suite (editor core, language features, skinning, extension lifecycle, crash recovery).
+4. Run release dry-run (artifacts, checksums, optional signing, rollback plan) and verify reproducibility controls.
+5. Reach zero open release blockers for go/no-go review.
 
 ## 1.0.0 promotion gate
 
