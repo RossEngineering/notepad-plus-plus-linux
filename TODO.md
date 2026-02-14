@@ -8,6 +8,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ## Release direction
 
+- [ ] At the end of each TODO section, cut and publish a tagged prerelease with notes/checklist updates.
 - [x] Complete Phase 9 and cut `v0.8.0-beta.1`.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
 - [x] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
@@ -16,8 +17,15 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete RC3 scope and cut `v0.9.9-rc.3`.
 - [x] Cut RC3a maintenance release `v0.9.9-rc.3a`.
 - [x] Cut RC3b maintenance release `v0.9.9-rc.3b`.
+- [x] Cut section-close prerelease `v0.10.0-beta.1` for completed `Editor UX and workflows`.
+- [x] Cut section-close prerelease `v0.10.0-beta.2` for completed `Formatting, language intelligence, and coding tools`.
+- [x] Cut section-close prerelease `v0.10.0-beta.3` for completed `Linux integration and distribution`.
+- [x] Cut maintenance prerelease `v0.10.0-beta.4` to fix native RPM packaging for Linux integration/distribution artifacts.
+- [x] Cut section-close prerelease `v0.10.0-beta.6` for completed `Extensions ecosystem`.
+- [x] Cut maintenance prerelease `v0.10.0-beta.7` to fix Arch package metadata compatibility.
+- [x] Merge GA development scope into `master`, cut `v0.10.0-rc.4`, and exit incubator status.
 - [ ] Complete GA scope and cut `v1.0.0`.
-- [ ] Promote `v1.0.0` after RC3 maintenance validation.
+- [ ] Promote `v1.0.0` after RC4 maintenance validation.
 
 ## Release track from Beta 2 to 1.0.0
 
@@ -67,11 +75,11 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### GA program (`v1.0.0`)
 
-- [x] Lock final RC baseline at `v0.9.9-rc.3b`.
+- [x] Lock final RC baseline at `v0.10.0-rc.4`.
 - [ ] Close all `P0` GA blockers in `docs/ga-blockers.md`.
 - [ ] Keep the 7-day continuity record current in `docs/ga-ci-continuity-log-2026-02.md`.
 - [ ] Finalize `docs/releases/v1.0.0.md` migration guidance and known limitations.
-- [ ] Record explicit incubator promote/defer decision and sync repository status text.
+- [x] Record explicit incubator promote/defer decision and sync repository status text.
 - [ ] Cut and validate `v1.0.0`.
 
 ### External tester intake (GA window)
@@ -92,8 +100,8 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 ### Incubator promotion gate
 
 - [x] Re-run incubator promotion validation at RC3 completion.
-- [ ] Record explicit promote/defer decision for incubator exit during `v1.0.0` go/no-go.
-- [ ] Update `README.md` repository status and linked governance docs to match incubator decision.
+- [x] Record explicit promote/defer decision for incubator exit during `v1.0.0` go/no-go.
+- [x] Update `README.md` repository status and linked governance docs to match incubator decision.
 
 ## Immediate next actions
 
@@ -104,6 +112,61 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Create `v0.9.9-rc.3a` release checklist and notes stub in `docs/releases/`.
 - [x] Create `v0.9.9-rc.3b` release checklist and notes stub in `docs/releases/`.
 - [x] Create GA blocker tracker and continuity log scaffolding (`docs/ga-blockers.md`, `docs/ga-ci-continuity-log-2026-02.md`).
+- [x] Add one-command GA CI continuity log updater (`scripts/ga/update_ci_continuity_log.sh`).
+- [x] Complete Milestone A Win32 cleanup for Linux build path (remove legacy include bleed + enforce strict Linux-source Win32 CI guard).
 - [x] Add tester quickstart and Linux-focused bug intake template for community validation.
 - [x] Add GA issue triage playbook and tester coverage snapshot scaffolding.
 - [ ] Update GA continuity log daily until 7/7 pass window is closed.
+
+## Post-GA feature wishlist (ongoing dev branch)
+
+### Editor UX and workflows
+
+- [x] Add split editor view (vertical and horizontal) with synchronized tab/session behavior.
+- [x] Add minimap toggle and viewport highlight for large files.
+- [x] Add multi-cursor editing baseline (add cursor, next match, all matches).
+- [x] Add command palette for discoverable quick actions.
+- [x] Add configurable autosave modes (focus lost, interval, on build/run).
+- [x] Add persistent workspace/session restore options with per-project settings.
+
+### Formatting, language intelligence, and coding tools
+
+- [x] Add formatter selection per language (default + override).
+- [x] Add format-on-save toggle globally and per language.
+- [x] Add in-editor diagnostics panel with quick navigation and filtering.
+- [x] Add symbol outline and document symbol search.
+- [x] Add rename symbol baseline through LSP where supported.
+- [x] Add code actions baseline (quick fixes where language server supports it).
+
+### Extensions ecosystem
+
+- [x] Publish extension authoring guide for formatter and language contributions.
+- [x] Add in-app extension marketplace placeholder view (local index first).
+- [x] Add extension update notifications and one-click update flow.
+- [x] Add per-extension resource usage and startup impact visibility.
+- [x] Add safe mode launch option to disable all extensions for troubleshooting.
+
+### Linux integration and distribution
+
+- [x] Add native package outputs for Arch (`.pkg.tar.zst`), Debian/Ubuntu (`.deb`), and Fedora (`.rpm`).
+- [x] Add optional auto-update channel model (stable/candidate) for packaged installs.
+- [x] Add desktop action entries (new file, open recent) in `.desktop` integration.
+- [x] Add portal-aware open/save handling improvements for sandboxed desktop environments.
+- [x] Add issue tracker labels for Wayland-specific regressions.
+- [x] Add Wayland-focused QA pass.
+
+### Reliability, performance, and observability
+
+- [x] Add startup trace capture mode for profiling cold-start regressions.
+- [x] Expand performance CI budgets to include large-file open and search workloads.
+- [x] Add crash report bundle generation (local file) for easier issue attachments.
+- [x] Add regression fixtures for mixed-encoding and very-large-file editing scenarios.
+- [x] Add deterministic config migration tests for upgrades between minor versions.
+
+### Adoption and product polish
+
+- [x] Add first-run onboarding page with key settings and keyboard shortcut tips.
+- [x] Add import wizard for relevant settings from popular Linux editors (opt-in).
+- [x] Add curated default skin and icon variants tuned for common desktop themes.
+- [x] Add "what's new" dialog for release-to-release user-facing changes.
+- [x] Build a public "top requested features" board sourced from GitHub issues/discussions.

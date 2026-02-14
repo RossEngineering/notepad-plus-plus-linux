@@ -131,7 +131,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
         PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
-            "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src"
+            "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src/json"
     )
 endif()
 
@@ -194,6 +194,8 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
 
         add_executable(npp_linux_shell
             ui/qt/main.cpp
+            ui/qt/EditorSettingsMigration.cpp
+            ui/qt/EditorSettingsMigration.h
             ui/qt/LanguageAwareFormatter.cpp
             ui/qt/LanguageAwareFormatter.h
             ui/qt/MainWindow.cpp
@@ -215,6 +217,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
                 "${CMAKE_CURRENT_SOURCE_DIR}/lexilla/include"
                 "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
                 "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
+                "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src/json"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/qt/ScintillaEditBase"
@@ -248,6 +251,8 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
 
         install(FILES
             "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/icons/hicolor/scalable/apps/notepad-plus-plus-linux.svg"
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/icons/hicolor/scalable/apps/notepad-plus-plus-linux-accent.svg"
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/icons/hicolor/scalable/apps/notepad-plus-plus-linux-monochrome.svg"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps"
         )
 
@@ -259,8 +264,20 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
         install(FILES
             "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/light.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/dark.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/dusk.json"
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/solarized-light.json"
             "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/skins/high-contrast.json"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux/skins"
+        )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/default-update-channel"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux"
+        )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/extensions/index.json"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux/extensions"
         )
     else()
         message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")
@@ -311,6 +328,21 @@ if(BUILD_TESTING)
     add_test(
         NAME language_aware_formatting_regression_test
         COMMAND language_aware_formatting_regression_test)
+
+    add_executable(
+        config_migration_regression_test
+        tests/regression/config_migration_regression_test.cpp
+        ui/qt/EditorSettingsMigration.cpp)
+    target_include_directories(config_migration_regression_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ui/qt"
+        "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src/json"
+    )
+    target_compile_definitions(config_migration_regression_test PRIVATE
+        NPP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    add_test(
+        NAME config_migration_regression_test
+        COMMAND config_migration_regression_test)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_lexilla)
@@ -375,6 +407,10 @@ if(BUILD_TESTING AND TARGET npp_scintilla)
     target_include_directories(encoding_large_file_regression_test PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/scintilla/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src/json"
+    )
+    target_compile_definitions(encoding_large_file_regression_test PRIVATE
+        NPP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     )
     target_link_libraries(encoding_large_file_regression_test PRIVATE npp_scintilla)
     add_test(NAME encoding_large_file_regression_test COMMAND encoding_large_file_regression_test)

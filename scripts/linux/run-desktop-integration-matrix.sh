@@ -50,12 +50,17 @@ docker run --rm \
     set -euo pipefail
     ${setup_cmd}
     prefix=/tmp/notepad-plus-plus-linux-${distro}
+    release_out=/tmp/notepad-plus-plus-linux-release-${distro}
+    stage_root=/tmp/notepad-plus-plus-linux-stage-${distro}
     export XDG_CONFIG_HOME=/tmp/npp-xdg-config
     export XDG_DATA_HOME=\"\${prefix}/share\"
     mkdir -p \"\${XDG_CONFIG_HOME}\" \"\${XDG_DATA_HOME}\"
-    ./scripts/release/create_linux_release_artifacts.sh ci-${distro}
-    ./scripts/linux/validate-desktop-integration.sh --root /work/out/release/stage/usr --strict
-    ./scripts/linux/install-local.sh --from-stage /work/out/release/stage --prefix \"\${prefix}\" --set-default
+    NPP_RELEASE_NATIVE_PACKAGES=0 \
+      NPP_RELEASE_BUILD_DIR=/tmp/notepad-plus-plus-linux-build-${distro} \
+      NPP_RELEASE_STAGE_DIR=\"\${stage_root}\" \
+      ./scripts/release/create_linux_release_artifacts.sh ci-${distro} \"\${release_out}\"
+    ./scripts/linux/validate-desktop-integration.sh --root \"\${stage_root}/usr\" --strict
+    ./scripts/linux/install-local.sh --from-stage \"\${stage_root}\" --prefix \"\${prefix}\" --set-default
     ./scripts/linux/validate-desktop-integration.sh --root \"\${prefix}\" --strict
     ./scripts/linux/validate-file-handler-defaults.sh --desktop-id notepad-plus-plus-linux.desktop
     ./scripts/linux/uninstall-local.sh --prefix \"\${prefix}\"

@@ -8,6 +8,7 @@ Last updated: 2026-02-14
 
 This repository is in pre-1.0 migration status.
 
+- Repository lifecycle state: **promoted from incubator** (effective `v0.10.0-rc.4`).
 - Recommended version range: `0.x.y`
 - Stable tag format: `v<major>.<minor>.<patch>`
 - Pre-release tag format: `v<major>.<minor>.<patch>-<channel>.<n>`
@@ -26,8 +27,11 @@ This repository is in pre-1.0 migration status.
   - `v0.9.9-rc.3` (RC3)
 - RC3a maintenance respin: `v0.9.9-rc.3a` (published).
 - RC3b maintenance respin: `v0.9.9-rc.3b` (published).
+- Development prerelease section close: `v0.10.0-beta.3` (Linux integration/distribution).
+- Latest development prerelease before RC4 merge: `v0.10.0-beta.7` (Arch package metadata compatibility fix for package manager installs).
+- Consolidated release candidate: `v0.10.0-rc.4` (merge to `master` + incubator exit).
 - RC3 feature freeze remains the base policy: `docs/feature-freeze-rc3.md`
-- `v1.0.0` is targeted after satisfactory RC3 maintenance validation.
+- `v1.0.0` remains the target GA tag after continuity and final documentation gates are closed.
 
 ## Version increment rules
 
@@ -38,6 +42,8 @@ This repository is in pre-1.0 migration status.
   - `alpha`: early internal milestones (currently closed out).
   - `beta`: broader validation milestone before release candidates.
   - `rc`: release candidate stabilization before final.
+- TODO-section cadence rule:
+  - when a planned TODO section is completed, publish a tagged prerelease and corresponding checklist/release notes update before starting the next section.
 
 ## Compatibility stance
 

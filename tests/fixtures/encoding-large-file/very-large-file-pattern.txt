@@ -1,0 +1,8 @@
+// very-large-fixture-pattern
+fn render_token(index: usize) -> String {
+    format!("token_{index:06} alpha beta gamma delta")
+}
+
+for i in 0..128 {
+    println!("{}", render_token(i));
+}

@@ -12,7 +12,7 @@ This repository tracks the transition from the original **Windows-first architec
 
 **Current state:**
 
-- **Repository status**: _Incubator_ (promotion review active as part of the `v1.0.0` go/no-go gate).
+- **Repository status**: _Promoted_ (exited incubator at `v0.10.0-rc.4`).
 - **Linux-native Qt shell builds and runs** on Arch Linux derivatives (Manjaro baseline).
 - **Foundation migration phases** are complete (`0-12`).
 - **Release train progress**:
@@ -21,10 +21,11 @@ This repository tracks the transition from the original **Windows-first architec
   - `v0.9.3-rc.1` published.
   - `v0.9.6-rc.2` published.
   - `v0.9.9-rc.3` published.
-- `v0.9.9-rc.3a` published.
-- `v0.9.9-rc.3b` published.
+  - `v0.9.9-rc.3a` published.
+  - `v0.9.9-rc.3b` published.
+  - `v0.10.0-rc.4` published.
 - **Next target**: `v1.0.0`.
-- **RC3 freeze state**: completed, with scoped post-freeze maintenance exceptions for RC3a/RC3b fixes.
+- **RC4 baseline state**: consolidated post-RC3/GA-dev work and ready for final GA hardening.
 - **Upstream codebase** remains Windows-centric; Linux-first migration is still active.
 
 **Planned state:**
@@ -52,6 +53,7 @@ For details, see:
 | RC3 (`v0.9.9-rc.3`)       | Feature freeze, full regression, release dry-run, blocker closure                          | Complete / Live | [`docs/releases/v0.9.9-rc.3.md`](docs/releases/v0.9.9-rc.3.md)           |
 | RC3a (`v0.9.9-rc.3a`)     | Post-RC3 maintenance respin: formatter UX/documentation alignment and targeted risk fixes   | Complete / Live | [`docs/releases/v0.9.9-rc.3a.md`](docs/releases/v0.9.9-rc.3a.md)         |
 | RC3b (`v0.9.9-rc.3b`)     | Post-RC3 maintenance respin: auto-detect defaults/toggle and issue-link correctness fixes   | Complete / Live | [`docs/releases/v0.9.9-rc.3b.md`](docs/releases/v0.9.9-rc.3b.md)         |
+| RC4 (`v0.10.0-rc.4`)      | Consolidated GA-dev scope, adoption/polish closure, incubator exit decision                 | Complete / Live | [`docs/releases/v0.10.0-rc.4.md`](docs/releases/v0.10.0-rc.4.md)         |
 | GA (`v1.0.0`)             | Final go/no-go and production release                                                      | In progress     | [`docs/releases/v1.0.0-checklist.md`](docs/releases/v1.0.0-checklist.md) |
 
 ---
@@ -84,6 +86,7 @@ For details, see:
 - **User support:**
   - [`docs/tester-quickstart.md`](docs/tester-quickstart.md)
   - [`docs/help-and-support.md`](docs/help-and-support.md)
+  - [`docs/top-requested-features.md`](docs/top-requested-features.md)
   - [`SECURITY.md`](SECURITY.md)
 
 ---

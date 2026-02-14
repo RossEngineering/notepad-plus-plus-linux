@@ -1,0 +1,19 @@
+name: Linux Wayland QA
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  wayland-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Wayland smoke pass
+        run: ./scripts/linux/run-wayland-qa.sh

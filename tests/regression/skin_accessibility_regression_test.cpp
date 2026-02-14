@@ -344,6 +344,8 @@ int main() {
     const std::vector<std::filesystem::path> skinFiles = {
         sourceRoot / "packaging/linux/skins/light.json",
         sourceRoot / "packaging/linux/skins/dark.json",
+        sourceRoot / "packaging/linux/skins/dusk.json",
+        sourceRoot / "packaging/linux/skins/solarized-light.json",
         sourceRoot / "packaging/linux/skins/high-contrast.json",
     };
 

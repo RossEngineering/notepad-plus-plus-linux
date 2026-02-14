@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "EditorSettingsMigration.h"
 #include "LanguageAwareFormatter.h"
 #include "LanguageDetection.h"
 #include "LexerStyleConfig.h"
@@ -9,8 +10,12 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <functional>
 #include <iomanip>
+#include <iterator>
+#include <limits>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 
@@ -18,29 +23,39 @@
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QColor>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDateTime>
+#include <QEvent>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QKeySequence>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QProcess>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QSplitter>
+#include <QStandardPaths>
 #include <QStatusBar>
 #include <QSysInfo>
 #include <QTabWidget>
@@ -48,6 +63,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QWidget>
 
 #include "Scintilla.h"
 #include "ScintillaEditBase.h"
@@ -87,6 +103,10 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"search.findInFiles", QKeySequence(QStringLiteral("Ctrl+Shift+F"))},
         {"edit.replace", QKeySequence(QStringLiteral("Ctrl+H"))},
         {"edit.gotoLine", QKeySequence(QStringLiteral("Ctrl+G"))},
+        {"edit.multiCursor.addAbove", QKeySequence(QStringLiteral("Ctrl+Alt+Up"))},
+        {"edit.multiCursor.addBelow", QKeySequence(QStringLiteral("Ctrl+Alt+Down"))},
+        {"edit.multiCursor.addNextMatch", QKeySequence(QStringLiteral("Ctrl+D"))},
+        {"edit.multiCursor.selectAllMatches", QKeySequence(QStringLiteral("Ctrl+Shift+L"))},
         {"edit.formatDocument", QKeySequence(QStringLiteral("Ctrl+Shift+I"))},
         {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
         {"language.autoDetect", QKeySequence(QStringLiteral("Ctrl+Alt+L"))},
@@ -96,9 +116,17 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"language.lsp.hover", QKeySequence(QStringLiteral("Ctrl+K"))},
         {"language.lsp.gotoDefinition", QKeySequence(QStringLiteral("F12"))},
         {"language.lsp.diagnostics", QKeySequence(QStringLiteral("Alt+F8"))},
+        {"language.lsp.symbols", QKeySequence(QStringLiteral("Ctrl+Shift+O"))},
+        {"language.lsp.rename", QKeySequence(QStringLiteral("F2"))},
+        {"language.lsp.codeActions", QKeySequence(QStringLiteral("Ctrl+."))},
+        {"tools.commandPalette", QKeySequence(QStringLiteral("Ctrl+Shift+P"))},
         {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
+        {"view.split.none", QKeySequence(QStringLiteral("Ctrl+Alt+0"))},
+        {"view.split.vertical", QKeySequence(QStringLiteral("Ctrl+Alt+1"))},
+        {"view.split.horizontal", QKeySequence(QStringLiteral("Ctrl+Alt+2"))},
+        {"view.minimap.toggle", QKeySequence(QStringLiteral("Ctrl+Alt+M"))},
         {"help.wiki", QKeySequence(QStringLiteral("F1"))},
     };
     return kShortcuts;
@@ -177,6 +205,175 @@ std::string AsciiLower(std::string value) {
     return value;
 }
 
+std::string TrimAsciiWhitespace(std::string value) {
+    size_t start = 0;
+    while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start])) != 0) {
+        ++start;
+    }
+
+    size_t end = value.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1])) != 0) {
+        --end;
+    }
+
+    return value.substr(start, end - start);
+}
+
+std::vector<std::string> ParseLanguageCsvList(const std::string &csv) {
+    std::vector<std::string> languages;
+    std::set<std::string> dedupe;
+    size_t cursor = 0;
+    while (cursor <= csv.size()) {
+        const size_t commaPos = csv.find(',', cursor);
+        const size_t endPos = commaPos == std::string::npos ? csv.size() : commaPos;
+        std::string token = TrimAsciiWhitespace(csv.substr(cursor, endPos - cursor));
+        token = AsciiLower(token);
+        if (!token.empty() && dedupe.insert(token).second) {
+            languages.push_back(token);
+        }
+        if (commaPos == std::string::npos) {
+            break;
+        }
+        cursor = commaPos + 1;
+    }
+    return languages;
+}
+
+QString LanguageCsvListString(const std::vector<std::string> &languages) {
+    QStringList parts;
+    for (const std::string &language : languages) {
+        if (!language.empty()) {
+            parts.append(QString::fromStdString(language));
+        }
+    }
+    return parts.join(QStringLiteral(", "));
+}
+
+std::string NormalizeFormatterProfile(std::string profile) {
+    profile = AsciiLower(TrimAsciiWhitespace(profile));
+    if (profile.empty()) {
+        return "auto";
+    }
+    if (profile == "auto" || profile == "builtin" || profile == "extension") {
+        return profile;
+    }
+    if (profile.rfind("extension:", 0) == 0 && profile.size() > std::string("extension:").size()) {
+        return profile;
+    }
+    return "auto";
+}
+
+std::string NormalizeUpdateChannel(std::string channel) {
+    channel = AsciiLower(TrimAsciiWhitespace(channel));
+    if (channel == "candidate") {
+        return "candidate";
+    }
+    return "stable";
+}
+
+QString UpdateChannelLabel(const std::string &channel) {
+    return NormalizeUpdateChannel(channel) == "candidate"
+        ? QStringLiteral("Candidate")
+        : QStringLiteral("Stable");
+}
+
+QString FormatterProfileToLabel(const std::string &profile) {
+    if (profile == "builtin") {
+        return QStringLiteral("Built-in only");
+    }
+    if (profile == "extension") {
+        return QStringLiteral("Extension only");
+    }
+    if (profile.rfind("extension:", 0) == 0) {
+        return QStringLiteral("Specific extension (%1)")
+            .arg(QString::fromStdString(profile.substr(std::string("extension:").size())));
+    }
+    return QStringLiteral("Auto");
+}
+
+bool IsValidFormatterProfile(std::string_view profile) {
+    return profile == "auto" ||
+        profile == "builtin" ||
+        profile == "extension" ||
+        (profile.rfind("extension:", 0) == 0 && profile.size() > std::string_view("extension:").size());
+}
+
+bool ParseFormatterOverrideCsv(
+    const std::string &csv,
+    std::map<std::string, std::string> *overrides,
+    std::string *errorMessage) {
+    if (overrides == nullptr) {
+        return false;
+    }
+    overrides->clear();
+
+    size_t cursor = 0;
+    while (cursor <= csv.size()) {
+        const size_t commaPos = csv.find(',', cursor);
+        const size_t endPos = commaPos == std::string::npos ? csv.size() : commaPos;
+        const std::string token = TrimAsciiWhitespace(csv.substr(cursor, endPos - cursor));
+        if (!token.empty()) {
+            const size_t equalsPos = token.find('=');
+            if (equalsPos == std::string::npos) {
+                if (errorMessage) {
+                    *errorMessage = "Invalid formatter override entry: '" + token + "' (expected language=profile)";
+                }
+                overrides->clear();
+                return false;
+            }
+
+            const std::string language = AsciiLower(TrimAsciiWhitespace(token.substr(0, equalsPos)));
+            const std::string profile = AsciiLower(TrimAsciiWhitespace(token.substr(equalsPos + 1)));
+            if (language.empty()) {
+                if (errorMessage) {
+                    *errorMessage = "Invalid formatter override entry: empty language key";
+                }
+                overrides->clear();
+                return false;
+            }
+            if (!IsValidFormatterProfile(profile)) {
+                if (errorMessage) {
+                    *errorMessage =
+                        "Invalid formatter profile '" + profile +
+                        "'. Supported values: auto, builtin, extension, extension:<id>";
+                }
+                overrides->clear();
+                return false;
+            }
+            overrides->insert_or_assign(language, profile);
+        }
+
+        if (commaPos == std::string::npos) {
+            break;
+        }
+        cursor = commaPos + 1;
+    }
+
+    return true;
+}
+
+QString FormatterOverrideCsvString(const std::map<std::string, std::string> &overrides) {
+    QStringList entries;
+    for (const auto &[language, profile] : overrides) {
+        entries.append(QStringLiteral("%1=%2").arg(QString::fromStdString(language), QString::fromStdString(profile)));
+    }
+    return entries.join(QStringLiteral(", "));
+}
+
+bool IsAsciiIdentifierToken(const std::string &token) {
+    if (token.empty()) {
+        return false;
+    }
+    for (char ch : token) {
+        const unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isalnum(uch) != 0 || ch == '_' || ch == '-') {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
 std::string PercentString(double value) {
     std::ostringstream stream;
     stream << std::fixed << std::setprecision(0) << (value * 100.0);
@@ -239,6 +436,12 @@ std::string LanguageActionIdForLexer(const std::string &lexerName) {
 std::string SkinActionIdForSkinId(const std::string &skinId) {
     if (skinId == "builtin.dark") {
         return "view.skin.dark";
+    }
+    if (skinId == "builtin.dusk") {
+        return "view.skin.dusk";
+    }
+    if (skinId == "builtin.solarized_light") {
+        return "view.skin.solarizedLight";
     }
     if (skinId == "builtin.high_contrast") {
         return "view.skin.highContrast";
@@ -378,6 +581,221 @@ int BlendThemeColor(int firstBgr, int secondBgr, double secondWeight) {
     return mixedBlue << 16 | mixedGreen << 8 | mixedRed;
 }
 
+struct ExtensionMarketplaceEntry {
+    std::string id;
+    std::string name;
+    std::string version;
+    std::string description;
+    std::string homepage;
+    std::string sourceDirectoryUtf8;
+};
+
+struct ExtensionDirectoryFootprint {
+    std::uint64_t totalBytes = 0;
+    std::size_t fileCount = 0;
+};
+
+std::vector<std::string> SplitVersionTokens(const std::string &version) {
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    for (size_t index = 0; index <= version.size(); ++index) {
+        const bool separator = index == version.size() ||
+            version[index] == '.' || version[index] == '-' ||
+            version[index] == '_' || version[index] == '+';
+        if (!separator) {
+            continue;
+        }
+        if (index > start) {
+            tokens.push_back(version.substr(start, index - start));
+        }
+        start = index + 1;
+    }
+    return tokens;
+}
+
+bool IsAsciiNumber(const std::string &token) {
+    if (token.empty()) {
+        return false;
+    }
+    return std::all_of(token.begin(), token.end(), [](unsigned char c) {
+        return std::isdigit(c) != 0;
+    });
+}
+
+int CompareLooseVersion(const std::string &left, const std::string &right) {
+    if (left == right) {
+        return 0;
+    }
+
+    const std::vector<std::string> leftTokens = SplitVersionTokens(left);
+    const std::vector<std::string> rightTokens = SplitVersionTokens(right);
+    const size_t maxSize = std::max(leftTokens.size(), rightTokens.size());
+    for (size_t index = 0; index < maxSize; ++index) {
+        const std::string leftToken = index < leftTokens.size() ? leftTokens[index] : "0";
+        const std::string rightToken = index < rightTokens.size() ? rightTokens[index] : "0";
+        if (leftToken == rightToken) {
+            continue;
+        }
+
+        const bool leftNumeric = IsAsciiNumber(leftToken);
+        const bool rightNumeric = IsAsciiNumber(rightToken);
+        if (leftNumeric && rightNumeric) {
+            long long leftValue = 0;
+            long long rightValue = 0;
+            try {
+                leftValue = std::stoll(leftToken);
+                rightValue = std::stoll(rightToken);
+            } catch (...) {
+                // Fallback to lexical comparison when values overflow.
+                const int lexical = leftToken.compare(rightToken);
+                return lexical < 0 ? -1 : 1;
+            }
+            if (leftValue < rightValue) {
+                return -1;
+            }
+            if (leftValue > rightValue) {
+                return 1;
+            }
+            continue;
+        }
+
+        if (leftNumeric != rightNumeric) {
+            // Prefer numeric tokens over textual qualifiers (for example 1.2.0 > 1.2.0-rc.1).
+            return leftNumeric ? 1 : -1;
+        }
+
+        const int lexical = leftToken.compare(rightToken);
+        return lexical < 0 ? -1 : 1;
+    }
+
+    return 0;
+}
+
+QString FormatBytesBinary(std::uint64_t bytes) {
+    static const char *kUnits[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+    double value = static_cast<double>(bytes);
+    size_t unitIndex = 0;
+    while (value >= 1024.0 && unitIndex + 1 < std::size(kUnits)) {
+        value /= 1024.0;
+        ++unitIndex;
+    }
+    const int precision = unitIndex == 0 ? 0 : 1;
+    return QStringLiteral("%1 %2")
+        .arg(QString::number(value, 'f', precision))
+        .arg(QString::fromLatin1(kUnits[unitIndex]));
+}
+
+std::optional<ExtensionDirectoryFootprint> ComputeDirectoryFootprint(const std::string &rootUtf8) {
+    std::error_code ec;
+    const std::filesystem::path rootPath(rootUtf8);
+    if (rootUtf8.empty() || !std::filesystem::exists(rootPath, ec) || ec) {
+        return std::nullopt;
+    }
+
+    ExtensionDirectoryFootprint footprint;
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(rootPath, ec)) {
+        if (ec) {
+            return std::nullopt;
+        }
+        if (!entry.is_regular_file(ec) || ec) {
+            ec.clear();
+            continue;
+        }
+        ++footprint.fileCount;
+        const auto size = entry.file_size(ec);
+        if (!ec) {
+            footprint.totalBytes += static_cast<std::uint64_t>(size);
+        }
+        ec.clear();
+    }
+    return footprint;
+}
+
+std::vector<ExtensionMarketplaceEntry> ParseMarketplaceIndex(
+    const std::string &indexJsonUtf8,
+    const std::string &indexPathUtf8,
+    QString *errorOut) {
+    if (errorOut) {
+        errorOut->clear();
+    }
+
+    QJsonParseError parseError{};
+    const QByteArray bytes(indexJsonUtf8.data(), static_cast<int>(indexJsonUtf8.size()));
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        if (errorOut) {
+            *errorOut = QObject::tr("Invalid marketplace index JSON: %1")
+                            .arg(parseError.errorString());
+        }
+        return {};
+    }
+
+    const QJsonObject root = doc.object();
+    if (root.value(QStringLiteral("schemaVersion")).toInt(1) != 1) {
+        if (errorOut) {
+            *errorOut = QObject::tr("Unsupported marketplace schemaVersion in %1")
+                            .arg(QString::fromStdString(indexPathUtf8));
+        }
+        return {};
+    }
+
+    const QJsonValue extensionsValue = root.value(QStringLiteral("extensions"));
+    if (!extensionsValue.isArray()) {
+        if (errorOut) {
+            *errorOut = QObject::tr("Marketplace index is missing an extensions array.");
+        }
+        return {};
+    }
+
+    const std::filesystem::path indexDir = std::filesystem::path(indexPathUtf8).parent_path();
+    std::vector<ExtensionMarketplaceEntry> entries;
+    for (const QJsonValue &entryValue : extensionsValue.toArray()) {
+        if (!entryValue.isObject()) {
+            continue;
+        }
+        const QJsonObject entryObject = entryValue.toObject();
+        const auto toStdStringUtf8 = [](const QString &value) {
+            const QByteArray bytes = value.toUtf8();
+            return std::string(bytes.constData(), static_cast<size_t>(bytes.size()));
+        };
+
+        const std::string id = AsciiLower(TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("id")).toString())));
+        const std::string version = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("version")).toString()));
+        const std::string sourceDirectoryRaw = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("sourceDirectory")).toString()));
+        if (id.empty() || version.empty() || sourceDirectoryRaw.empty()) {
+            continue;
+        }
+
+        std::filesystem::path sourcePath(sourceDirectoryRaw);
+        if (sourcePath.is_relative()) {
+            sourcePath = indexDir / sourcePath;
+        }
+
+        ExtensionMarketplaceEntry entry;
+        entry.id = id;
+        entry.version = version;
+        entry.name = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("name")).toString()));
+        if (entry.name.empty()) {
+            entry.name = entry.id;
+        }
+        entry.description = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("description")).toString()));
+        entry.homepage = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("homepage")).toString()));
+        entry.sourceDirectoryUtf8 = sourcePath.lexically_normal().string();
+        entries.push_back(std::move(entry));
+    }
+
+    std::sort(entries.begin(), entries.end(), [](const ExtensionMarketplaceEntry &left, const ExtensionMarketplaceEntry &right) {
+        return left.id < right.id;
+    });
+    return entries;
+}
+
 std::vector<npp::platform::LspServerConfig> DefaultLspServerConfigs() {
     using npp::platform::LspServerConfig;
     return {
@@ -394,16 +812,20 @@ std::vector<npp::platform::LspServerConfig> DefaultLspServerConfigs() {
 
 }  // namespace
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(bool safeModeNoExtensions, QWidget *parent)
     : QMainWindow(parent),
       _diagnosticsService(_pathService, _fileSystemService),
+      _safeModeNoExtensions(safeModeNoExtensions),
       _extensionService(&_pathService, &_fileSystemService, kAppName),
       _lspService(&_processService) {
     BuildUi();
     InitializeLspServers();
     LoadEditorSettings();
+    ApplyWindowIconFromSettings();
+    ApplySplitViewModeFromSettings();
+    ApplyMinimapStateFromSettings();
     StartCrashRecoveryTimer();
-    InitializeExtensionsWithGuardrails();
+    StartAutoSaveTimer();
     _extensionService.SetPermissionPrompt([this](const npp::platform::PermissionPromptRequest& request) {
         const QStringList options = {
             tr("Deny"),
@@ -434,19 +856,41 @@ MainWindow::MainWindow(QWidget *parent)
         }
         return npp::platform::PermissionGrantMode::kAllowAlways;
     });
+    if (_safeModeNoExtensions) {
+        for (const std::string actionId : {
+                 "tools.extensions.install",
+                 "tools.extensions.manage",
+                 "tools.extensions.marketplace"}) {
+            const auto it = _actionsById.find(actionId);
+            if (it != _actionsById.end() && it->second) {
+                it->second->setEnabled(false);
+            }
+        }
+        statusBar()->showMessage(tr("Safe mode active: extensions are disabled"), 5000);
+    } else {
+        InitializeExtensionsWithGuardrails();
+        NotifyExtensionUpdatesIfAvailable();
+    }
     EnsureBuiltInSkins();
     EnsureThemeFile();
     LoadTheme();
     EnsureShortcutConfigFile();
     LoadShortcutOverrides();
     ApplyShortcuts();
-    if (!RestoreCrashRecoveryJournal() && !RestoreSession()) {
+    const bool recoveredFromCrash = RestoreCrashRecoveryJournal();
+    const bool restoredSession = !recoveredFromCrash &&
+        _editorSettings.restoreSessionOnStartup &&
+        RestoreSession();
+    if (!recoveredFromCrash && !restoredSession) {
         NewTab();
     }
     UpdateWindowTitle();
     UpdateCursorStatus();
     UpdateLanguageActionState();
     UpdateSkinActionState();
+    UpdateIconVariantActionState();
+    MaybeShowFirstRunOnboarding();
+    MaybeShowWhatsNewDialog();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -462,12 +906,62 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if (_crashRecoveryTimer) {
         _crashRecoveryTimer->stop();
     }
+    if (_autoSaveTimer) {
+        _autoSaveTimer->stop();
+    }
     SaveSession();
     ClearCrashRecoveryJournal();
     _lspService.StopAllSessions();
     _lspSessionByEditor.clear();
     _closingApplication = false;
     event->accept();
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == _minimapEditor && event != nullptr) {
+        const bool isMousePress = event->type() == QEvent::MouseButtonPress;
+        const bool isMouseDrag = event->type() == QEvent::MouseMove;
+        if (isMousePress || isMouseDrag) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (isMouseDrag && (mouseEvent->buttons() & Qt::LeftButton) == 0) {
+                return QMainWindow::eventFilter(watched, event);
+            }
+
+            ScintillaEditBase *editor = CurrentEditor();
+            if (editor && _editorSettings.minimapEnabled) {
+                const QPoint position = mouseEvent->position().toPoint();
+                const sptr_t documentPos = _minimapEditor->send(
+                    SCI_POSITIONFROMPOINTCLOSE,
+                    position.x(),
+                    position.y());
+                if (documentPos >= 0) {
+                    const int targetLine = static_cast<int>(_minimapEditor->send(SCI_LINEFROMPOSITION, documentPos));
+                    const int visibleLines = std::max(1, static_cast<int>(editor->send(SCI_LINESONSCREEN)));
+                    const int targetFirstVisibleLine = std::max(0, targetLine - (visibleLines / 2));
+                    editor->send(SCI_SETFIRSTVISIBLELINE, targetFirstVisibleLine);
+                    editor->send(SCI_GOTOLINE, targetLine);
+                    UpdateMinimapViewportHighlight();
+                    return true;
+                }
+            }
+        }
+    }
+
+    if (!_closingApplication &&
+        _editorSettings.autoSaveOnFocusLost &&
+        event != nullptr &&
+        event->type() == QEvent::FocusOut) {
+        auto *editor = qobject_cast<ScintillaEditBase *>(watched);
+        if (editor && _editorStates.find(editor) != _editorStates.end()) {
+            std::string savedPathUtf8;
+            if (AutoSaveEditorIfNeeded(editor, &savedPathUtf8)) {
+                statusBar()->showMessage(
+                    tr("Auto-saved %1 (focus lost).").arg(FileNameFromPath(savedPathUtf8)),
+                    1500);
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::BuildUi() {
@@ -496,15 +990,26 @@ void MainWindow::BuildMenus() {
     editMenu->addAction(_actionsById.at("search.findInFiles"));
     editMenu->addAction(_actionsById.at("edit.replace"));
     editMenu->addAction(_actionsById.at("edit.gotoLine"));
+    QMenu *multiCursorMenu = editMenu->addMenu(tr("Multi-Cursor"));
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.addAbove"));
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.addBelow"));
+    multiCursorMenu->addSeparator();
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.addNextMatch"));
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.selectAllMatches"));
     editMenu->addAction(_actionsById.at("edit.formatDocument"));
     editMenu->addSeparator();
     editMenu->addAction(_actionsById.at("edit.preferences"));
 
     QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
+    toolsMenu->addAction(_actionsById.at("tools.commandPalette"));
     toolsMenu->addAction(_actionsById.at("tools.runCommand"));
+    toolsMenu->addAction(_actionsById.at("tools.importSettings"));
     toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.extensions.install"));
     toolsMenu->addAction(_actionsById.at("tools.extensions.manage"));
+    toolsMenu->addAction(_actionsById.at("tools.extensions.marketplace"));
+    toolsMenu->addSeparator();
+    toolsMenu->addAction(_actionsById.at("tools.safeMode.restart"));
     toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.open"));
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.reload"));
@@ -527,19 +1032,38 @@ void MainWindow::BuildMenus() {
     languageMenu->addAction(_actionsById.at("language.lsp.hover"));
     languageMenu->addAction(_actionsById.at("language.lsp.gotoDefinition"));
     languageMenu->addAction(_actionsById.at("language.lsp.diagnostics"));
+    languageMenu->addAction(_actionsById.at("language.lsp.symbols"));
+    languageMenu->addAction(_actionsById.at("language.lsp.rename"));
+    languageMenu->addAction(_actionsById.at("language.lsp.codeActions"));
 
     QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
     QMenu *skinsMenu = viewMenu->addMenu(tr("Skins"));
     skinsMenu->addAction(_actionsById.at("view.skin.light"));
     skinsMenu->addAction(_actionsById.at("view.skin.dark"));
+    skinsMenu->addAction(_actionsById.at("view.skin.dusk"));
+    skinsMenu->addAction(_actionsById.at("view.skin.solarizedLight"));
     skinsMenu->addAction(_actionsById.at("view.skin.highContrast"));
+    QMenu *iconMenu = viewMenu->addMenu(tr("Icon Variant"));
+    iconMenu->addAction(_actionsById.at("view.icon.auto"));
+    iconMenu->addAction(_actionsById.at("view.icon.accent"));
+    iconMenu->addAction(_actionsById.at("view.icon.monochrome"));
+    viewMenu->addSeparator();
+    QMenu *splitMenu = viewMenu->addMenu(tr("Split Editor"));
+    splitMenu->addAction(_actionsById.at("view.split.none"));
+    splitMenu->addAction(_actionsById.at("view.split.vertical"));
+    splitMenu->addAction(_actionsById.at("view.split.horizontal"));
+    viewMenu->addAction(_actionsById.at("view.minimap.toggle"));
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(_actionsById.at("help.docs"));
     helpMenu->addAction(_actionsById.at("help.wiki"));
+    helpMenu->addAction(_actionsById.at("help.checkUpdates"));
+    helpMenu->addSeparator();
+    helpMenu->addAction(_actionsById.at("help.exportCrashBundle"));
     helpMenu->addSeparator();
     helpMenu->addAction(_actionsById.at("help.reportBug"));
     helpMenu->addAction(_actionsById.at("help.requestFeature"));
+    helpMenu->addAction(_actionsById.at("help.topRequested"));
     helpMenu->addSeparator();
     helpMenu->addAction(_actionsById.at("help.about"));
 }
@@ -569,9 +1093,15 @@ void MainWindow::BuildActions() {
     registerAction("search.findInFiles", tr("Find in Files..."), [this]() { OnFindInFiles(); });
     registerAction("edit.replace", tr("Replace..."), [this]() { OnReplace(); });
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
+    registerAction("edit.multiCursor.addAbove", tr("Add Caret Above"), [this]() { OnMultiCursorAddCaretAbove(); });
+    registerAction("edit.multiCursor.addBelow", tr("Add Caret Below"), [this]() { OnMultiCursorAddCaretBelow(); });
+    registerAction("edit.multiCursor.addNextMatch", tr("Add Next Match"), [this]() { OnMultiCursorAddNextMatch(); });
+    registerAction("edit.multiCursor.selectAllMatches", tr("Select All Matches"), [this]() { OnMultiCursorSelectAllMatches(); });
     registerAction("edit.formatDocument", tr("Format Document"), [this]() { OnFormatDocument(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
+    registerAction("tools.commandPalette", tr("Command Palette..."), [this]() { OnCommandPalette(); });
     registerAction("tools.runCommand", tr("Run Command..."), [this]() { OnRunCommand(); });
+    registerAction("tools.importSettings", tr("Import Settings..."), [this]() { OnImportSettings(); });
     registerAction(
         "tools.extensions.install",
         tr("Install Extension from Folder..."),
@@ -580,6 +1110,16 @@ void MainWindow::BuildActions() {
         "tools.extensions.manage",
         tr("Manage Extensions..."),
         [this]() { OnManageExtensions(); });
+    registerAction(
+        "tools.extensions.marketplace",
+        tr("Extension Marketplace (Local Index)..."),
+        [this]() { OnOpenExtensionMarketplace(); });
+    registerAction(
+        "tools.safeMode.restart",
+        _safeModeNoExtensions
+            ? tr("Relaunch in Normal Mode")
+            : tr("Relaunch in Safe Mode (No Extensions)"),
+        [this]() { OnRestartSafeMode(); });
     registerAction("language.autoDetect", tr("Auto Detect Language"), [this]() { OnAutoDetectLanguage(); });
     registerAction("language.lockCurrent", tr("Lock Current Language"), [this]() { OnToggleLexerLock(); });
     _actionsById.at("language.lockCurrent")->setCheckable(true);
@@ -596,6 +1136,9 @@ void MainWindow::BuildActions() {
     registerAction("language.lsp.hover", tr("Hover (Baseline)"), [this]() { OnLspShowHover(); });
     registerAction("language.lsp.gotoDefinition", tr("Go To Definition (Baseline)"), [this]() { OnLspGoToDefinition(); });
     registerAction("language.lsp.diagnostics", tr("Diagnostics (Baseline)"), [this]() { OnLspShowDiagnostics(); });
+    registerAction("language.lsp.symbols", tr("Document Symbols (Baseline)"), [this]() { OnLspShowDocumentSymbols(); });
+    registerAction("language.lsp.rename", tr("Rename Symbol (Baseline)"), [this]() { OnLspRenameSymbol(); });
+    registerAction("language.lsp.codeActions", tr("Code Actions (Baseline)"), [this]() { OnLspCodeActions(); });
     _actionsById.at("language.set.plain")->setCheckable(true);
     _actionsById.at("language.set.markdown")->setCheckable(true);
     _actionsById.at("language.set.html")->setCheckable(true);
@@ -607,10 +1150,32 @@ void MainWindow::BuildActions() {
 
     registerAction("view.skin.light", tr("Light"), [this]() { OnSetSkin("builtin.light"); });
     registerAction("view.skin.dark", tr("Dark"), [this]() { OnSetSkin("builtin.dark"); });
+    registerAction("view.skin.dusk", tr("Dusk"), [this]() { OnSetSkin("builtin.dusk"); });
+    registerAction(
+        "view.skin.solarizedLight",
+        tr("Solarized Light"),
+        [this]() { OnSetSkin("builtin.solarized_light"); });
     registerAction("view.skin.highContrast", tr("High Contrast"), [this]() { OnSetSkin("builtin.high_contrast"); });
+    registerAction("view.icon.auto", tr("Auto"), [this]() { OnSetIconVariant("auto"); });
+    registerAction("view.icon.accent", tr("Accent"), [this]() { OnSetIconVariant("accent"); });
+    registerAction("view.icon.monochrome", tr("Monochrome"), [this]() { OnSetIconVariant("monochrome"); });
+    registerAction("view.split.none", tr("No Split"), [this]() { OnDisableSplitView(); });
+    registerAction("view.split.vertical", tr("Vertical Split"), [this]() { OnEnableSplitVertical(); });
+    registerAction("view.split.horizontal", tr("Horizontal Split"), [this]() { OnEnableSplitHorizontal(); });
+    registerAction("view.minimap.toggle", tr("Show Minimap"), [this]() { OnToggleMinimap(); });
     _actionsById.at("view.skin.light")->setCheckable(true);
     _actionsById.at("view.skin.dark")->setCheckable(true);
+    _actionsById.at("view.skin.dusk")->setCheckable(true);
+    _actionsById.at("view.skin.solarizedLight")->setCheckable(true);
     _actionsById.at("view.skin.highContrast")->setCheckable(true);
+    _actionsById.at("view.icon.auto")->setCheckable(true);
+    _actionsById.at("view.icon.accent")->setCheckable(true);
+    _actionsById.at("view.icon.monochrome")->setCheckable(true);
+    _actionsById.at("view.split.none")->setCheckable(true);
+    _actionsById.at("view.split.vertical")->setCheckable(true);
+    _actionsById.at("view.split.horizontal")->setCheckable(true);
+    _actionsById.at("view.minimap.toggle")->setCheckable(true);
+    _actionsById.at("view.split.none")->setChecked(true);
 
     registerAction(
         "tools.shortcuts.open",
@@ -623,28 +1188,103 @@ void MainWindow::BuildActions() {
 
     registerAction("help.docs", tr("Open Help Docs"), [this]() { OnOpenHelpDocs(); });
     registerAction("help.wiki", tr("Open Project Wiki"), [this]() { OnOpenHelpWiki(); });
+    registerAction("help.checkUpdates", tr("Check for Updates"), [this]() { OnCheckForUpdates(); });
+    registerAction(
+        "help.exportCrashBundle",
+        tr("Export Crash Report Bundle..."),
+        [this]() { OnExportCrashReportBundle(); });
     registerAction("help.reportBug", tr("Report Bug..."), [this]() { OnReportBug(); });
     registerAction("help.requestFeature", tr("Request Feature..."), [this]() { OnRequestFeature(); });
+    registerAction(
+        "help.topRequested",
+        tr("Top Requested Features"),
+        [this]() { OnOpenTopRequestedFeatures(); });
     registerAction("help.about", tr("About Notepad++ Linux"), [this]() { OnAboutDialog(); });
 }
 
 void MainWindow::BuildTabs() {
-    _tabs = new QTabWidget(this);
+    _centralHost = new QWidget(this);
+    auto *hostLayout = new QVBoxLayout(_centralHost);
+    hostLayout->setContentsMargins(0, 0, 0, 0);
+    hostLayout->setSpacing(0);
+
+    _rootSplitter = new QSplitter(Qt::Horizontal, _centralHost);
+    _editorSplit = new QSplitter(Qt::Horizontal, _rootSplitter);
+
+    _tabs = new QTabWidget(_editorSplit);
     _tabs->setTabsClosable(true);
     _tabs->setMovable(true);
     _tabs->setDocumentMode(true);
+
+    _splitEditor = CreateEditor();
+    _splitEditor->setParent(_editorSplit);
+    _splitEditor->hide();
+
+    _editorSplit->addWidget(_tabs);
+    _editorSplit->addWidget(_splitEditor);
+    _editorSplit->setStretchFactor(0, 1);
+    _editorSplit->setStretchFactor(1, 1);
+
+    _minimapEditor = CreateEditor();
+    _minimapEditor->setParent(_rootSplitter);
+    _minimapEditor->send(SCI_SETREADONLY, 1);
+    _minimapEditor->send(SCI_SETMARGINWIDTHN, 0, 0);
+    _minimapEditor->send(SCI_SETCARETSTYLE, CARETSTYLE_INVISIBLE);
+    _minimapEditor->send(SCI_SETVSCROLLBAR, 0);
+    _minimapEditor->send(SCI_SETHSCROLLBAR, 0);
+    _minimapEditor->send(SCI_SETZOOM, -8);
+    _minimapEditor->installEventFilter(this);
+    _minimapEditor->hide();
+
+    _rootSplitter->addWidget(_editorSplit);
+    _rootSplitter->addWidget(_minimapEditor);
+    _rootSplitter->setStretchFactor(0, 1);
+    _rootSplitter->setStretchFactor(1, 0);
+
+    hostLayout->addWidget(_rootSplitter);
 
     connect(_tabs, &QTabWidget::tabCloseRequested, this, [this](int index) {
         CloseTabAt(index);
     });
 
     connect(_tabs, &QTabWidget::currentChanged, this, [this](int) {
+        SyncAuxiliaryEditorsToCurrentTab();
+        UpdateMinimapViewportHighlight();
         UpdateWindowTitle();
         UpdateCursorStatus();
         UpdateLanguageActionState();
     });
 
-    setCentralWidget(_tabs);
+    connect(_splitEditor, &ScintillaEditBase::notifyChange, this, [this]() {
+        ScintillaEditBase *editor = CurrentEditor();
+        if (!editor) {
+            return;
+        }
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end()) {
+            return;
+        }
+        stateIt->second.dirty = true;
+        UpdateTabTitle(editor);
+        UpdateMinimapViewportHighlight();
+    });
+    connect(_splitEditor, &ScintillaEditBase::savePointChanged, this, [this](bool dirty) {
+        ScintillaEditBase *editor = CurrentEditor();
+        if (!editor) {
+            return;
+        }
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end()) {
+            return;
+        }
+        stateIt->second.dirty = dirty;
+        UpdateTabTitle(editor);
+    });
+    connect(_splitEditor, &ScintillaEditBase::updateUi, this, [this](Scintilla::Update) {
+        UpdateMinimapViewportHighlight();
+    });
+
+    setCentralWidget(_centralHost);
 }
 
 ScintillaEditBase *MainWindow::CreateEditor() {
@@ -661,7 +1301,11 @@ ScintillaEditBase *MainWindow::CreateEditor() {
     editor->send(SCI_SETMARGINWIDTHN, 0, LineNumberMarginWidth(editor));
     editor->send(SCI_SETWRAPMODE, SC_WRAP_NONE);
     editor->send(SCI_SETTABWIDTH, 4);
+    editor->send(SCI_SETMULTIPLESELECTION, 1);
+    editor->send(SCI_SETADDITIONALSELECTIONTYPING, 1);
+    editor->send(SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH);
     editor->send(SCI_GRABFOCUS);
+    editor->installEventFilter(this);
 
     connect(editor, &ScintillaEditBase::notifyChange, this, [this, editor]() {
         auto it = _editorStates.find(editor);
@@ -686,8 +1330,17 @@ ScintillaEditBase *MainWindow::CreateEditor() {
         UpdateTabTitle(editor);
     });
 
-    connect(editor, &ScintillaEditBase::updateUi, this, [this](Scintilla::Update) {
-        UpdateCursorStatus();
+    connect(editor, &ScintillaEditBase::updateUi, this, [this, editor](Scintilla::Update) {
+        if (editor == CurrentEditor() &&
+            _splitEditor &&
+            _editorSettings.splitViewMode != kSplitModeDisabled &&
+            _splitEditor->isVisible()) {
+            _splitEditor->send(SCI_SETFIRSTVISIBLELINE, editor->send(SCI_GETFIRSTVISIBLELINE));
+        }
+        if (editor != _minimapEditor) {
+            UpdateCursorStatus();
+            UpdateMinimapViewportHighlight();
+        }
     });
 
     connect(editor, &ScintillaEditBase::charAdded, this, [this, editor](int ch) {
@@ -729,10 +1382,10 @@ void MainWindow::NewTab() {
     UpdateLanguageActionState();
 }
 
-void MainWindow::OpenFile() {
-    const QString chosen = QFileDialog::getOpenFileName(this, tr("Open File"));
-    if (chosen.isEmpty()) {
-        return;
+bool MainWindow::OpenPathFromCli(const QString &path) {
+    const QString normalized = QDir::fromNativeSeparators(path).trimmed();
+    if (normalized.isEmpty()) {
+        return false;
     }
 
     auto *editor = CurrentEditor();
@@ -747,7 +1400,100 @@ void MainWindow::OpenFile() {
         editor = CurrentEditor();
     }
 
-    if (LoadFileIntoEditor(editor, ToUtf8(chosen))) {
+    if (!editor) {
+        return false;
+    }
+    return LoadFileIntoEditor(editor, ToUtf8(normalized));
+}
+
+bool MainWindow::OpenMostRecentFileFromSession() {
+    EnsureConfigRoot();
+    const std::string sessionPath = SessionFilePath();
+    const auto exists = _fileSystemService.Exists(sessionPath);
+    if (!exists.ok() || !(*exists.value)) {
+        return false;
+    }
+
+    const auto sessionJson = _fileSystemService.ReadTextFile(sessionPath);
+    if (!sessionJson.ok()) {
+        return false;
+    }
+
+    QJsonParseError parseError{};
+    const QByteArray jsonBytes(sessionJson.value->c_str(), static_cast<int>(sessionJson.value->size()));
+    const QJsonDocument doc = QJsonDocument::fromJson(jsonBytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        return false;
+    }
+
+    const QJsonObject root = doc.object();
+    const QJsonArray files = root.value(QStringLiteral("openFiles")).toArray();
+    if (files.isEmpty()) {
+        return false;
+    }
+
+    const int fileCount = static_cast<int>(files.size());
+    const int preferredIndex = std::clamp(root.value(QStringLiteral("activeIndex")).toInt(0), 0, fileCount - 1);
+    std::vector<int> candidateIndices;
+    candidateIndices.reserve(static_cast<size_t>(files.size()));
+    candidateIndices.push_back(preferredIndex);
+    for (int i = 0; i < files.size(); ++i) {
+        if (i != preferredIndex) {
+            candidateIndices.push_back(i);
+        }
+    }
+
+    for (const int index : candidateIndices) {
+        const QJsonValue value = files.at(index);
+        if (!value.isString()) {
+            continue;
+        }
+        const QString candidatePath = value.toString().trimmed();
+        if (candidatePath.isEmpty()) {
+            continue;
+        }
+        const auto fileExists = _fileSystemService.Exists(ToUtf8(candidatePath));
+        if (!fileExists.ok() || !(*fileExists.value)) {
+            continue;
+        }
+        if (OpenPathFromCli(candidatePath)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MainWindow::OpenFile() {
+    QString initialDirectory;
+    auto *editor = CurrentEditor();
+    if (editor) {
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt != _editorStates.end() && !stateIt->second.filePathUtf8.empty()) {
+            initialDirectory = QFileInfo(ToQString(stateIt->second.filePathUtf8)).absolutePath();
+        }
+    }
+    if (initialDirectory.isEmpty()) {
+        initialDirectory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    }
+    if (initialDirectory.isEmpty()) {
+        initialDirectory = QDir::homePath();
+    }
+
+    QFileDialog dialog(this, tr("Open File"), initialDirectory);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, false);
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setViewMode(QFileDialog::Detail);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const QStringList selected = dialog.selectedFiles();
+    const QString chosen = selected.isEmpty() ? QString{} : selected.front();
+    if (chosen.isEmpty()) {
+        return;
+    }
+
+    if (OpenPathFromCli(chosen)) {
         statusBar()->showMessage(tr("Opened %1").arg(chosen), 2000);
     }
 }
@@ -818,10 +1564,24 @@ bool MainWindow::SaveCurrentFileAs() {
     if (!stateIt->second.filePathUtf8.empty()) {
         suggestedPath = ToQString(stateIt->second.filePathUtf8);
     } else {
-        suggestedPath = QStringLiteral("untitled%1").arg(ToQString(suggestedExtension));
+        QString defaultDirectory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        if (defaultDirectory.isEmpty()) {
+            defaultDirectory = QDir::homePath();
+        }
+        const QString defaultFileName = QStringLiteral("untitled%1").arg(ToQString(suggestedExtension));
+        suggestedPath = QDir(defaultDirectory).filePath(defaultFileName);
     }
 
-    QString target = QFileDialog::getSaveFileName(this, tr("Save File As"), suggestedPath);
+    QFileDialog dialog(this, tr("Save File As"), suggestedPath);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, false);
+    dialog.setAcceptMode(QFileDialog::AcceptSave);
+    dialog.setFileMode(QFileDialog::AnyFile);
+    dialog.setViewMode(QFileDialog::Detail);
+    if (dialog.exec() != QDialog::Accepted) {
+        return false;
+    }
+    const QStringList selected = dialog.selectedFiles();
+    QString target = selected.isEmpty() ? QString{} : selected.front();
     if (target.isEmpty()) {
         return false;
     }
@@ -1198,14 +1958,20 @@ void MainWindow::OnGoToLine() {
     UpdateCursorStatus();
 }
 
-void MainWindow::OnFormatDocument() {
-    ScintillaEditBase *editor = CurrentEditor();
-    if (!editor) {
-        return;
+bool MainWindow::FormatEditorWithAvailableFormatter(
+    ScintillaEditBase *editor,
+    bool showUserMessages,
+    bool *formattedApplied) {
+    if (formattedApplied) {
+        *formattedApplied = false;
     }
+    if (!editor) {
+        return false;
+    }
+
     const auto stateIt = _editorStates.find(editor);
     if (stateIt == _editorStates.end()) {
-        return;
+        return false;
     }
 
     const std::string inputText = GetEditorText(editor);
@@ -1213,90 +1979,110 @@ void MainWindow::OnFormatDocument() {
     const std::string languageId = npp::ui::MapLexerToLspLanguageId(lexerName).empty()
         ? lexerName
         : npp::ui::MapLexerToLspLanguageId(lexerName);
+    const std::string formatterProfile = ResolveFormatterProfileForLanguage(lexerName, languageId);
 
     std::string formatterName;
     std::string outputText;
     bool formatterSupported = false;
     bool extensionFormatterSucceeded = false;
+    bool allowExtensionFormatter = true;
+    bool allowBuiltInFormatter = true;
+    if (_safeModeNoExtensions) {
+        allowExtensionFormatter = false;
+    }
+    std::string requiredExtensionId;
+    if (formatterProfile == "builtin") {
+        allowExtensionFormatter = false;
+    } else if (formatterProfile == "extension") {
+        allowBuiltInFormatter = false;
+    } else if (formatterProfile.rfind("extension:", 0) == 0) {
+        allowBuiltInFormatter = false;
+        requiredExtensionId = formatterProfile.substr(std::string("extension:").size());
+    }
 
-    const auto installedExtensions = _extensionService.DiscoverInstalled();
-    if (installedExtensions.ok()) {
-        for (const npp::platform::InstalledExtension& extension : *installedExtensions.value) {
-            if (!extension.enabled) {
-                continue;
-            }
-            if (extension.manifest.type == npp::platform::ExtensionType::kLanguagePack) {
-                continue;
-            }
-            if (extension.manifest.entrypoint.empty()) {
-                continue;
-            }
-            if (extension.manifest.formatters.empty()) {
-                continue;
-            }
-
-            for (const auto& contribution : extension.manifest.formatters) {
-                if (!FormatterContributionMatchesLanguage(contribution, lexerName, languageId)) {
+    if (allowExtensionFormatter) {
+        const auto installedExtensions = _extensionService.DiscoverInstalled();
+        if (installedExtensions.ok()) {
+            for (const npp::platform::InstalledExtension& extension : *installedExtensions.value) {
+                if (!requiredExtensionId.empty() && extension.manifest.id != requiredExtensionId) {
+                    continue;
+                }
+                if (!extension.enabled) {
+                    continue;
+                }
+                if (extension.manifest.type == npp::platform::ExtensionType::kLanguagePack) {
+                    continue;
+                }
+                if (extension.manifest.entrypoint.empty()) {
+                    continue;
+                }
+                if (extension.manifest.formatters.empty()) {
                     continue;
                 }
 
-                const auto permissionGranted = _extensionService.RequestPermission(
-                    extension.manifest.id,
-                    "process.spawn",
-                    "format document");
-                if (!permissionGranted.ok() || !(*permissionGranted.value)) {
-                    continue;
+                for (const auto& contribution : extension.manifest.formatters) {
+                    if (!FormatterContributionMatchesLanguage(contribution, lexerName, languageId)) {
+                        continue;
+                    }
+
+                    const auto permissionGranted = _extensionService.RequestPermission(
+                        extension.manifest.id,
+                        "process.spawn",
+                        "format document");
+                    if (!permissionGranted.ok() || !(*permissionGranted.value)) {
+                        continue;
+                    }
+
+                    std::filesystem::path formatterEntrypoint(extension.manifest.entrypoint);
+                    if (formatterEntrypoint.is_relative()) {
+                        formatterEntrypoint = std::filesystem::path(extension.installPath) / formatterEntrypoint;
+                    }
+
+                    QProcess process(this);
+                    process.setProgram(ToQString(formatterEntrypoint.string()));
+                    process.setArguments(BuildFormatterArguments(
+                        contribution.args,
+                        stateIt->second.filePathUtf8,
+                        languageId,
+                        _editorSettings.tabWidth));
+                    process.setWorkingDirectory(ToQString(extension.installPath));
+                    process.start();
+                    if (!process.waitForStarted(5000)) {
+                        continue;
+                    }
+
+                    process.write(inputText.data(), static_cast<qint64>(inputText.size()));
+                    process.closeWriteChannel();
+                    if (!process.waitForFinished(60000)) {
+                        process.kill();
+                        process.waitForFinished(1000);
+                        continue;
+                    }
+                    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+                        continue;
+                    }
+
+                    const QByteArray stdOut = process.readAllStandardOutput();
+                    const std::string formattedUtf8(stdOut.constData(), static_cast<size_t>(stdOut.size()));
+                    if (!IsValidUtf8(formattedUtf8)) {
+                        continue;
+                    }
+
+                    formatterSupported = true;
+                    extensionFormatterSucceeded = true;
+                    formatterName = extension.manifest.name.empty() ? extension.manifest.id : extension.manifest.name;
+                    outputText = NormalizeEol(formattedUtf8, stateIt->second.eolMode);
+                    break;
                 }
 
-                std::filesystem::path formatterEntrypoint(extension.manifest.entrypoint);
-                if (formatterEntrypoint.is_relative()) {
-                    formatterEntrypoint = std::filesystem::path(extension.installPath) / formatterEntrypoint;
+                if (extensionFormatterSucceeded) {
+                    break;
                 }
-
-                QProcess process(this);
-                process.setProgram(ToQString(formatterEntrypoint.string()));
-                process.setArguments(BuildFormatterArguments(
-                    contribution.args,
-                    stateIt->second.filePathUtf8,
-                    languageId,
-                    _editorSettings.tabWidth));
-                process.setWorkingDirectory(ToQString(extension.installPath));
-                process.start();
-                if (!process.waitForStarted(5000)) {
-                    continue;
-                }
-
-                process.write(inputText.data(), static_cast<qint64>(inputText.size()));
-                process.closeWriteChannel();
-                if (!process.waitForFinished(60000)) {
-                    process.kill();
-                    process.waitForFinished(1000);
-                    continue;
-                }
-                if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
-                    continue;
-                }
-
-                const QByteArray stdOut = process.readAllStandardOutput();
-                const std::string formattedUtf8(stdOut.constData(), static_cast<size_t>(stdOut.size()));
-                if (!IsValidUtf8(formattedUtf8)) {
-                    continue;
-                }
-
-                formatterSupported = true;
-                extensionFormatterSucceeded = true;
-                formatterName = extension.manifest.name.empty() ? extension.manifest.id : extension.manifest.name;
-                outputText = NormalizeEol(formattedUtf8, stateIt->second.eolMode);
-                break;
-            }
-
-            if (extensionFormatterSucceeded) {
-                break;
             }
         }
     }
 
-    if (!extensionFormatterSucceeded) {
+    if (!extensionFormatterSucceeded && allowBuiltInFormatter) {
         const npp::ui::LanguageAwareFormatResult builtInResult = npp::ui::FormatDocumentLanguageAware(
             inputText,
             lexerName,
@@ -1307,25 +2093,74 @@ void MainWindow::OnFormatDocument() {
     }
 
     if (!formatterSupported) {
-        statusBar()->showMessage(
-            tr("No formatter available for language: %1").arg(ToQString(lexerName)),
-            2500);
-        return;
+        if (showUserMessages) {
+            statusBar()->showMessage(
+                tr("No formatter available for %1 (profile: %2)")
+                    .arg(ToQString(lexerName))
+                    .arg(FormatterProfileToLabel(formatterProfile)),
+                2500);
+        }
+        return false;
     }
 
     if (outputText == inputText) {
-        statusBar()->showMessage(
-            tr("Document already formatted (%1)").arg(ToQString(formatterName)),
-            2500);
-        return;
+        if (showUserMessages) {
+            statusBar()->showMessage(
+                tr("Document already formatted (%1)").arg(ToQString(formatterName)),
+                2500);
+        }
+        return true;
     }
 
     SetEditorText(editor, outputText);
     SetEditorEolMode(editor, stateIt->second.eolMode);
     editor->send(SCI_COLOURISE, 0, -1);
-    statusBar()->showMessage(
-        tr("Formatted document with %1").arg(ToQString(formatterName)),
-        2500);
+    if (formattedApplied) {
+        *formattedApplied = true;
+    }
+    if (showUserMessages) {
+        statusBar()->showMessage(
+            tr("Formatted document with %1").arg(ToQString(formatterName)),
+            2500);
+    }
+    return true;
+}
+
+std::string MainWindow::ResolveFormatterProfileForLanguage(
+    const std::string &lexerName,
+    const std::string &languageId) const {
+    const std::vector<std::string> candidates = FormatterLanguageCandidates(lexerName, languageId);
+    for (const std::string &candidate : candidates) {
+        const auto overrideIt = _editorSettings.formatterProfilesByLanguage.find(candidate);
+        if (overrideIt != _editorSettings.formatterProfilesByLanguage.end()) {
+            return NormalizeFormatterProfile(overrideIt->second);
+        }
+    }
+    return NormalizeFormatterProfile(_editorSettings.formatterDefaultProfile);
+}
+
+bool MainWindow::ShouldFormatOnSaveForLexer(const std::string &lexerName) const {
+    if (!_editorSettings.formatOnSaveEnabled) {
+        return false;
+    }
+    if (_editorSettings.formatOnSaveLanguages.empty()) {
+        return true;
+    }
+
+    const std::string languageId = npp::ui::MapLexerToLspLanguageId(lexerName).empty()
+        ? lexerName
+        : npp::ui::MapLexerToLspLanguageId(lexerName);
+    const std::vector<std::string> candidates = FormatterLanguageCandidates(lexerName, languageId);
+    for (const std::string &configuredLanguage : _editorSettings.formatOnSaveLanguages) {
+        if (std::find(candidates.begin(), candidates.end(), configuredLanguage) != candidates.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void MainWindow::OnFormatDocument() {
+    FormatEditorWithAvailableFormatter(CurrentEditor(), true, nullptr);
 }
 
 void MainWindow::OnPreferences() {
@@ -1347,6 +2182,48 @@ void MainWindow::OnPreferences() {
     autoCloseHtmlTagsCheck->setChecked(_editorSettings.autoCloseHtmlTags);
     auto *autoCloseDelimitersCheck = new QCheckBox(tr("Auto-close paired delimiters"), &dialog);
     autoCloseDelimitersCheck->setChecked(_editorSettings.autoCloseDelimiters);
+    auto *updateChannelCombo = new QComboBox(&dialog);
+    updateChannelCombo->addItem(tr("Stable"), QStringLiteral("stable"));
+    updateChannelCombo->addItem(tr("Candidate"), QStringLiteral("candidate"));
+    int updateChannelIndex = updateChannelCombo->findData(ToQString(NormalizeUpdateChannel(_editorSettings.updateChannel)));
+    if (updateChannelIndex < 0) {
+        updateChannelIndex = 0;
+    }
+    updateChannelCombo->setCurrentIndex(updateChannelIndex);
+    auto *formatOnSaveCheck = new QCheckBox(tr("Format on save"), &dialog);
+    formatOnSaveCheck->setChecked(_editorSettings.formatOnSaveEnabled);
+    auto *formatOnSaveLanguagesEdit = new QLineEdit(&dialog);
+    formatOnSaveLanguagesEdit->setPlaceholderText(tr("all languages"));
+    formatOnSaveLanguagesEdit->setText(LanguageCsvListString(_editorSettings.formatOnSaveLanguages));
+    formatOnSaveLanguagesEdit->setEnabled(_editorSettings.formatOnSaveEnabled);
+    auto *formatterDefaultProfileCombo = new QComboBox(&dialog);
+    formatterDefaultProfileCombo->addItem(tr("Auto (extensions then built-in)"), QStringLiteral("auto"));
+    formatterDefaultProfileCombo->addItem(tr("Built-in only"), QStringLiteral("builtin"));
+    formatterDefaultProfileCombo->addItem(tr("Extension only"), QStringLiteral("extension"));
+    const QString currentProfile = ToQString(NormalizeFormatterProfile(_editorSettings.formatterDefaultProfile));
+    int formatterProfileIndex = formatterDefaultProfileCombo->findData(currentProfile);
+    if (formatterProfileIndex < 0) {
+        formatterProfileIndex = 0;
+    }
+    formatterDefaultProfileCombo->setCurrentIndex(formatterProfileIndex);
+    auto *formatterOverridesEdit = new QLineEdit(&dialog);
+    formatterOverridesEdit->setPlaceholderText(tr("python=builtin, json=extension:ross.sample.formatter"));
+    formatterOverridesEdit->setText(FormatterOverrideCsvString(_editorSettings.formatterProfilesByLanguage));
+    auto *restoreSessionOnStartupCheck = new QCheckBox(tr("Restore previous session on startup"), &dialog);
+    restoreSessionOnStartupCheck->setChecked(_editorSettings.restoreSessionOnStartup);
+    auto *perProjectSessionStorageCheck = new QCheckBox(tr("Use per-project session storage"), &dialog);
+    perProjectSessionStorageCheck->setChecked(_editorSettings.usePerProjectSessionStorage);
+    perProjectSessionStorageCheck->setEnabled(_editorSettings.restoreSessionOnStartup);
+    auto *autoSaveOnFocusLostCheck = new QCheckBox(tr("Auto-save on focus lost"), &dialog);
+    autoSaveOnFocusLostCheck->setChecked(_editorSettings.autoSaveOnFocusLost);
+    auto *autoSaveOnIntervalCheck = new QCheckBox(tr("Auto-save on interval"), &dialog);
+    autoSaveOnIntervalCheck->setChecked(_editorSettings.autoSaveOnInterval);
+    auto *autoSaveIntervalSpin = new QSpinBox(&dialog);
+    autoSaveIntervalSpin->setRange(5, 600);
+    autoSaveIntervalSpin->setValue(_editorSettings.autoSaveIntervalSeconds);
+    autoSaveIntervalSpin->setEnabled(_editorSettings.autoSaveOnInterval);
+    auto *autoSaveBeforeRunCheck = new QCheckBox(tr("Auto-save before Run Command"), &dialog);
+    autoSaveBeforeRunCheck->setChecked(_editorSettings.autoSaveBeforeRun);
 
     form->addRow(tr("Tab width:"), tabWidthSpin);
     form->addRow(QString(), wrapCheck);
@@ -1354,7 +2231,26 @@ void MainWindow::OnPreferences() {
     form->addRow(QString(), autoDetectLanguageCheck);
     form->addRow(QString(), autoCloseHtmlTagsCheck);
     form->addRow(QString(), autoCloseDelimitersCheck);
+    form->addRow(tr("Update channel:"), updateChannelCombo);
+    form->addRow(QString(), formatOnSaveCheck);
+    form->addRow(tr("Format-on-save languages:"), formatOnSaveLanguagesEdit);
+    form->addRow(tr("Default formatter profile:"), formatterDefaultProfileCombo);
+    form->addRow(tr("Formatter overrides:"), formatterOverridesEdit);
+    form->addRow(QString(), restoreSessionOnStartupCheck);
+    form->addRow(QString(), perProjectSessionStorageCheck);
+    form->addRow(QString(), autoSaveOnFocusLostCheck);
+    form->addRow(QString(), autoSaveOnIntervalCheck);
+    form->addRow(tr("Auto-save interval (sec):"), autoSaveIntervalSpin);
+    form->addRow(QString(), autoSaveBeforeRunCheck);
     layout->addLayout(form);
+
+    connect(formatOnSaveCheck, &QCheckBox::toggled, formatOnSaveLanguagesEdit, &QLineEdit::setEnabled);
+    connect(
+        restoreSessionOnStartupCheck,
+        &QCheckBox::toggled,
+        perProjectSessionStorageCheck,
+        &QCheckBox::setEnabled);
+    connect(autoSaveOnIntervalCheck, &QCheckBox::toggled, autoSaveIntervalSpin, &QSpinBox::setEnabled);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -1365,14 +2261,39 @@ void MainWindow::OnPreferences() {
         return;
     }
 
+    std::map<std::string, std::string> formatterOverrides;
+    std::string overrideParseError;
+    if (!ParseFormatterOverrideCsv(ToUtf8(formatterOverridesEdit->text()), &formatterOverrides, &overrideParseError)) {
+        QMessageBox::warning(
+            this,
+            tr("Preferences"),
+            tr("Formatter override parse error:\n%1").arg(ToQString(overrideParseError)));
+        return;
+    }
+
     _editorSettings.tabWidth = tabWidthSpin->value();
     _editorSettings.wrapEnabled = wrapCheck->isChecked();
     _editorSettings.showLineNumbers = lineNumbersCheck->isChecked();
     _editorSettings.autoDetectLanguage = autoDetectLanguageCheck->isChecked();
     _editorSettings.autoCloseHtmlTags = autoCloseHtmlTagsCheck->isChecked();
     _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
+    _editorSettings.updateChannel = NormalizeUpdateChannel(ToUtf8(updateChannelCombo->currentData().toString()));
+    _editorSettings.formatOnSaveEnabled = formatOnSaveCheck->isChecked();
+    _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesEdit->text()));
+    _editorSettings.formatterDefaultProfile =
+        NormalizeFormatterProfile(ToUtf8(formatterDefaultProfileCombo->currentData().toString()));
+    _editorSettings.formatterProfilesByLanguage = std::move(formatterOverrides);
+    _editorSettings.restoreSessionOnStartup = restoreSessionOnStartupCheck->isChecked();
+    _editorSettings.usePerProjectSessionStorage =
+        _editorSettings.restoreSessionOnStartup &&
+        perProjectSessionStorageCheck->isChecked();
+    _editorSettings.autoSaveOnFocusLost = autoSaveOnFocusLostCheck->isChecked();
+    _editorSettings.autoSaveOnInterval = autoSaveOnIntervalCheck->isChecked();
+    _editorSettings.autoSaveBeforeRun = autoSaveBeforeRunCheck->isChecked();
+    _editorSettings.autoSaveIntervalSeconds = autoSaveIntervalSpin->value();
     ApplyEditorSettingsToAllEditors();
     SaveEditorSettings();
+    StartAutoSaveTimer();
     statusBar()->showMessage(tr("Preferences updated"), 1500);
 }
 
@@ -1437,6 +2358,15 @@ void MainWindow::OnRunCommand() {
         return;
     }
 
+    if (_editorSettings.autoSaveBeforeRun) {
+        const int savedCount = AutoSaveDirtyEditors();
+        if (savedCount > 0) {
+            statusBar()->showMessage(
+                tr("Auto-saved %1 file(s) before running command.").arg(savedCount),
+                1800);
+        }
+    }
+
     const QStringList parts = QProcess::splitCommand(command);
     if (parts.isEmpty()) {
         QMessageBox::warning(this, tr("Run Command"), tr("Invalid command line."));
@@ -1470,6 +2400,301 @@ void MainWindow::OnRunCommand() {
         tr("Command finished with exit code %1.").arg(result.value->exitCode));
 }
 
+void MainWindow::OnCommandPalette() {
+    if (_actionsById.empty()) {
+        return;
+    }
+
+    struct PaletteEntry {
+        std::string id;
+        QString label;
+        QString shortcut;
+        bool enabled = true;
+    };
+
+    std::vector<PaletteEntry> entries;
+    entries.reserve(_actionsById.size());
+    for (const auto &[id, action] : _actionsById) {
+        if (!action || id == "tools.commandPalette") {
+            continue;
+        }
+        PaletteEntry entry;
+        entry.id = id;
+        entry.label = action->text();
+        entry.label.remove('&');
+        entry.shortcut = action->shortcut().toString(QKeySequence::NativeText);
+        entry.enabled = action->isEnabled();
+        entries.push_back(std::move(entry));
+    }
+
+    if (entries.empty()) {
+        return;
+    }
+
+    std::sort(entries.begin(), entries.end(), [](const PaletteEntry &left, const PaletteEntry &right) {
+        const int labelCompare = QString::compare(left.label, right.label, Qt::CaseInsensitive);
+        if (labelCompare != 0) {
+            return labelCompare < 0;
+        }
+        return left.id < right.id;
+    });
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Command Palette"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Type to search commands"));
+    filterEdit->setClearButtonEnabled(true);
+    layout->addWidget(filterEdit);
+
+    auto *commandList = new QListWidget(&dialog);
+    commandList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(commandList);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    layout->addWidget(buttons);
+
+    const auto refillCommands = [&]() {
+        commandList->clear();
+        const QString query = filterEdit->text().trimmed();
+        for (const auto &entry : entries) {
+            const QString searchable = (entry.label + QStringLiteral(" ") +
+                                        QString::fromStdString(entry.id) + QStringLiteral(" ") +
+                                        entry.shortcut)
+                                           .toLower();
+            if (!query.isEmpty() && !searchable.contains(query.toLower())) {
+                continue;
+            }
+
+            const QString itemLabel = entry.shortcut.isEmpty()
+                ? entry.label
+                : tr("%1 (%2)").arg(entry.label, entry.shortcut);
+
+            auto *item = new QListWidgetItem(itemLabel, commandList);
+            item->setData(Qt::UserRole, ToQString(entry.id));
+            if (!entry.enabled) {
+                item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+            }
+        }
+
+        if (commandList->count() > 0) {
+            commandList->setCurrentRow(0);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillCommands);
+    connect(commandList, &QListWidget::itemDoubleClicked, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    refillCommands();
+    filterEdit->setFocus();
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    QListWidgetItem *selectedItem = commandList->currentItem();
+    if (!selectedItem) {
+        return;
+    }
+
+    const std::string actionId = ToUtf8(selectedItem->data(Qt::UserRole).toString());
+    const auto actionIt = _actionsById.find(actionId);
+    if (actionIt == _actionsById.end() || actionIt->second == nullptr) {
+        return;
+    }
+    if (!actionIt->second->isEnabled()) {
+        QMessageBox::information(this, tr("Command Palette"), tr("Selected command is currently unavailable."));
+        return;
+    }
+
+    actionIt->second->trigger();
+}
+
+void MainWindow::OnMultiCursorAddCaretAbove() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const int currentPos = static_cast<int>(editor->send(SCI_GETCURRENTPOS));
+    const int currentLine = static_cast<int>(editor->send(SCI_LINEFROMPOSITION, currentPos));
+    if (currentLine <= 0) {
+        statusBar()->showMessage(tr("No line above current caret."), 1500);
+        return;
+    }
+
+    const int targetLine = currentLine - 1;
+    const int column = static_cast<int>(editor->send(SCI_GETCOLUMN, currentPos));
+    const int targetPos = static_cast<int>(editor->send(SCI_FINDCOLUMN, targetLine, column));
+
+    const int selectionCount = static_cast<int>(editor->send(SCI_GETSELECTIONS));
+    for (int i = 0; i < selectionCount; ++i) {
+        const int caret = static_cast<int>(editor->send(SCI_GETSELECTIONNCARET, i));
+        const int anchor = static_cast<int>(editor->send(SCI_GETSELECTIONNANCHOR, i));
+        if (caret == targetPos && anchor == targetPos) {
+            return;
+        }
+    }
+
+    editor->send(SCI_ADDSELECTION, targetPos, targetPos);
+    statusBar()->showMessage(tr("Added caret above."), 1200);
+}
+
+void MainWindow::OnMultiCursorAddCaretBelow() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const int currentPos = static_cast<int>(editor->send(SCI_GETCURRENTPOS));
+    const int currentLine = static_cast<int>(editor->send(SCI_LINEFROMPOSITION, currentPos));
+    const int lineCount = static_cast<int>(editor->send(SCI_GETLINECOUNT));
+    if (currentLine >= lineCount - 1) {
+        statusBar()->showMessage(tr("No line below current caret."), 1500);
+        return;
+    }
+
+    const int targetLine = currentLine + 1;
+    const int column = static_cast<int>(editor->send(SCI_GETCOLUMN, currentPos));
+    const int targetPos = static_cast<int>(editor->send(SCI_FINDCOLUMN, targetLine, column));
+
+    const int selectionCount = static_cast<int>(editor->send(SCI_GETSELECTIONS));
+    for (int i = 0; i < selectionCount; ++i) {
+        const int caret = static_cast<int>(editor->send(SCI_GETSELECTIONNCARET, i));
+        const int anchor = static_cast<int>(editor->send(SCI_GETSELECTIONNANCHOR, i));
+        if (caret == targetPos && anchor == targetPos) {
+            return;
+        }
+    }
+
+    editor->send(SCI_ADDSELECTION, targetPos, targetPos);
+    statusBar()->showMessage(tr("Added caret below."), 1200);
+}
+
+void MainWindow::OnMultiCursorAddNextMatch() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    if (GetSelectedText(editor).empty()) {
+        QMessageBox::information(
+            this,
+            tr("Multi-Cursor"),
+            tr("Select text first, then add the next match."));
+        return;
+    }
+
+    editor->send(SCI_MULTIPLESELECTADDNEXT);
+    statusBar()->showMessage(tr("Added next match."), 1200);
+}
+
+void MainWindow::OnMultiCursorSelectAllMatches() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    if (GetSelectedText(editor).empty()) {
+        QMessageBox::information(
+            this,
+            tr("Multi-Cursor"),
+            tr("Select text first, then select all matches."));
+        return;
+    }
+
+    editor->send(SCI_MULTIPLESELECTADDEACH);
+    statusBar()->showMessage(tr("Selected all matches."), 1200);
+}
+
+void MainWindow::OnImportSettings() {
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Import Settings"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *form = new QFormLayout();
+    layout->addLayout(form);
+
+    auto *sourceCombo = new QComboBox(&dialog);
+    sourceCombo->addItem(tr("Visual Studio Code"), QStringLiteral("vscode"));
+    sourceCombo->addItem(tr("VSCodium"), QStringLiteral("vscodium"));
+    sourceCombo->addItem(tr("Kate"), QStringLiteral("kate"));
+    form->addRow(tr("Source"), sourceCombo);
+
+    auto *pathEdit = new QLineEdit(&dialog);
+    form->addRow(tr("Settings file"), pathEdit);
+
+    auto *browseButton = new QPushButton(tr("Browse..."), &dialog);
+    form->addRow(QString(), browseButton);
+
+    auto defaultPathForSource = [](const QString &sourceId) -> QString {
+        const QString home = QDir::homePath();
+        if (sourceId == QStringLiteral("vscode")) {
+            return home + QStringLiteral("/.config/Code/User/settings.json");
+        }
+        if (sourceId == QStringLiteral("vscodium")) {
+            return home + QStringLiteral("/.config/VSCodium/User/settings.json");
+        }
+        if (sourceId == QStringLiteral("kate")) {
+            return home + QStringLiteral("/.config/katerc");
+        }
+        return QString{};
+    };
+
+    pathEdit->setText(defaultPathForSource(sourceCombo->currentData().toString()));
+    connect(sourceCombo, &QComboBox::currentIndexChanged, &dialog, [sourceCombo, pathEdit, defaultPathForSource]() {
+        pathEdit->setText(defaultPathForSource(sourceCombo->currentData().toString()));
+    });
+    connect(browseButton, &QPushButton::clicked, &dialog, [this, pathEdit]() {
+        const QString selected = QFileDialog::getOpenFileName(
+            this,
+            tr("Select settings file"),
+            pathEdit->text());
+        if (!selected.isEmpty()) {
+            pathEdit->setText(selected);
+        }
+    });
+
+    auto *tipsLabel = new QLabel(
+        tr("Imports are opt-in and only map editor preferences "
+           "(tab width, line wrap, line numbers, and format-on-save where available)."),
+        &dialog);
+    tipsLabel->setWordWrap(true);
+    layout->addWidget(tipsLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    const std::string sourceId = ToUtf8(sourceCombo->currentData().toString());
+    const std::string sourcePathUtf8 = ToUtf8(pathEdit->text().trimmed());
+    QString summary;
+    if (!ImportSettingsFromSource(sourceId, sourcePathUtf8, &summary)) {
+        QMessageBox::warning(
+            this,
+            tr("Import Settings"),
+            summary.isEmpty() ? tr("No compatible settings were found.") : summary);
+        return;
+    }
+
+    _editorSettings.importedSettingsSource = sourceId;
+    SaveEditorSettings();
+    ApplyEditorSettingsToAllEditors();
+    SyncAuxiliaryEditorsToCurrentTab();
+    UpdateMinimapViewportHighlight();
+
+    QMessageBox::information(this, tr("Import Settings"), summary);
+    statusBar()->showMessage(tr("Imported settings from %1").arg(ToQString(sourceId)), 2500);
+}
+
 void MainWindow::OnOpenHelpDocs() {
     OpenExternalLink(
         RepositoryUrl(QStringLiteral("/blob/master/docs/help-and-support.md")),
@@ -1482,6 +2707,12 @@ void MainWindow::OnOpenHelpWiki() {
         tr("Project wiki"));
 }
 
+void MainWindow::OnOpenTopRequestedFeatures() {
+    OpenExternalLink(
+        RepositoryUrl(QStringLiteral("/blob/master/docs/top-requested-features.md")),
+        tr("top requested features board"));
+}
+
 void MainWindow::OnReportBug() {
     OpenExternalLink(
         RepositoryUrl(QStringLiteral("/issues/new?template=bug_report.yml")),
@@ -1492,6 +2723,45 @@ void MainWindow::OnRequestFeature() {
     OpenExternalLink(
         RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml")),
         tr("feature request form"));
+}
+
+void MainWindow::OnExportCrashReportBundle() {
+    const std::string fileName =
+        "crash-report-bundle-" + std::to_string(QDateTime::currentSecsSinceEpoch()) + ".json";
+    const std::string bundleJson = BuildCrashReportBundleJson();
+    const npp::platform::Status writeStatus =
+        _diagnosticsService.WriteDiagnostic(kAppName, "crash", fileName, bundleJson);
+    if (!writeStatus.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Crash Report Bundle"),
+            tr("Failed to export crash report bundle:\n%1").arg(ToQString(writeStatus.message)));
+        return;
+    }
+
+    QString bundlePath = ToQString(fileName);
+    const auto crashDir = _diagnosticsService.EnsureCrashDirectory(kAppName);
+    if (crashDir.ok()) {
+        const std::filesystem::path fullPath = std::filesystem::path(*crashDir.value) / fileName;
+        bundlePath = ToQString(fullPath.string());
+    }
+
+    QMessageBox::information(
+        this,
+        tr("Crash Report Bundle"),
+        tr("Crash report bundle exported:\n%1").arg(bundlePath));
+    statusBar()->showMessage(tr("Crash report bundle exported"), 3500);
+}
+
+void MainWindow::OnCheckForUpdates() {
+    const std::string channel = NormalizeUpdateChannel(_editorSettings.updateChannel);
+    const QString releaseUrl = channel == "candidate"
+        ? RepositoryUrl(QStringLiteral("/releases"))
+        : RepositoryUrl(QStringLiteral("/releases/latest"));
+    OpenExternalLink(releaseUrl, tr("release updates"));
+    statusBar()->showMessage(
+        tr("Update channel: %1").arg(UpdateChannelLabel(channel)),
+        2000);
 }
 
 void MainWindow::OnAboutDialog() {
@@ -1526,11 +2796,13 @@ void MainWindow::OnAboutDialog() {
         tr("<p><a href=\"%1\">Help and Support</a><br/>"
            "<a href=\"%2\">Project Wiki</a><br/>"
            "<a href=\"%3\">Report Bug</a> | "
-           "<a href=\"%4\">Request Feature</a></p>")
+           "<a href=\"%4\">Request Feature</a><br/>"
+           "<a href=\"%5\">Top Requested Features</a></p>")
             .arg(RepositoryUrl(QStringLiteral("/blob/master/docs/help-and-support.md")))
             .arg(RepositoryUrl(QStringLiteral("/wiki")))
             .arg(RepositoryUrl(QStringLiteral("/issues/new?template=bug_report.yml")))
-            .arg(RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml"))),
+            .arg(RepositoryUrl(QStringLiteral("/issues/new?template=2-feature-request.yml")))
+            .arg(RepositoryUrl(QStringLiteral("/blob/master/docs/top-requested-features.md"))),
         &dialog);
     linksLabel->setTextFormat(Qt::RichText);
     linksLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
@@ -1550,6 +2822,157 @@ void MainWindow::OnAboutDialog() {
     layout->addWidget(buttons);
 
     dialog.exec();
+}
+
+bool MainWindow::ImportSettingsFromSource(
+    const std::string &sourceId,
+    const std::string &sourcePathUtf8,
+    QString *summaryOut) {
+    if (summaryOut) {
+        summaryOut->clear();
+    }
+    if (sourcePathUtf8.empty()) {
+        if (summaryOut) {
+            *summaryOut = tr("Select a settings file first.");
+        }
+        return false;
+    }
+
+    const auto sourceExists = _fileSystemService.Exists(sourcePathUtf8);
+    if (!sourceExists.ok() || !(*sourceExists.value)) {
+        if (summaryOut) {
+            *summaryOut = tr("Settings file was not found:\n%1").arg(ToQString(sourcePathUtf8));
+        }
+        return false;
+    }
+
+    const auto sourceContent = _fileSystemService.ReadTextFile(sourcePathUtf8);
+    if (!sourceContent.ok()) {
+        if (summaryOut) {
+            *summaryOut = tr("Unable to read settings file:\n%1").arg(ToQString(sourceContent.status.message));
+        }
+        return false;
+    }
+
+    int importedCount = 0;
+    if (sourceId == "vscode" || sourceId == "vscodium") {
+        QJsonParseError parseError{};
+        const QByteArray bytes(sourceContent.value->c_str(), static_cast<int>(sourceContent.value->size()));
+        const QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+            if (summaryOut) {
+                *summaryOut = tr("The selected VS Code settings file is not valid JSON.");
+            }
+            return false;
+        }
+        const QJsonObject obj = doc.object();
+        const auto importBoolean = [&](const char *key, bool *target) {
+            const QJsonValue value = obj.value(QString::fromUtf8(key));
+            if (!value.isBool()) {
+                return;
+            }
+            *target = value.toBool(*target);
+            ++importedCount;
+        };
+        const QJsonValue tabSize = obj.value(QStringLiteral("editor.tabSize"));
+        if (tabSize.isDouble()) {
+            _editorSettings.tabWidth = std::clamp(tabSize.toInt(_editorSettings.tabWidth), 1, 12);
+            ++importedCount;
+        }
+        const QJsonValue wrapValue = obj.value(QStringLiteral("editor.wordWrap"));
+        if (wrapValue.isString()) {
+            const QString lower = wrapValue.toString().trimmed().toLower();
+            _editorSettings.wrapEnabled = (lower != QStringLiteral("off"));
+            ++importedCount;
+        } else if (wrapValue.isBool()) {
+            _editorSettings.wrapEnabled = wrapValue.toBool(_editorSettings.wrapEnabled);
+            ++importedCount;
+        }
+        const QJsonValue lineNumbersValue = obj.value(QStringLiteral("editor.lineNumbers"));
+        if (lineNumbersValue.isString()) {
+            const QString lower = lineNumbersValue.toString().trimmed().toLower();
+            _editorSettings.showLineNumbers = (lower != QStringLiteral("off"));
+            ++importedCount;
+        } else if (lineNumbersValue.isBool()) {
+            _editorSettings.showLineNumbers = lineNumbersValue.toBool(_editorSettings.showLineNumbers);
+            ++importedCount;
+        }
+        importBoolean("editor.formatOnSave", &_editorSettings.formatOnSaveEnabled);
+
+        const QJsonValue autoSaveValue = obj.value(QStringLiteral("files.autoSave"));
+        if (autoSaveValue.isString()) {
+            const QString mode = autoSaveValue.toString().trimmed().toLower();
+            _editorSettings.autoSaveOnFocusLost =
+                (mode == QStringLiteral("onfocuschange") || mode == QStringLiteral("onwindowchange"));
+            _editorSettings.autoSaveOnInterval = (mode == QStringLiteral("afterdelay"));
+            ++importedCount;
+        }
+    } else if (sourceId == "kate") {
+        std::istringstream stream(*sourceContent.value);
+        std::string line;
+        std::string section;
+        auto parseKateBool = [](std::string value, bool fallback) {
+            value = AsciiLower(TrimAsciiWhitespace(std::move(value)));
+            if (value == "true" || value == "1" || value == "yes") {
+                return true;
+            }
+            if (value == "false" || value == "0" || value == "no") {
+                return false;
+            }
+            return fallback;
+        };
+        while (std::getline(stream, line)) {
+            std::string trimmed = TrimAsciiWhitespace(line);
+            if (trimmed.empty() || trimmed[0] == '#') {
+                continue;
+            }
+            if (trimmed.front() == '[' && trimmed.back() == ']') {
+                section = AsciiLower(trimmed.substr(1, trimmed.size() - 2));
+                continue;
+            }
+            const size_t equalsPos = trimmed.find('=');
+            if (equalsPos == std::string::npos) {
+                continue;
+            }
+            const std::string key = AsciiLower(TrimAsciiWhitespace(trimmed.substr(0, equalsPos)));
+            const std::string value = TrimAsciiWhitespace(trimmed.substr(equalsPos + 1));
+
+            if (section == "kate document defaults" || section == "kate view defaults") {
+                if (key == "tab width") {
+                    try {
+                        _editorSettings.tabWidth = std::clamp(std::stoi(value), 1, 12);
+                        ++importedCount;
+                    } catch (...) {
+                    }
+                } else if (key == "word wrap") {
+                    _editorSettings.wrapEnabled = parseKateBool(value, _editorSettings.wrapEnabled);
+                    ++importedCount;
+                } else if (key == "line numbers") {
+                    _editorSettings.showLineNumbers = parseKateBool(value, _editorSettings.showLineNumbers);
+                    ++importedCount;
+                }
+            }
+        }
+    } else {
+        if (summaryOut) {
+            *summaryOut = tr("Unsupported import source.");
+        }
+        return false;
+    }
+
+    if (importedCount <= 0) {
+        if (summaryOut) {
+            *summaryOut = tr("No compatible editor settings were found in the selected file.");
+        }
+        return false;
+    }
+
+    if (summaryOut) {
+        *summaryOut = tr("Imported %1 setting(s) from %2.")
+                          .arg(importedCount)
+                          .arg(ToQString(sourcePathUtf8));
+    }
+    return true;
 }
 
 void MainWindow::OpenExternalLink(const QString &url, const QString &label) {
@@ -1582,6 +3005,14 @@ void MainWindow::StopLspSessionForEditor(ScintillaEditBase *editor) {
 }
 
 void MainWindow::OnInstallExtensionFromDirectory() {
+    if (_safeModeNoExtensions) {
+        QMessageBox::information(
+            this,
+            tr("Install Extension"),
+            tr("Extensions are disabled in safe mode. Relaunch in normal mode to install extensions."));
+        return;
+    }
+
     const QString sourceDir = QFileDialog::getExistingDirectory(
         this,
         tr("Select Extension Folder"),
@@ -1603,7 +3034,297 @@ void MainWindow::OnInstallExtensionFromDirectory() {
     statusBar()->showMessage(tr("Extension installed successfully"), 2000);
 }
 
+void MainWindow::OnOpenExtensionMarketplace() {
+    if (_safeModeNoExtensions) {
+        QMessageBox::information(
+            this,
+            tr("Extension Marketplace"),
+            tr("Extensions are disabled in safe mode. Relaunch in normal mode to use the marketplace."));
+        return;
+    }
+
+    const std::string indexPath = ResolveLocalExtensionMarketplaceIndexPath();
+    if (indexPath.empty()) {
+        QMessageBox::information(
+            this,
+            tr("Extension Marketplace"),
+            tr("No local marketplace index found.\n\nExpected one of:\n"
+               "  - %1/extensions-marketplace-index.json\n"
+               "  - ../share/notepad-plus-plus-linux/extensions/index.json\n"
+               "  - /usr/local/share/notepad-plus-plus-linux/extensions/index.json\n"
+               "  - /usr/share/notepad-plus-plus-linux/extensions/index.json")
+                .arg(ToQString(ConfigRootPath())));
+        return;
+    }
+
+    const auto indexJson = _fileSystemService.ReadTextFile(indexPath);
+    if (!indexJson.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Extension Marketplace"),
+            tr("Unable to read marketplace index:\n%1").arg(ToQString(indexJson.status.message)));
+        return;
+    }
+
+    QString parseError;
+    const std::vector<ExtensionMarketplaceEntry> entries =
+        ParseMarketplaceIndex(*indexJson.value, indexPath, &parseError);
+    if (entries.empty()) {
+        QMessageBox::information(
+            this,
+            tr("Extension Marketplace"),
+            parseError.isEmpty()
+                ? tr("Marketplace index is valid but contains no entries.")
+                : parseError);
+        return;
+    }
+
+    auto installed = _extensionService.DiscoverInstalled();
+    if (!installed.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Extension Marketplace"),
+            tr("Unable to load installed extensions:\n%1").arg(ToQString(installed.status.message)));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Extension Marketplace (Local Index)"));
+    dialog.resize(760, 520);
+    auto *layout = new QVBoxLayout(&dialog);
+
+    auto *sourceLabel = new QLabel(
+        tr("Index: %1").arg(ToQString(indexPath)),
+        &dialog);
+    sourceLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    sourceLabel->setWordWrap(true);
+    layout->addWidget(sourceLabel);
+
+    auto *entryList = new QListWidget(&dialog);
+    layout->addWidget(entryList, 1);
+
+    auto *detailsLabel = new QLabel(&dialog);
+    detailsLabel->setWordWrap(true);
+    detailsLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    layout->addWidget(detailsLabel);
+
+    auto *buttonRow = new QHBoxLayout();
+    auto *installOrUpdateButton = new QPushButton(tr("Install/Update Selected"), &dialog);
+    auto *updateAllButton = new QPushButton(tr("Update All Installed"), &dialog);
+    auto *openIndexButton = new QPushButton(tr("Open Index File"), &dialog);
+    auto *closeButton = new QPushButton(tr("Close"), &dialog);
+    buttonRow->addWidget(installOrUpdateButton);
+    buttonRow->addWidget(updateAllButton);
+    buttonRow->addStretch(1);
+    buttonRow->addWidget(openIndexButton);
+    buttonRow->addWidget(closeButton);
+    layout->addLayout(buttonRow);
+
+    auto rebuildInstalledMap = [&installed]() {
+        std::map<std::string, npp::platform::InstalledExtension> byId;
+        if (installed.ok()) {
+            for (const npp::platform::InstalledExtension &extension : *installed.value) {
+                byId.insert_or_assign(extension.manifest.id, extension);
+            }
+        }
+        return byId;
+    };
+
+    std::map<std::string, npp::platform::InstalledExtension> installedById = rebuildInstalledMap();
+
+    auto renderList = [&]() {
+        entryList->clear();
+        for (const ExtensionMarketplaceEntry &entry : entries) {
+            QString status = tr("available");
+            auto installedIt = installedById.find(entry.id);
+            if (installedIt != installedById.end()) {
+                const std::string installedVersion = installedIt->second.manifest.version;
+                const int versionCmp = CompareLooseVersion(entry.version, installedVersion);
+                if (versionCmp > 0) {
+                    status = tr("update available (%1 -> %2)")
+                                 .arg(ToQString(installedVersion))
+                                 .arg(ToQString(entry.version));
+                } else {
+                    status = tr("installed (%1)").arg(ToQString(installedVersion));
+                }
+            }
+
+            auto *item = new QListWidgetItem(
+                QStringLiteral("%1 [%2] - %3")
+                    .arg(ToQString(entry.name))
+                    .arg(ToQString(entry.id))
+                    .arg(status));
+            item->setData(Qt::UserRole, ToQString(entry.id));
+            entryList->addItem(item);
+        }
+    };
+
+    auto updateDetails = [&]() {
+        const int row = entryList->currentRow();
+        if (row < 0 || row >= static_cast<int>(entries.size())) {
+            detailsLabel->setText(tr("Select an extension to view details."));
+            return;
+        }
+
+        const ExtensionMarketplaceEntry &entry = entries[static_cast<size_t>(row)];
+        QString installedText = tr("Not installed");
+        auto installedIt = installedById.find(entry.id);
+        if (installedIt != installedById.end()) {
+            const std::string installedVersion = installedIt->second.manifest.version;
+            const int versionCmp = CompareLooseVersion(entry.version, installedVersion);
+            if (versionCmp > 0) {
+                installedText = tr("Installed %1 (update to %2 available)")
+                                    .arg(ToQString(installedVersion))
+                                    .arg(ToQString(entry.version));
+            } else {
+                installedText = tr("Installed %1 (up to date)")
+                                    .arg(ToQString(installedVersion));
+            }
+        }
+
+        detailsLabel->setText(
+            tr("Name: %1\nID: %2\nMarketplace version: %3\nInstall state: %4\nSource: %5\nDescription: %6")
+                .arg(ToQString(entry.name))
+                .arg(ToQString(entry.id))
+                .arg(ToQString(entry.version))
+                .arg(installedText)
+                .arg(ToQString(entry.sourceDirectoryUtf8))
+                .arg(ToQString(entry.description.empty() ? std::string("n/a") : entry.description)));
+    };
+
+    auto installFromEntry = [&](const ExtensionMarketplaceEntry &entry) -> bool {
+        const npp::platform::Status installStatus =
+            _extensionService.InstallFromDirectory(entry.sourceDirectoryUtf8);
+        if (!installStatus.ok()) {
+            QMessageBox::warning(
+                &dialog,
+                tr("Extension Marketplace"),
+                tr("Install/update failed for %1:\n%2")
+                    .arg(ToQString(entry.id))
+                    .arg(ToQString(installStatus.message)));
+            return false;
+        }
+        return true;
+    };
+
+    renderList();
+    if (entryList->count() > 0) {
+        entryList->setCurrentRow(0);
+    } else {
+        detailsLabel->setText(tr("No entries."));
+    }
+    updateDetails();
+
+    connect(entryList, &QListWidget::currentRowChanged, &dialog, [&](int) {
+        updateDetails();
+    });
+    connect(installOrUpdateButton, &QPushButton::clicked, &dialog, [&]() {
+        const int row = entryList->currentRow();
+        if (row < 0 || row >= static_cast<int>(entries.size())) {
+            return;
+        }
+        const ExtensionMarketplaceEntry &entry = entries[static_cast<size_t>(row)];
+        if (!installFromEntry(entry)) {
+            return;
+        }
+        installed = _extensionService.DiscoverInstalled();
+        if (installed.ok()) {
+            installedById = rebuildInstalledMap();
+        }
+        renderList();
+        entryList->setCurrentRow(row);
+        updateDetails();
+        statusBar()->showMessage(
+            tr("Installed/updated extension: %1").arg(ToQString(entry.id)),
+            2500);
+    });
+    connect(updateAllButton, &QPushButton::clicked, &dialog, [&]() {
+        std::vector<const ExtensionMarketplaceEntry *> toUpdate;
+        for (const ExtensionMarketplaceEntry &entry : entries) {
+            const auto installedIt = installedById.find(entry.id);
+            if (installedIt == installedById.end()) {
+                continue;
+            }
+            if (CompareLooseVersion(entry.version, installedIt->second.manifest.version) > 0) {
+                toUpdate.push_back(&entry);
+            }
+        }
+        if (toUpdate.empty()) {
+            QMessageBox::information(
+                &dialog,
+                tr("Extension Marketplace"),
+                tr("No installed extensions have available updates."));
+            return;
+        }
+
+        int updatedCount = 0;
+        for (const ExtensionMarketplaceEntry *entry : toUpdate) {
+            if (entry && installFromEntry(*entry)) {
+                ++updatedCount;
+            }
+        }
+        installed = _extensionService.DiscoverInstalled();
+        if (installed.ok()) {
+            installedById = rebuildInstalledMap();
+        }
+        renderList();
+        updateDetails();
+        statusBar()->showMessage(
+            tr("Updated %1 extension(s) from local marketplace").arg(updatedCount),
+            3000);
+    });
+    connect(openIndexButton, &QPushButton::clicked, &dialog, [&]() {
+        const npp::platform::Status openStatus = _processService.OpenPath(indexPath);
+        if (!openStatus.ok()) {
+            QMessageBox::warning(
+                &dialog,
+                tr("Extension Marketplace"),
+                tr("Unable to open index file:\n%1").arg(ToQString(openStatus.message)));
+        }
+    });
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.exec();
+}
+
+void MainWindow::OnRestartSafeMode() {
+    QStringList forwardedArguments = QCoreApplication::arguments();
+    if (!forwardedArguments.isEmpty()) {
+        forwardedArguments.removeFirst();
+    }
+
+    forwardedArguments.erase(
+        std::remove_if(forwardedArguments.begin(), forwardedArguments.end(), [](const QString &argument) {
+            return argument == QStringLiteral("--safe-mode") ||
+                argument == QStringLiteral("--safe-mode-no-extensions");
+        }),
+        forwardedArguments.end());
+    if (!_safeModeNoExtensions) {
+        forwardedArguments.push_back(QStringLiteral("--safe-mode"));
+    }
+
+    const bool started = QProcess::startDetached(
+        QCoreApplication::applicationFilePath(),
+        forwardedArguments);
+    if (!started) {
+        QMessageBox::warning(
+            this,
+            tr("Safe Mode"),
+            tr("Unable to relaunch the application."));
+        return;
+    }
+    close();
+}
+
 void MainWindow::OnManageExtensions() {
+    if (_safeModeNoExtensions) {
+        QMessageBox::information(
+            this,
+            tr("Manage Extensions"),
+            tr("Extensions are disabled in safe mode. Relaunch in normal mode to manage extensions."));
+        return;
+    }
+
     const auto installed = _extensionService.DiscoverInstalled();
     if (!installed.ok()) {
         QMessageBox::warning(
@@ -1638,7 +3359,82 @@ void MainWindow::OnManageExtensions() {
     }
 
     const QString extensionId = chosen.left(chosen.indexOf(QStringLiteral(" (")));
-    const QStringList operations = {tr("Enable"), tr("Disable"), tr("Reset Permissions"), tr("Remove")};
+    const std::string extensionIdUtf8 = ToUtf8(extensionId);
+    auto selectedExtensionIt = std::find_if(
+        installed.value->begin(),
+        installed.value->end(),
+        [&extensionIdUtf8](const npp::platform::InstalledExtension &extension) {
+            return extension.manifest.id == extensionIdUtf8;
+        });
+    if (selectedExtensionIt == installed.value->end()) {
+        QMessageBox::warning(
+            this,
+            tr("Manage Extensions"),
+            tr("Selected extension is no longer installed."));
+        return;
+    }
+
+    const npp::platform::InstalledExtension &selectedExtension = *selectedExtensionIt;
+    const std::optional<ExtensionDirectoryFootprint> footprint =
+        ComputeDirectoryFootprint(selectedExtension.installPath);
+    const double startupEstimateMs = _extensionStartupEstimateMsById.count(selectedExtension.manifest.id) > 0
+        ? _extensionStartupEstimateMsById.at(selectedExtension.manifest.id)
+        : 0.0;
+    const double manifestScanMs = _extensionManifestScanMsById.count(selectedExtension.manifest.id) > 0
+        ? _extensionManifestScanMsById.at(selectedExtension.manifest.id)
+        : 0.0;
+
+    bool updateAvailable = false;
+    ExtensionMarketplaceEntry marketplaceEntry;
+    const std::string marketplaceIndexPath = ResolveLocalExtensionMarketplaceIndexPath();
+    if (!marketplaceIndexPath.empty()) {
+        const auto indexJson = _fileSystemService.ReadTextFile(marketplaceIndexPath);
+        if (indexJson.ok()) {
+            QString ignoredError;
+            const std::vector<ExtensionMarketplaceEntry> entries =
+                ParseMarketplaceIndex(*indexJson.value, marketplaceIndexPath, &ignoredError);
+            const auto entryIt = std::find_if(entries.begin(), entries.end(), [&selectedExtension](const ExtensionMarketplaceEntry &entry) {
+                return entry.id == selectedExtension.manifest.id;
+            });
+            if (entryIt != entries.end()) {
+                marketplaceEntry = *entryIt;
+                updateAvailable = CompareLooseVersion(
+                    marketplaceEntry.version,
+                    selectedExtension.manifest.version) > 0;
+            }
+        }
+    }
+
+    QString extensionDetails = tr(
+        "Extension: %1\nID: %2\nVersion: %3\nInstall path: %4\nEnabled: %5\n"
+        "Startup impact estimate: %6 ms\nManifest scan: %7 ms\n"
+        "Resource usage: %8 in %9 file(s)")
+            .arg(ToQString(selectedExtension.manifest.name.empty()
+                               ? selectedExtension.manifest.id
+                               : selectedExtension.manifest.name))
+            .arg(ToQString(selectedExtension.manifest.id))
+            .arg(ToQString(selectedExtension.manifest.version))
+            .arg(ToQString(selectedExtension.installPath))
+            .arg(selectedExtension.enabled ? tr("yes") : tr("no"))
+            .arg(QString::number(startupEstimateMs, 'f', 1))
+            .arg(QString::number(manifestScanMs, 'f', 1))
+            .arg(footprint.has_value() ? FormatBytesBinary(footprint->totalBytes) : tr("unknown"))
+            .arg(footprint.has_value() ? static_cast<int>(footprint->fileCount) : 0);
+    if (updateAvailable) {
+        extensionDetails.append(
+            tr("\nUpdate available in local marketplace: %1")
+                .arg(ToQString(marketplaceEntry.version)));
+    } else {
+        extensionDetails.append(tr("\nMarketplace update: none"));
+    }
+
+    QMessageBox::information(this, tr("Extension Details"), extensionDetails);
+
+    const QString updateOperationLabel = tr("Update from Marketplace");
+    QStringList operations = {tr("Enable"), tr("Disable"), tr("Reset Permissions"), tr("Remove")};
+    if (updateAvailable) {
+        operations.push_back(updateOperationLabel);
+    }
     bool operationOk = false;
     const QString operation = QInputDialog::getItem(
         this,
@@ -1653,15 +3449,16 @@ void MainWindow::OnManageExtensions() {
     }
 
     npp::platform::Status operationStatus = npp::platform::Status::Ok();
-    const std::string extensionIdUtf8 = ToUtf8(extensionId);
     if (operation == operations.at(0)) {
         operationStatus = _extensionService.EnableExtension(extensionIdUtf8);
     } else if (operation == operations.at(1)) {
         operationStatus = _extensionService.DisableExtension(extensionIdUtf8);
     } else if (operation == operations.at(2)) {
         operationStatus = _extensionService.ResetPermissions(extensionIdUtf8);
-    } else {
+    } else if (operation == operations.at(3)) {
         operationStatus = _extensionService.RemoveExtension(extensionIdUtf8);
+    } else {
+        operationStatus = _extensionService.InstallFromDirectory(marketplaceEntry.sourceDirectoryUtf8);
     }
 
     if (!operationStatus.ok()) {
@@ -1673,6 +3470,8 @@ void MainWindow::OnManageExtensions() {
     }
     if (operation == operations.at(2)) {
         statusBar()->showMessage(tr("Extension permission decisions reset"), 2000);
+    } else if (operation == updateOperationLabel) {
+        statusBar()->showMessage(tr("Extension updated from local marketplace"), 2000);
     } else {
         statusBar()->showMessage(tr("Extension operation completed"), 2000);
     }
@@ -1863,15 +3662,358 @@ void MainWindow::OnLspShowDiagnostics() {
         return;
     }
 
-    std::ostringstream output;
-    for (const auto& diag : diagnostics) {
-        output << "line " << diag.line << ": " << diag.message << "\n";
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Diagnostics Panel (Baseline)"));
+    dialog.resize(860, 520);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *headerLayout = new QHBoxLayout();
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Filter diagnostics"));
+    filterEdit->setClearButtonEnabled(true);
+    auto *severityCombo = new QComboBox(&dialog);
+    severityCombo->addItem(tr("All severities"), QStringLiteral("all"));
+    severityCombo->addItem(tr("Warning"), QStringLiteral("warning"));
+    severityCombo->addItem(tr("Info"), QStringLiteral("info"));
+    headerLayout->addWidget(filterEdit, 1);
+    headerLayout->addWidget(severityCombo);
+    layout->addLayout(headerLayout);
+
+    auto *diagnosticList = new QListWidget(&dialog);
+    diagnosticList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(diagnosticList, 1);
+
+    auto *summaryLabel = new QLabel(&dialog);
+    layout->addWidget(summaryLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    QPushButton *goToButton = buttons->addButton(tr("Go To"), QDialogButtonBox::ActionRole);
+    layout->addWidget(buttons);
+
+    const auto goToDiagnosticLine = [this, editor](int line) {
+        if (line <= 0) {
+            return;
+        }
+        editor->send(SCI_GOTOLINE, static_cast<uptr_t>(line - 1));
+        editor->send(SCI_SCROLLCARET);
+        UpdateCursorStatus();
+    };
+
+    const auto refillDiagnostics = [&]() {
+        diagnosticList->clear();
+        const QString query = filterEdit->text().trimmed().toLower();
+        const QString severityFilter = severityCombo->currentData().toString();
+        int visibleCount = 0;
+        for (const auto& diagnostic : diagnostics) {
+            const QString severity = ToQString(diagnostic.severity).toLower();
+            if (severityFilter != QStringLiteral("all") && severity != severityFilter) {
+                continue;
+            }
+
+            const QString searchable = QStringLiteral("%1 %2 %3")
+                .arg(ToQString(diagnostic.code), ToQString(diagnostic.message), ToQString(diagnostic.severity))
+                .toLower();
+            if (!query.isEmpty() && !searchable.contains(query)) {
+                continue;
+            }
+
+            ++visibleCount;
+            auto *item = new QListWidgetItem(
+                tr("[%1] line %2: %3")
+                    .arg(ToQString(diagnostic.severity))
+                    .arg(diagnostic.line)
+                    .arg(ToQString(diagnostic.message)),
+                diagnosticList);
+            item->setData(Qt::UserRole, diagnostic.line);
+            item->setData(Qt::UserRole + 1, ToQString(diagnostic.code));
+        }
+
+        summaryLabel->setText(
+            tr("%1 of %2 diagnostics").arg(visibleCount).arg(static_cast<int>(diagnostics.size())));
+        if (diagnosticList->count() > 0) {
+            diagnosticList->setCurrentRow(0);
+            goToButton->setEnabled(true);
+        } else {
+            goToButton->setEnabled(false);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillDiagnostics);
+    connect(severityCombo, &QComboBox::currentTextChanged, &dialog, [&](const QString &) {
+        refillDiagnostics();
+    });
+    connect(diagnosticList, &QListWidget::itemDoubleClicked, &dialog, [&](QListWidgetItem *item) {
+        goToDiagnosticLine(item == nullptr ? 0 : item->data(Qt::UserRole).toInt());
+    });
+    connect(goToButton, &QPushButton::clicked, &dialog, [&]() {
+        QListWidgetItem *selectedItem = diagnosticList->currentItem();
+        goToDiagnosticLine(selectedItem == nullptr ? 0 : selectedItem->data(Qt::UserRole).toInt());
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+
+    refillDiagnostics();
+    filterEdit->setFocus();
+    dialog.exec();
+}
+
+void MainWindow::OnLspShowDocumentSymbols() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
     }
 
-    QMessageBox::information(
+    const auto symbols = npp::ui::CollectBaselineDocumentSymbols(GetEditorText(editor));
+    if (symbols.empty()) {
+        QMessageBox::information(this, tr("Document Symbols"), tr("No baseline symbols found in this document."));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Document Symbols (Baseline)"));
+    dialog.resize(760, 500);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Filter symbols by name or kind"));
+    filterEdit->setClearButtonEnabled(true);
+    layout->addWidget(filterEdit);
+
+    auto *symbolList = new QListWidget(&dialog);
+    symbolList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(symbolList, 1);
+
+    auto *summaryLabel = new QLabel(&dialog);
+    layout->addWidget(summaryLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    QPushButton *goToButton = buttons->addButton(tr("Go To"), QDialogButtonBox::ActionRole);
+    layout->addWidget(buttons);
+
+    const auto goToSymbolLine = [this, editor](int line) {
+        if (line <= 0) {
+            return;
+        }
+        editor->send(SCI_GOTOLINE, static_cast<uptr_t>(line - 1));
+        editor->send(SCI_SCROLLCARET);
+        UpdateCursorStatus();
+    };
+
+    const auto refillSymbols = [&]() {
+        symbolList->clear();
+        const QString query = filterEdit->text().trimmed().toLower();
+        int visibleCount = 0;
+        for (const auto& symbol : symbols) {
+            const QString searchable = QStringLiteral("%1 %2")
+                .arg(ToQString(symbol.name), ToQString(symbol.kind))
+                .toLower();
+            if (!query.isEmpty() && !searchable.contains(query)) {
+                continue;
+            }
+
+            ++visibleCount;
+            auto *item = new QListWidgetItem(
+                tr("%1  [%2]  line %3")
+                    .arg(ToQString(symbol.name), ToQString(symbol.kind))
+                    .arg(symbol.line),
+                symbolList);
+            item->setData(Qt::UserRole, symbol.line);
+        }
+
+        summaryLabel->setText(
+            tr("%1 of %2 symbols").arg(visibleCount).arg(static_cast<int>(symbols.size())));
+        if (symbolList->count() > 0) {
+            symbolList->setCurrentRow(0);
+            goToButton->setEnabled(true);
+        } else {
+            goToButton->setEnabled(false);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillSymbols);
+    connect(symbolList, &QListWidget::itemDoubleClicked, &dialog, [&](QListWidgetItem *item) {
+        goToSymbolLine(item == nullptr ? 0 : item->data(Qt::UserRole).toInt());
+    });
+    connect(goToButton, &QPushButton::clicked, &dialog, [&]() {
+        QListWidgetItem *selectedItem = symbolList->currentItem();
+        goToSymbolLine(selectedItem == nullptr ? 0 : selectedItem->data(Qt::UserRole).toInt());
+    });
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+
+    refillSymbols();
+    filterEdit->setFocus();
+    dialog.exec();
+}
+
+void MainWindow::OnLspRenameSymbol() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+
+    const std::string lexerName = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    if (npp::ui::MapLexerToLspLanguageId(lexerName).empty()) {
+        QMessageBox::information(
+            this,
+            tr("Rename Symbol"),
+            tr("Rename baseline is not available for lexer: %1").arg(ToQString(lexerName)));
+        return;
+    }
+
+    const std::size_t caretPos = static_cast<std::size_t>(editor->send(SCI_GETCURRENTPOS));
+    const std::string textUtf8 = GetEditorText(editor);
+    const std::string symbol = npp::ui::ExtractWordAt(textUtf8, caretPos);
+    if (symbol.empty()) {
+        QMessageBox::information(this, tr("Rename Symbol"), tr("No symbol under cursor."));
+        return;
+    }
+
+    bool renameAccepted = false;
+    const QString newName = QInputDialog::getText(
         this,
-        tr("Diagnostics (Baseline)"),
-        ToQString(output.str()));
+        tr("Rename Symbol (Baseline)"),
+        tr("New name for '%1':").arg(ToQString(symbol)),
+        QLineEdit::Normal,
+        ToQString(symbol),
+        &renameAccepted);
+    if (!renameAccepted) {
+        return;
+    }
+
+    const std::string replacement = ToUtf8(newName);
+    if (replacement.empty() || replacement == symbol) {
+        return;
+    }
+    if (!IsAsciiIdentifierToken(replacement)) {
+        QMessageBox::warning(
+            this,
+            tr("Rename Symbol"),
+            tr("Invalid symbol name. Use letters, numbers, hyphen, and underscore only."));
+        return;
+    }
+
+    std::string updatedText = textUtf8;
+    const int replacements = npp::ui::RenameBaselineSymbol(&updatedText, symbol, replacement);
+    if (replacements <= 0 || updatedText == textUtf8) {
+        QMessageBox::information(this, tr("Rename Symbol"), tr("No replaceable symbol occurrences found."));
+        return;
+    }
+
+    SetEditorText(editor, updatedText);
+    editor->send(SCI_COLOURISE, 0, -1);
+    const sptr_t currentLength = editor->send(SCI_GETTEXTLENGTH);
+    editor->send(SCI_GOTOPOS, std::min<sptr_t>(static_cast<sptr_t>(caretPos), currentLength));
+
+    auto mutableStateIt = _editorStates.find(editor);
+    if (mutableStateIt != _editorStates.end()) {
+        mutableStateIt->second.dirty = true;
+    }
+    UpdateTabTitle(editor);
+    statusBar()->showMessage(
+        tr("Renamed %1 occurrences of %2 to %3")
+            .arg(replacements)
+            .arg(ToQString(symbol))
+            .arg(ToQString(replacement)),
+        2500);
+}
+
+void MainWindow::OnLspCodeActions() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const auto diagnostics = npp::ui::CollectBaselineDiagnostics(GetEditorText(editor));
+    const auto actions = npp::ui::CollectBaselineCodeActions(diagnostics);
+    if (actions.empty()) {
+        QMessageBox::information(this, tr("Code Actions"), tr("No baseline quick fixes available."));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Code Actions (Baseline)"));
+    dialog.resize(760, 460);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Filter code actions"));
+    filterEdit->setClearButtonEnabled(true);
+    layout->addWidget(filterEdit);
+
+    auto *actionList = new QListWidget(&dialog);
+    actionList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(actionList, 1);
+
+    auto *summaryLabel = new QLabel(&dialog);
+    layout->addWidget(summaryLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, &dialog);
+    QPushButton *applyButton = buttons->addButton(tr("Apply"), QDialogButtonBox::AcceptRole);
+    layout->addWidget(buttons);
+
+    const auto refillActions = [&]() {
+        actionList->clear();
+        const QString query = filterEdit->text().trimmed().toLower();
+        int visibleCount = 0;
+        for (const auto& action : actions) {
+            const QString title = ToQString(action.title);
+            if (!query.isEmpty() && !title.toLower().contains(query)) {
+                continue;
+            }
+            ++visibleCount;
+            auto *item = new QListWidgetItem(title, actionList);
+            item->setData(Qt::UserRole, ToQString(action.id));
+            item->setData(Qt::UserRole + 1, action.line);
+        }
+
+        summaryLabel->setText(
+            tr("%1 of %2 code actions").arg(visibleCount).arg(static_cast<int>(actions.size())));
+        if (actionList->count() > 0) {
+            actionList->setCurrentRow(0);
+            applyButton->setEnabled(true);
+        } else {
+            applyButton->setEnabled(false);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillActions);
+    connect(actionList, &QListWidget::itemDoubleClicked, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    refillActions();
+    filterEdit->setFocus();
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    QListWidgetItem *selectedAction = actionList->currentItem();
+    if (!selectedAction) {
+        return;
+    }
+
+    std::string updatedText = GetEditorText(editor);
+    const std::string actionId = ToUtf8(selectedAction->data(Qt::UserRole).toString());
+    const int line = selectedAction->data(Qt::UserRole + 1).toInt();
+    if (!npp::ui::ApplyBaselineCodeAction(&updatedText, actionId, line, _editorSettings.tabWidth)) {
+        QMessageBox::information(this, tr("Code Actions"), tr("Selected action produced no changes."));
+        return;
+    }
+
+    SetEditorText(editor, updatedText);
+    editor->send(SCI_COLOURISE, 0, -1);
+    auto stateIt = _editorStates.find(editor);
+    if (stateIt != _editorStates.end()) {
+        stateIt->second.dirty = true;
+    }
+    UpdateTabTitle(editor);
+    statusBar()->showMessage(tr("Applied baseline code action"), 2000);
 }
 
 void MainWindow::SetCurrentEditorManualLexer(const std::string &lexerName) {
@@ -1916,6 +4058,9 @@ void MainWindow::UpdateLanguageActionState() {
         "language.lsp.hover",
         "language.lsp.gotoDefinition",
         "language.lsp.diagnostics",
+        "language.lsp.symbols",
+        "language.lsp.rename",
+        "language.lsp.codeActions",
     };
 
     const auto setLanguageActionsEnabled = [this, &languageActionIds](bool enabled) {
@@ -1980,7 +4125,11 @@ void MainWindow::UpdateLanguageActionState() {
 }
 
 void MainWindow::OnSetSkin(const std::string &skinId) {
-    if (skinId != "builtin.light" && skinId != "builtin.dark" && skinId != "builtin.high_contrast") {
+    if (skinId != "builtin.light" &&
+        skinId != "builtin.dark" &&
+        skinId != "builtin.dusk" &&
+        skinId != "builtin.solarized_light" &&
+        skinId != "builtin.high_contrast") {
         return;
     }
 
@@ -1996,6 +4145,7 @@ void MainWindow::OnSetSkin(const std::string &skinId) {
     _editorSettings.skinId = skinId;
     SaveEditorSettings();
     LoadTheme();
+    ApplyWindowIconFromSettings();
 
     for (int index = 0; index < _tabs->count(); ++index) {
         ScintillaEditBase *editor = EditorAt(index);
@@ -2008,6 +4158,14 @@ void MainWindow::OnSetSkin(const std::string &skinId) {
             : stateIt->second.lexerName;
         ApplyLexerByName(editor, lexerName);
     }
+    if (_splitEditor) {
+        ApplyTheme(_splitEditor);
+    }
+    if (_minimapEditor) {
+        ApplyTheme(_minimapEditor);
+    }
+    SyncAuxiliaryEditorsToCurrentTab();
+    UpdateMinimapViewportHighlight();
     UpdateSkinActionState();
 
     if (statusBar()) {
@@ -2021,6 +4179,8 @@ void MainWindow::UpdateSkinActionState() {
     const std::vector<std::string> skinActionIds = {
         "view.skin.light",
         "view.skin.dark",
+        "view.skin.dusk",
+        "view.skin.solarizedLight",
         "view.skin.highContrast",
     };
 
@@ -2039,6 +4199,194 @@ void MainWindow::UpdateSkinActionState() {
         QSignalBlocker blocker(activeIt->second);
         activeIt->second->setChecked(true);
     }
+}
+
+void MainWindow::OnSetIconVariant(const std::string &iconVariant) {
+    if (iconVariant != "auto" && iconVariant != "accent" && iconVariant != "monochrome") {
+        return;
+    }
+    _editorSettings.iconVariant = iconVariant;
+    SaveEditorSettings();
+    ApplyWindowIconFromSettings();
+    UpdateIconVariantActionState();
+    statusBar()->showMessage(tr("Icon variant set to %1").arg(ToQString(iconVariant)), 1500);
+}
+
+void MainWindow::UpdateIconVariantActionState() {
+    const std::vector<std::string> iconActionIds = {
+        "view.icon.auto",
+        "view.icon.accent",
+        "view.icon.monochrome",
+    };
+    for (const std::string &id : iconActionIds) {
+        const auto it = _actionsById.find(id);
+        if (it == _actionsById.end() || !it->second) {
+            continue;
+        }
+        QSignalBlocker blocker(it->second);
+        it->second->setChecked(false);
+    }
+
+    std::string actionId = "view.icon.auto";
+    if (_editorSettings.iconVariant == "accent") {
+        actionId = "view.icon.accent";
+    } else if (_editorSettings.iconVariant == "monochrome") {
+        actionId = "view.icon.monochrome";
+    }
+
+    const auto activeIt = _actionsById.find(actionId);
+    if (activeIt != _actionsById.end() && activeIt->second) {
+        QSignalBlocker blocker(activeIt->second);
+        activeIt->second->setChecked(true);
+    }
+}
+
+void MainWindow::OnDisableSplitView() {
+    _editorSettings.splitViewMode = kSplitModeDisabled;
+    SaveEditorSettings();
+    ApplySplitViewModeFromSettings();
+    statusBar()->showMessage(tr("Split view disabled"), 1500);
+}
+
+void MainWindow::OnEnableSplitVertical() {
+    _editorSettings.splitViewMode = kSplitModeVertical;
+    SaveEditorSettings();
+    ApplySplitViewModeFromSettings();
+    statusBar()->showMessage(tr("Vertical split enabled"), 1500);
+}
+
+void MainWindow::OnEnableSplitHorizontal() {
+    _editorSettings.splitViewMode = kSplitModeHorizontal;
+    SaveEditorSettings();
+    ApplySplitViewModeFromSettings();
+    statusBar()->showMessage(tr("Horizontal split enabled"), 1500);
+}
+
+void MainWindow::OnToggleMinimap() {
+    _editorSettings.minimapEnabled = !_editorSettings.minimapEnabled;
+    SaveEditorSettings();
+    ApplyMinimapStateFromSettings();
+    statusBar()->showMessage(
+        _editorSettings.minimapEnabled ? tr("Minimap enabled") : tr("Minimap disabled"),
+        1500);
+}
+
+void MainWindow::ApplySplitViewModeFromSettings() {
+    if (!_editorSplit || !_splitEditor) {
+        return;
+    }
+
+    const int splitMode = std::clamp(_editorSettings.splitViewMode, kSplitModeDisabled, kSplitModeHorizontal);
+    _editorSettings.splitViewMode = splitMode;
+
+    const bool splitEnabled = splitMode != kSplitModeDisabled;
+    if (splitMode == kSplitModeHorizontal) {
+        _editorSplit->setOrientation(Qt::Vertical);
+    } else {
+        _editorSplit->setOrientation(Qt::Horizontal);
+    }
+
+    if (splitEnabled) {
+        _splitEditor->show();
+        _editorSplit->setSizes({1, 1});
+    } else {
+        _splitEditor->hide();
+    }
+
+    const auto updateChecked = [this](const std::string &actionId, bool checked) {
+        const auto it = _actionsById.find(actionId);
+        if (it == _actionsById.end() || !it->second) {
+            return;
+        }
+        QSignalBlocker blocker(it->second);
+        it->second->setChecked(checked);
+    };
+    updateChecked("view.split.none", splitMode == kSplitModeDisabled);
+    updateChecked("view.split.vertical", splitMode == kSplitModeVertical);
+    updateChecked("view.split.horizontal", splitMode == kSplitModeHorizontal);
+
+    SyncAuxiliaryEditorsToCurrentTab();
+}
+
+void MainWindow::ApplyMinimapStateFromSettings() {
+    if (!_rootSplitter || !_minimapEditor) {
+        return;
+    }
+
+    if (_editorSettings.minimapEnabled) {
+        _minimapEditor->show();
+        _rootSplitter->setSizes({9, 2});
+        SyncAuxiliaryEditorsToCurrentTab();
+        UpdateMinimapViewportHighlight();
+    } else {
+        _minimapEditor->hide();
+        _minimapEditor->send(SCI_SETINDICATORCURRENT, kMinimapViewportIndicator);
+        _minimapEditor->send(SCI_INDICATORCLEARRANGE, 0, _minimapEditor->send(SCI_GETTEXTLENGTH));
+    }
+
+    const auto toggleIt = _actionsById.find("view.minimap.toggle");
+    if (toggleIt != _actionsById.end() && toggleIt->second) {
+        QSignalBlocker blocker(toggleIt->second);
+        toggleIt->second->setChecked(_editorSettings.minimapEnabled);
+    }
+}
+
+void MainWindow::SyncAuxiliaryEditorsToCurrentTab() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const sptr_t documentPointer = editor->send(SCI_GETDOCPOINTER);
+    if (documentPointer <= 0) {
+        return;
+    }
+
+    if (_splitEditor && _editorSettings.splitViewMode != kSplitModeDisabled) {
+        _splitEditor->send(SCI_SETDOCPOINTER, 0, documentPointer);
+        _splitEditor->send(SCI_GOTOPOS, editor->send(SCI_GETCURRENTPOS));
+        _splitEditor->send(SCI_SETFIRSTVISIBLELINE, editor->send(SCI_GETFIRSTVISIBLELINE));
+    }
+
+    if (_minimapEditor && _editorSettings.minimapEnabled) {
+        _minimapEditor->send(SCI_SETDOCPOINTER, 0, documentPointer);
+    }
+}
+
+void MainWindow::UpdateMinimapViewportHighlight() {
+    if (!_minimapEditor || !_editorSettings.minimapEnabled) {
+        return;
+    }
+
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const sptr_t textLength = _minimapEditor->send(SCI_GETTEXTLENGTH);
+    _minimapEditor->send(SCI_SETINDICATORCURRENT, kMinimapViewportIndicator);
+    _minimapEditor->send(SCI_INDICSETSTYLE, kMinimapViewportIndicator, INDIC_ROUNDBOX);
+    _minimapEditor->send(SCI_INDICSETFORE, kMinimapViewportIndicator, _themeSettings.accent);
+    _minimapEditor->send(SCI_INDICSETALPHA, kMinimapViewportIndicator, 40);
+    _minimapEditor->send(SCI_INDICSETOUTLINEALPHA, kMinimapViewportIndicator, 90);
+    _minimapEditor->send(SCI_INDICATORCLEARRANGE, 0, textLength);
+
+    const int lineCount = std::max(1, static_cast<int>(editor->send(SCI_GETLINECOUNT)));
+    const int firstVisibleLine = std::max(0, static_cast<int>(editor->send(SCI_GETFIRSTVISIBLELINE)));
+    const int linesOnScreen = std::max(1, static_cast<int>(editor->send(SCI_LINESONSCREEN)));
+    const int lastVisibleLine = std::min(lineCount - 1, firstVisibleLine + linesOnScreen);
+
+    const sptr_t startPos = _minimapEditor->send(SCI_POSITIONFROMLINE, firstVisibleLine);
+    const sptr_t endPos = _minimapEditor->send(SCI_GETLINEENDPOSITION, lastVisibleLine);
+    const sptr_t rangeLength = std::max<sptr_t>(1, endPos - startPos + 1);
+    _minimapEditor->send(SCI_INDICATORFILLRANGE, startPos, rangeLength);
+
+    const int minimapVisibleLines = std::max(1, static_cast<int>(_minimapEditor->send(SCI_LINESONSCREEN)));
+    const int minimapFirstLine = std::clamp(
+        firstVisibleLine - (minimapVisibleLines / 2),
+        0,
+        std::max(0, lineCount - minimapVisibleLines));
+    _minimapEditor->send(SCI_SETFIRSTVISIBLELINE, minimapFirstLine);
 }
 
 bool MainWindow::FindNextInEditor(
@@ -2397,7 +4745,13 @@ bool MainWindow::SaveEditorToFile(ScintillaEditBase *editor, const std::string &
     if (stateIt == _editorStates.end()) {
         return false;
     }
+
     stateIt->second.eolMode = static_cast<int>(editor->send(SCI_GETEOLMODE));
+    const std::string currentLexer = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    if (ShouldFormatOnSaveForLexer(currentLexer)) {
+        FormatEditorWithAvailableFormatter(editor, false, nullptr);
+    }
+
     const std::string bytes = EncodeForWrite(
         GetEditorText(editor),
         stateIt->second.encoding,
@@ -2537,6 +4891,8 @@ std::string MainWindow::NormalizeEol(const std::string &textUtf8, int eolMode) c
 }
 
 void MainWindow::LoadEditorSettings() {
+    _hasPersistedSettings = false;
+    _editorSettings.updateChannel = ResolveDefaultUpdateChannelFromInstall();
     EnsureConfigRoot();
     const auto exists = _fileSystemService.Exists(SettingsFilePath());
     if (!exists.ok() || !(*exists.value)) {
@@ -2548,13 +4904,23 @@ void MainWindow::LoadEditorSettings() {
         return;
     }
 
+    const std::string migratedSettingsJson = npp::ui::ApplyEditorSettingsMigrations(*settingsJson.value);
+    const std::string &settingsPayload = migratedSettingsJson.empty() ? *settingsJson.value : migratedSettingsJson;
     const QByteArray settingsBytes(
-        settingsJson.value->c_str(),
-        static_cast<int>(settingsJson.value->size()));
+        settingsPayload.c_str(),
+        static_cast<int>(settingsPayload.size()));
     QJsonParseError parseError{};
     const QJsonDocument doc = QJsonDocument::fromJson(settingsBytes, &parseError);
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
         return;
+    }
+    _hasPersistedSettings = true;
+
+    if (settingsPayload != *settingsJson.value) {
+        npp::platform::WriteFileOptions migrationWriteOptions;
+        migrationWriteOptions.atomic = true;
+        migrationWriteOptions.createParentDirs = true;
+        _fileSystemService.WriteTextFile(SettingsFilePath(), settingsPayload, migrationWriteOptions);
     }
 
     const QJsonObject obj = doc.object();
@@ -2564,6 +4930,69 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.autoDetectLanguage = obj.value(QStringLiteral("autoDetectLanguage")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
+    const QJsonValue updateChannelValue = obj.value(QStringLiteral("updateChannel"));
+    if (updateChannelValue.isString()) {
+        _editorSettings.updateChannel = NormalizeUpdateChannel(ToUtf8(updateChannelValue.toString()));
+    }
+    _editorSettings.formatOnSaveEnabled = obj.value(QStringLiteral("formatOnSaveEnabled")).toBool(false);
+    _editorSettings.formatterDefaultProfile = NormalizeFormatterProfile(
+        ToUtf8(obj.value(QStringLiteral("formatterDefaultProfile")).toString(QStringLiteral("auto"))));
+    _editorSettings.splitViewMode = std::clamp(
+        obj.value(QStringLiteral("splitViewMode")).toInt(kSplitModeDisabled),
+        kSplitModeDisabled,
+        kSplitModeHorizontal);
+    _editorSettings.minimapEnabled = obj.value(QStringLiteral("minimapEnabled")).toBool(false);
+    _editorSettings.formatOnSaveLanguages.clear();
+    const QJsonValue formatOnSaveLanguagesValue = obj.value(QStringLiteral("formatOnSaveLanguages"));
+    if (formatOnSaveLanguagesValue.isArray()) {
+        const QJsonArray languagesArray = formatOnSaveLanguagesValue.toArray();
+        for (const QJsonValue &value : languagesArray) {
+            if (!value.isString()) {
+                continue;
+            }
+            const std::vector<std::string> parsed = ParseLanguageCsvList(ToUtf8(value.toString()));
+            _editorSettings.formatOnSaveLanguages.insert(
+                _editorSettings.formatOnSaveLanguages.end(),
+                parsed.begin(),
+                parsed.end());
+        }
+        std::set<std::string> dedupe(
+            _editorSettings.formatOnSaveLanguages.begin(),
+            _editorSettings.formatOnSaveLanguages.end());
+        _editorSettings.formatOnSaveLanguages.assign(dedupe.begin(), dedupe.end());
+    } else if (formatOnSaveLanguagesValue.isString()) {
+        _editorSettings.formatOnSaveLanguages = ParseLanguageCsvList(ToUtf8(formatOnSaveLanguagesValue.toString()));
+    }
+    _editorSettings.formatterProfilesByLanguage.clear();
+    const QJsonValue formatterOverrideValue = obj.value(QStringLiteral("formatterProfileOverrides"));
+    if (formatterOverrideValue.isObject()) {
+        const QJsonObject overrideObject = formatterOverrideValue.toObject();
+        for (auto it = overrideObject.begin(); it != overrideObject.end(); ++it) {
+            if (!it.value().isString()) {
+                continue;
+            }
+            const std::string language = AsciiLower(TrimAsciiWhitespace(ToUtf8(it.key())));
+            const std::string profile = NormalizeFormatterProfile(ToUtf8(it.value().toString()));
+            if (language.empty() || !IsValidFormatterProfile(profile)) {
+                continue;
+            }
+            _editorSettings.formatterProfilesByLanguage.insert_or_assign(language, profile);
+        }
+    }
+    _editorSettings.restoreSessionOnStartup = obj.value(QStringLiteral("restoreSessionOnStartup")).toBool(true);
+    _editorSettings.usePerProjectSessionStorage =
+        obj.value(QStringLiteral("usePerProjectSessionStorage")).toBool(false);
+    const QJsonValue lastProjectRootValue = obj.value(QStringLiteral("lastProjectSessionRootUtf8"));
+    if (lastProjectRootValue.isString()) {
+        _editorSettings.lastProjectSessionRootUtf8 = ToUtf8(lastProjectRootValue.toString());
+    }
+    _editorSettings.autoSaveOnFocusLost = obj.value(QStringLiteral("autoSaveOnFocusLost")).toBool(false);
+    _editorSettings.autoSaveOnInterval = obj.value(QStringLiteral("autoSaveOnInterval")).toBool(false);
+    _editorSettings.autoSaveBeforeRun = obj.value(QStringLiteral("autoSaveBeforeRun")).toBool(false);
+    _editorSettings.autoSaveIntervalSeconds = std::clamp(
+        obj.value(QStringLiteral("autoSaveIntervalSeconds")).toInt(30),
+        5,
+        600);
     _editorSettings.extensionGuardrailsEnabled =
         obj.value(QStringLiteral("extensionGuardrailsEnabled")).toBool(true);
     _editorSettings.extensionStartupBudgetMs = std::clamp(
@@ -2578,11 +5007,33 @@ void MainWindow::LoadEditorSettings() {
         obj.value(QStringLiteral("crashRecoveryAutosaveSeconds")).toInt(15),
         5,
         300);
+    if (obj.contains(QStringLiteral("onboardingCompleted"))) {
+        _editorSettings.onboardingCompleted =
+            obj.value(QStringLiteral("onboardingCompleted")).toBool(false);
+    } else {
+        // Treat pre-onboarding configs as returning users to avoid forcing first-run UI on upgrade.
+        _editorSettings.onboardingCompleted = _hasPersistedSettings;
+    }
+    const QJsonValue importedSettingsSourceValue = obj.value(QStringLiteral("importedSettingsSource"));
+    if (importedSettingsSourceValue.isString()) {
+        _editorSettings.importedSettingsSource = ToUtf8(importedSettingsSourceValue.toString());
+    }
+    const QJsonValue lastSeenAppVersionValue = obj.value(QStringLiteral("lastSeenAppVersion"));
+    if (lastSeenAppVersionValue.isString()) {
+        _editorSettings.lastSeenAppVersion = ToUtf8(lastSeenAppVersionValue.toString());
+    }
     const QJsonValue skinValue = obj.value(QStringLiteral("skinId"));
     if (skinValue.isString()) {
         const std::string loadedSkinId = ToUtf8(skinValue.toString());
         if (!loadedSkinId.empty()) {
             _editorSettings.skinId = loadedSkinId;
+        }
+    }
+    const QJsonValue iconVariantValue = obj.value(QStringLiteral("iconVariant"));
+    if (iconVariantValue.isString()) {
+        const std::string variant = AsciiLower(TrimAsciiWhitespace(ToUtf8(iconVariantValue.toString())));
+        if (variant == "auto" || variant == "accent" || variant == "monochrome") {
+            _editorSettings.iconVariant = variant;
         }
     }
 }
@@ -2596,6 +5047,34 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("autoDetectLanguage"), _editorSettings.autoDetectLanguage);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
+    settingsObject.insert(QStringLiteral("updateChannel"), ToQString(NormalizeUpdateChannel(_editorSettings.updateChannel)));
+    settingsObject.insert(QStringLiteral("formatOnSaveEnabled"), _editorSettings.formatOnSaveEnabled);
+    settingsObject.insert(
+        QStringLiteral("formatterDefaultProfile"),
+        ToQString(NormalizeFormatterProfile(_editorSettings.formatterDefaultProfile)));
+    settingsObject.insert(QStringLiteral("splitViewMode"), _editorSettings.splitViewMode);
+    settingsObject.insert(QStringLiteral("minimapEnabled"), _editorSettings.minimapEnabled);
+    QJsonArray formatOnSaveLanguagesArray;
+    for (const std::string &language : _editorSettings.formatOnSaveLanguages) {
+        formatOnSaveLanguagesArray.append(ToQString(language));
+    }
+    settingsObject.insert(QStringLiteral("formatOnSaveLanguages"), formatOnSaveLanguagesArray);
+    QJsonObject formatterOverrideObject;
+    for (const auto &[language, profile] : _editorSettings.formatterProfilesByLanguage) {
+        formatterOverrideObject.insert(ToQString(language), ToQString(profile));
+    }
+    settingsObject.insert(QStringLiteral("formatterProfileOverrides"), formatterOverrideObject);
+    settingsObject.insert(QStringLiteral("restoreSessionOnStartup"), _editorSettings.restoreSessionOnStartup);
+    settingsObject.insert(
+        QStringLiteral("usePerProjectSessionStorage"),
+        _editorSettings.usePerProjectSessionStorage);
+    settingsObject.insert(
+        QStringLiteral("lastProjectSessionRootUtf8"),
+        ToQString(_editorSettings.lastProjectSessionRootUtf8));
+    settingsObject.insert(QStringLiteral("autoSaveOnFocusLost"), _editorSettings.autoSaveOnFocusLost);
+    settingsObject.insert(QStringLiteral("autoSaveOnInterval"), _editorSettings.autoSaveOnInterval);
+    settingsObject.insert(QStringLiteral("autoSaveBeforeRun"), _editorSettings.autoSaveBeforeRun);
+    settingsObject.insert(QStringLiteral("autoSaveIntervalSeconds"), _editorSettings.autoSaveIntervalSeconds);
     settingsObject.insert(QStringLiteral("extensionGuardrailsEnabled"), _editorSettings.extensionGuardrailsEnabled);
     settingsObject.insert(QStringLiteral("extensionStartupBudgetMs"), _editorSettings.extensionStartupBudgetMs);
     settingsObject.insert(
@@ -2604,7 +5083,15 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(
         QStringLiteral("crashRecoveryAutosaveSeconds"),
         _editorSettings.crashRecoveryAutosaveSeconds);
+    settingsObject.insert(QStringLiteral("onboardingCompleted"), _editorSettings.onboardingCompleted);
+    settingsObject.insert(
+        QStringLiteral("importedSettingsSource"),
+        ToQString(_editorSettings.importedSettingsSource));
+    settingsObject.insert(
+        QStringLiteral("lastSeenAppVersion"),
+        ToQString(_editorSettings.lastSeenAppVersion));
     settingsObject.insert(QStringLiteral("skinId"), ToQString(_editorSettings.skinId));
+    settingsObject.insert(QStringLiteral("iconVariant"), ToQString(_editorSettings.iconVariant));
 
     const QJsonDocument doc(settingsObject);
     const auto json = doc.toJson(QJsonDocument::Indented);
@@ -2625,6 +5112,7 @@ void MainWindow::ApplyEditorSettingsToAllEditors() {
     for (int index = 0; index < _tabs->count(); ++index) {
         ApplyEditorSettings(EditorAt(index));
     }
+    ApplyEditorSettings(_splitEditor);
 }
 
 void MainWindow::ApplyEditorSettings(ScintillaEditBase *editor) {
@@ -2893,6 +5381,28 @@ void MainWindow::EnsureBuiltInSkins() {
   "dialogs": {"background": "#242933", "foreground": "#E6EAF2", "buttonBackground": "#2C3442", "buttonForeground": "#E6EAF2", "border": "#41506A"}
 })"},
         {
+            "builtin.dusk",
+            "dusk.json",
+            R"({
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {"id": "builtin.dusk", "name": "Built-in Dusk"},
+  "appChrome": {"windowBackground": "#211F2A", "windowForeground": "#F2ECFF", "menuBackground": "#2B2837", "menuForeground": "#F2ECFF", "statusBackground": "#272332", "statusForeground": "#E7DFFF", "accent": "#E38D45"},
+  "editor": {"background": "#191722", "foreground": "#EEE8FF", "lineNumberBackground": "#252238", "lineNumberForeground": "#9A92BA", "caretLineBackground": "#2B2640", "selectionBackground": "#4B3C63", "selectionForeground": "#FFF6EA", "comment": "#8D9B7A", "keyword": "#D9A7FF", "number": "#7ADFF2", "stringColor": "#FFC58B", "operatorColor": "#EEE8FF"},
+  "dialogs": {"background": "#2B2837", "foreground": "#F2ECFF", "buttonBackground": "#3A3450", "buttonForeground": "#F2ECFF", "border": "#6F638F"}
+})"},
+        {
+            "builtin.solarized_light",
+            "solarized-light.json",
+            R"({
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {"id": "builtin.solarized_light", "name": "Built-in Solarized Light"},
+  "appChrome": {"windowBackground": "#FDF6E3", "windowForeground": "#4A5E66", "menuBackground": "#EEE8D5", "menuForeground": "#4A5E66", "statusBackground": "#E7DFC6", "statusForeground": "#4A5E66", "accent": "#268BD2"},
+  "editor": {"background": "#FDF6E3", "foreground": "#4A5E66", "lineNumberBackground": "#EEE8D5", "lineNumberForeground": "#657B83", "caretLineBackground": "#F5EED8", "selectionBackground": "#D8E8F5", "selectionForeground": "#073642", "comment": "#93A1A1", "keyword": "#268BD2", "number": "#D33682", "stringColor": "#2AA198", "operatorColor": "#4A5E66"},
+  "dialogs": {"background": "#FDF6E3", "foreground": "#4A5E66", "buttonBackground": "#EEE8D5", "buttonForeground": "#4A5E66", "border": "#C7BEA6"}
+})"},
+        {
             "builtin.high_contrast",
             "high-contrast.json",
             R"({
@@ -3141,6 +5651,150 @@ void MainWindow::LoadTheme() {
     ApplyChromeTheme();
 }
 
+bool MainWindow::IsHeadlessPlatform() const {
+    const QString platformName = QGuiApplication::platformName().trimmed().toLower();
+    return platformName == QStringLiteral("offscreen") || platformName == QStringLiteral("minimal");
+}
+
+void MainWindow::MaybeShowFirstRunOnboarding() {
+    if (IsHeadlessPlatform() || _editorSettings.onboardingCompleted) {
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Welcome to Notepad++ Linux"));
+    dialog.resize(520, 360);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *titleLabel = new QLabel(tr("<h3>First-run setup</h3>"), &dialog);
+    titleLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(titleLabel);
+
+    auto *descriptionLabel = new QLabel(
+        tr("Pick a few defaults now. You can change all of these later in Preferences."),
+        &dialog);
+    descriptionLabel->setWordWrap(true);
+    layout->addWidget(descriptionLabel);
+
+    auto *autoDetectCheck = new QCheckBox(tr("Enable automatic language detection"), &dialog);
+    autoDetectCheck->setChecked(_editorSettings.autoDetectLanguage);
+    layout->addWidget(autoDetectCheck);
+
+    auto *formatOnSaveCheck = new QCheckBox(tr("Enable format on save"), &dialog);
+    formatOnSaveCheck->setChecked(_editorSettings.formatOnSaveEnabled);
+    layout->addWidget(formatOnSaveCheck);
+
+    auto *restoreSessionCheck = new QCheckBox(tr("Restore previous session on startup"), &dialog);
+    restoreSessionCheck->setChecked(_editorSettings.restoreSessionOnStartup);
+    layout->addWidget(restoreSessionCheck);
+
+    auto *minimapCheck = new QCheckBox(tr("Show minimap by default"), &dialog);
+    minimapCheck->setChecked(_editorSettings.minimapEnabled);
+    layout->addWidget(minimapCheck);
+
+    auto *launchImportWizardCheck = new QCheckBox(tr("Launch import wizard after onboarding"), &dialog);
+    launchImportWizardCheck->setChecked(false);
+    layout->addWidget(launchImportWizardCheck);
+
+    auto *tipsLabel = new QLabel(
+        tr("Shortcut tips:\n"
+           "• Find: Ctrl+F\n"
+           "• Command Palette: Ctrl+Shift+P\n"
+           "• Format Document: Ctrl+Shift+I\n"
+           "• Toggle Minimap: Ctrl+Alt+M"),
+        &dialog);
+    tipsLabel->setWordWrap(true);
+    tipsLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    layout->addWidget(tipsLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    buttons->button(QDialogButtonBox::Ok)->setText(tr("Apply"));
+    buttons->button(QDialogButtonBox::Cancel)->setText(tr("Skip"));
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+
+    const int result = dialog.exec();
+    if (result == QDialog::Accepted) {
+        _editorSettings.autoDetectLanguage = autoDetectCheck->isChecked();
+        _editorSettings.formatOnSaveEnabled = formatOnSaveCheck->isChecked();
+        _editorSettings.restoreSessionOnStartup = restoreSessionCheck->isChecked();
+        _editorSettings.minimapEnabled = minimapCheck->isChecked();
+        ApplyEditorSettingsToAllEditors();
+        ApplyMinimapStateFromSettings();
+        SyncAuxiliaryEditorsToCurrentTab();
+        UpdateMinimapViewportHighlight();
+    }
+
+    _editorSettings.onboardingCompleted = true;
+    SaveEditorSettings();
+    if (result == QDialog::Accepted) {
+        statusBar()->showMessage(tr("Onboarding preferences applied"), 2500);
+    }
+    if (launchImportWizardCheck->isChecked()) {
+        OnImportSettings();
+    }
+}
+
+void MainWindow::MaybeShowWhatsNewDialog() {
+    if (IsHeadlessPlatform()) {
+        return;
+    }
+
+    const QString versionString = QCoreApplication::applicationVersion().trimmed();
+    if (versionString.isEmpty() || versionString == QStringLiteral("dev")) {
+        return;
+    }
+    const std::string currentVersion = ToUtf8(versionString);
+    if (_editorSettings.lastSeenAppVersion == currentVersion) {
+        return;
+    }
+    if (!_hasPersistedSettings) {
+        _editorSettings.lastSeenAppVersion = currentVersion;
+        SaveEditorSettings();
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("What's New"));
+    dialog.resize(520, 320);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *titleLabel = new QLabel(
+        tr("<h3>What's new in %1</h3>").arg(versionString),
+        &dialog);
+    titleLabel->setTextFormat(Qt::RichText);
+    layout->addWidget(titleLabel);
+
+    auto *summaryLabel = new QLabel(
+        tr("Highlights in this release:\n"
+           "• Startup tracing for cold-start diagnostics\n"
+           "• Crash report bundle export for issue attachments\n"
+           "• Expanded performance guardrails (large-file open + search)\n"
+           "• Linux integration and extension workflow polish"),
+        &dialog);
+    summaryLabel->setWordWrap(true);
+    layout->addWidget(summaryLabel);
+
+    auto *linkLabel = new QLabel(
+        tr("<a href=\"%1\">Open release notes on GitHub</a>")
+            .arg(RepositoryUrl(QStringLiteral("/releases"))),
+        &dialog);
+    linkLabel->setTextFormat(Qt::RichText);
+    linkLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    linkLabel->setOpenExternalLinks(true);
+    layout->addWidget(linkLabel);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    layout->addWidget(buttons);
+
+    dialog.exec();
+    _editorSettings.lastSeenAppVersion = currentVersion;
+    SaveEditorSettings();
+}
+
 void MainWindow::EnsureShortcutConfigFile() {
     EnsureConfigRoot();
     const auto exists = _fileSystemService.Exists(ShortcutFilePath());
@@ -3234,6 +5888,9 @@ void MainWindow::OpenShortcutConfigFile() {
 }
 
 void MainWindow::InitializeExtensionsWithGuardrails() {
+    _extensionStartupEstimateMsById.clear();
+    _extensionManifestScanMsById.clear();
+
     const auto startupBegin = std::chrono::steady_clock::now();
     const npp::platform::Status initStatus = _extensionService.Initialize();
     const auto afterInit = std::chrono::steady_clock::now();
@@ -3261,6 +5918,17 @@ void MainWindow::InitializeExtensionsWithGuardrails() {
     const double perExtensionMs = extensionCount > 0
         ? static_cast<double>(discoverMs) / static_cast<double>(extensionCount)
         : static_cast<double>(discoverMs);
+    for (const npp::platform::InstalledExtension &extension : *discovered.value) {
+        _extensionStartupEstimateMsById.insert_or_assign(extension.manifest.id, perExtensionMs);
+        const auto manifestStart = std::chrono::steady_clock::now();
+        const auto manifestStatus = _extensionService.LoadManifestFromDirectory(extension.installPath);
+        const auto manifestEnd = std::chrono::steady_clock::now();
+        if (manifestStatus.ok()) {
+            const double scanMs = static_cast<double>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(manifestEnd - manifestStart).count());
+            _extensionManifestScanMsById.insert_or_assign(extension.manifest.id, scanMs);
+        }
+    }
 
     if (!_editorSettings.extensionGuardrailsEnabled) {
         return;
@@ -3298,6 +5966,58 @@ void MainWindow::InitializeExtensionsWithGuardrails() {
     _diagnosticsService.WriteDiagnostic(kAppName, "logs", fileName, details.str());
 }
 
+void MainWindow::NotifyExtensionUpdatesIfAvailable() {
+    if (_safeModeNoExtensions) {
+        return;
+    }
+
+    const std::string indexPath = ResolveLocalExtensionMarketplaceIndexPath();
+    if (indexPath.empty()) {
+        return;
+    }
+
+    const auto indexJson = _fileSystemService.ReadTextFile(indexPath);
+    if (!indexJson.ok()) {
+        return;
+    }
+
+    QString parseError;
+    const std::vector<ExtensionMarketplaceEntry> entries =
+        ParseMarketplaceIndex(*indexJson.value, indexPath, &parseError);
+    if (entries.empty()) {
+        return;
+    }
+
+    const auto discovered = _extensionService.DiscoverInstalled();
+    if (!discovered.ok()) {
+        return;
+    }
+
+    std::map<std::string, std::string> installedVersionById;
+    for (const npp::platform::InstalledExtension &installed : *discovered.value) {
+        installedVersionById.insert_or_assign(installed.manifest.id, installed.manifest.version);
+    }
+
+    int updatesAvailable = 0;
+    for (const ExtensionMarketplaceEntry &entry : entries) {
+        const auto installedIt = installedVersionById.find(entry.id);
+        if (installedIt == installedVersionById.end()) {
+            continue;
+        }
+        if (CompareLooseVersion(entry.version, installedIt->second) > 0) {
+            ++updatesAvailable;
+        }
+    }
+
+    if (updatesAvailable <= 0) {
+        return;
+    }
+
+    statusBar()->showMessage(
+        tr("%1 extension update(s) available in local marketplace").arg(updatesAvailable),
+        4500);
+}
+
 void MainWindow::StartCrashRecoveryTimer() {
     if (_crashRecoveryTimer) {
         _crashRecoveryTimer->stop();
@@ -3311,6 +6031,79 @@ void MainWindow::StartCrashRecoveryTimer() {
         SaveCrashRecoveryJournal();
     });
     _crashRecoveryTimer->start();
+}
+
+void MainWindow::StartAutoSaveTimer() {
+    if (_autoSaveTimer) {
+        _autoSaveTimer->stop();
+        _autoSaveTimer->deleteLater();
+        _autoSaveTimer = nullptr;
+    }
+
+    if (!_editorSettings.autoSaveOnInterval) {
+        return;
+    }
+
+    _autoSaveTimer = new QTimer(this);
+    _autoSaveTimer->setInterval(std::clamp(_editorSettings.autoSaveIntervalSeconds, 5, 600) * 1000);
+    connect(_autoSaveTimer, &QTimer::timeout, this, [this]() {
+        const int savedCount = AutoSaveDirtyEditors();
+        if (savedCount > 0) {
+            statusBar()->showMessage(
+                tr("Auto-saved %1 file(s).").arg(savedCount),
+                1500);
+        }
+    });
+    _autoSaveTimer->start();
+}
+
+bool MainWindow::AutoSaveEditorIfNeeded(ScintillaEditBase *editor, std::string *savedPathUtf8) {
+    if (!editor) {
+        return false;
+    }
+
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return false;
+    }
+
+    const EditorState &state = stateIt->second;
+    if (!state.dirty || state.filePathUtf8.empty()) {
+        return false;
+    }
+
+    if (!SaveEditorToFile(editor, state.filePathUtf8)) {
+        return false;
+    }
+
+    if (savedPathUtf8) {
+        *savedPathUtf8 = state.filePathUtf8;
+    }
+    return true;
+}
+
+int MainWindow::AutoSaveDirtyEditors(std::vector<std::string> *savedPathsUtf8) {
+    if (!_tabs) {
+        return 0;
+    }
+
+    int savedCount = 0;
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ScintillaEditBase *editor = EditorAt(index);
+        if (!editor) {
+            continue;
+        }
+
+        std::string savedPathUtf8;
+        if (AutoSaveEditorIfNeeded(editor, &savedPathUtf8)) {
+            ++savedCount;
+            if (savedPathsUtf8) {
+                savedPathsUtf8->push_back(savedPathUtf8);
+            }
+        }
+    }
+
+    return savedCount;
 }
 
 std::string MainWindow::ConfigRootPath() const {
@@ -3331,6 +6124,10 @@ std::string MainWindow::SkinFilePathForId(const std::string &skinId) const {
         fileName = "light.json";
     } else if (skinId == "builtin.dark") {
         fileName = "dark.json";
+    } else if (skinId == "builtin.dusk") {
+        fileName = "dusk.json";
+    } else if (skinId == "builtin.solarized_light") {
+        fileName = "solarized-light.json";
     } else if (skinId == "builtin.high_contrast") {
         fileName = "high-contrast.json";
     } else {
@@ -3363,6 +6160,250 @@ std::string MainWindow::ShortcutFilePath() const {
 
 std::string MainWindow::ThemeFilePath() const {
     return ConfigRootPath() + "/theme-linux.json";
+}
+
+std::string MainWindow::IconSvgPathForVariant(const std::string &iconVariant) const {
+    std::string fileName = "notepad-plus-plus-linux.svg";
+    if (iconVariant == "monochrome") {
+        fileName = "notepad-plus-plus-linux-monochrome.svg";
+    } else if (iconVariant == "accent") {
+        fileName = "notepad-plus-plus-linux-accent.svg";
+    }
+
+    const std::vector<std::string> candidatePaths = {
+        std::string("/usr/local/share/icons/hicolor/scalable/apps/") + fileName,
+        std::string("/usr/share/icons/hicolor/scalable/apps/") + fileName,
+        std::string("packaging/linux/icons/hicolor/scalable/apps/") + fileName,
+    };
+
+    for (const std::string &candidate : candidatePaths) {
+        const auto exists = _fileSystemService.Exists(candidate);
+        if (exists.ok() && *exists.value) {
+            return candidate;
+        }
+    }
+
+    return std::string{};
+}
+
+void MainWindow::ApplyWindowIconFromSettings() {
+    std::string requestedVariant = _editorSettings.iconVariant;
+    if (requestedVariant != "auto" && requestedVariant != "accent" && requestedVariant != "monochrome") {
+        requestedVariant = "auto";
+    }
+    if (requestedVariant == "auto") {
+        const bool darkSkin =
+            _editorSettings.skinId == "builtin.dark" ||
+            _editorSettings.skinId == "builtin.dusk" ||
+            _editorSettings.skinId == "builtin.high_contrast";
+        requestedVariant = darkSkin ? "monochrome" : "accent";
+    }
+
+    const std::string iconPath = IconSvgPathForVariant(requestedVariant);
+    if (!iconPath.empty()) {
+        setWindowIcon(QIcon(ToQString(iconPath)));
+        return;
+    }
+
+    const QIcon themedIcon = QIcon::fromTheme(QStringLiteral("notepad-plus-plus-linux"));
+    if (!themedIcon.isNull()) {
+        setWindowIcon(themedIcon);
+    }
+}
+
+std::string MainWindow::ResolveLocalExtensionMarketplaceIndexPath() const {
+    std::vector<std::string> candidatePaths;
+    const std::string configRoot = ConfigRootPath();
+    if (!configRoot.empty()) {
+        candidatePaths.push_back(configRoot + "/extensions-marketplace-index.json");
+    }
+
+    const std::string appDirUtf8 = ToUtf8(QCoreApplication::applicationDirPath());
+    if (!appDirUtf8.empty()) {
+        const std::filesystem::path appDirPath(appDirUtf8);
+        candidatePaths.push_back(
+            (appDirPath / ".." / "share" / "notepad-plus-plus-linux" / "extensions" / "index.json")
+                .lexically_normal()
+                .string());
+    }
+
+    candidatePaths.push_back("/usr/local/share/notepad-plus-plus-linux/extensions/index.json");
+    candidatePaths.push_back("/usr/share/notepad-plus-plus-linux/extensions/index.json");
+
+    for (const std::string &candidatePath : candidatePaths) {
+        const auto exists = _fileSystemService.Exists(candidatePath);
+        if (exists.ok() && *exists.value) {
+            return candidatePath;
+        }
+    }
+
+    return std::string{};
+}
+
+std::string MainWindow::BuildCrashReportBundleJson() {
+    QJsonObject root;
+    root.insert(QStringLiteral("schemaVersion"), 1);
+    root.insert(
+        QStringLiteral("capturedAtUtc"),
+        QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+    root.insert(
+        QStringLiteral("appVersion"),
+        QCoreApplication::applicationVersion().trimmed().isEmpty()
+            ? QStringLiteral("dev")
+            : QCoreApplication::applicationVersion().trimmed());
+    root.insert(QStringLiteral("qtVersion"), QString::fromLatin1(qVersion()));
+    root.insert(QStringLiteral("platform"), QSysInfo::prettyProductName());
+    root.insert(QStringLiteral("kernelType"), QSysInfo::kernelType());
+    root.insert(QStringLiteral("kernelVersion"), QSysInfo::kernelVersion());
+    root.insert(QStringLiteral("safeModeNoExtensions"), _safeModeNoExtensions);
+    root.insert(QStringLiteral("openTabCount"), _tabs ? _tabs->count() : 0);
+
+    QJsonObject paths;
+    const auto configPath = _pathService.GetAppPath(npp::platform::PathScope::kConfig, kAppName);
+    const auto statePath = _pathService.GetAppPath(npp::platform::PathScope::kState, kAppName);
+    const auto cachePath = _pathService.GetAppPath(npp::platform::PathScope::kCache, kAppName);
+    if (configPath.ok()) {
+        paths.insert(QStringLiteral("config"), ToQString(*configPath.value));
+    }
+    if (statePath.ok()) {
+        paths.insert(QStringLiteral("state"), ToQString(*statePath.value));
+    }
+    if (cachePath.ok()) {
+        paths.insert(QStringLiteral("cache"), ToQString(*cachePath.value));
+    }
+    root.insert(QStringLiteral("paths"), paths);
+
+    QJsonObject fileSnapshots;
+    auto appendFileSnapshot = [this, &fileSnapshots](const QString &key, const std::string &pathUtf8) {
+        QJsonObject entry;
+        entry.insert(QStringLiteral("path"), ToQString(pathUtf8));
+        const auto exists = _fileSystemService.Exists(pathUtf8);
+        if (!exists.ok()) {
+            entry.insert(QStringLiteral("error"), ToQString(exists.status.message));
+            fileSnapshots.insert(key, entry);
+            return;
+        }
+
+        entry.insert(QStringLiteral("exists"), *exists.value);
+        if (!(*exists.value)) {
+            fileSnapshots.insert(key, entry);
+            return;
+        }
+
+        const auto content = _fileSystemService.ReadTextFile(pathUtf8);
+        if (!content.ok()) {
+            entry.insert(QStringLiteral("error"), ToQString(content.status.message));
+            fileSnapshots.insert(key, entry);
+            return;
+        }
+
+        constexpr size_t kMaxBundleContentBytes = 131072;
+        entry.insert(QStringLiteral("bytes"), static_cast<qint64>(content.value->size()));
+        if (content.value->size() > kMaxBundleContentBytes) {
+            entry.insert(QStringLiteral("truncated"), true);
+            entry.insert(
+                QStringLiteral("content"),
+                QString::fromUtf8(content.value->c_str(), static_cast<int>(kMaxBundleContentBytes)));
+        } else {
+            entry.insert(
+                QStringLiteral("content"),
+                QString::fromUtf8(content.value->c_str(), static_cast<int>(content.value->size())));
+        }
+        fileSnapshots.insert(key, entry);
+    };
+
+    appendFileSnapshot(QStringLiteral("settings"), SettingsFilePath());
+    appendFileSnapshot(QStringLiteral("shortcuts"), ShortcutFilePath());
+    appendFileSnapshot(QStringLiteral("theme"), ThemeFilePath());
+    appendFileSnapshot(QStringLiteral("session"), SessionFilePath());
+    appendFileSnapshot(QStringLiteral("crashRecoveryJournal"), CrashRecoveryJournalPath());
+    root.insert(QStringLiteral("files"), fileSnapshots);
+
+    QJsonArray recentLogs;
+    std::set<std::string> logDirectoryCandidates;
+    const auto logDirectory = _diagnosticsService.EnsureLogDirectory(kAppName);
+    if (logDirectory.ok()) {
+        logDirectoryCandidates.insert(*logDirectory.value);
+    }
+    if (statePath.ok()) {
+        logDirectoryCandidates.insert((std::filesystem::path(*statePath.value) / "logs").string());
+    }
+
+    std::vector<std::string> logFilePaths;
+    for (const std::string &logDirUtf8 : logDirectoryCandidates) {
+        npp::platform::ListDirectoryOptions listOptions;
+        listOptions.recursive = false;
+        listOptions.includeDirectories = false;
+        const auto listed = _fileSystemService.ListDirectory(logDirUtf8, listOptions);
+        if (!listed.ok()) {
+            continue;
+        }
+        for (const std::string &pathUtf8 : *listed.value) {
+            logFilePaths.push_back(pathUtf8);
+        }
+    }
+    std::sort(logFilePaths.begin(), logFilePaths.end(), std::greater<std::string>());
+    logFilePaths.erase(std::unique(logFilePaths.begin(), logFilePaths.end()), logFilePaths.end());
+
+    constexpr size_t kMaxLogs = 5;
+    for (size_t index = 0; index < std::min(logFilePaths.size(), kMaxLogs); ++index) {
+        const std::string &pathUtf8 = logFilePaths[index];
+        QJsonObject logEntry;
+        logEntry.insert(QStringLiteral("path"), ToQString(pathUtf8));
+        const auto content = _fileSystemService.ReadTextFile(pathUtf8);
+        if (!content.ok()) {
+            logEntry.insert(QStringLiteral("error"), ToQString(content.status.message));
+            recentLogs.append(logEntry);
+            continue;
+        }
+        constexpr size_t kMaxLogPreviewBytes = 65536;
+        if (content.value->size() > kMaxLogPreviewBytes) {
+            logEntry.insert(QStringLiteral("truncated"), true);
+            logEntry.insert(
+                QStringLiteral("content"),
+                QString::fromUtf8(content.value->c_str(), static_cast<int>(kMaxLogPreviewBytes)));
+        } else {
+            logEntry.insert(
+                QStringLiteral("content"),
+                QString::fromUtf8(content.value->c_str(), static_cast<int>(content.value->size())));
+        }
+        recentLogs.append(logEntry);
+    }
+    root.insert(QStringLiteral("recentLogs"), recentLogs);
+
+    const QJsonDocument doc(root);
+    const QByteArray bytes = doc.toJson(QJsonDocument::Indented);
+    return std::string(bytes.constData(), static_cast<size_t>(bytes.size()));
+}
+
+std::string MainWindow::ResolveDefaultUpdateChannelFromInstall() const {
+    std::vector<std::string> candidatePaths;
+
+    const std::string appDirUtf8 = ToUtf8(QCoreApplication::applicationDirPath());
+    if (!appDirUtf8.empty()) {
+        const std::filesystem::path appDirPath(appDirUtf8);
+        candidatePaths.push_back(
+            (appDirPath / ".." / "share" / "notepad-plus-plus-linux" / "default-update-channel")
+                .lexically_normal()
+                .string());
+    }
+
+    candidatePaths.push_back("/usr/local/share/notepad-plus-plus-linux/default-update-channel");
+    candidatePaths.push_back("/usr/share/notepad-plus-plus-linux/default-update-channel");
+
+    for (const std::string &candidatePath : candidatePaths) {
+        const auto exists = _fileSystemService.Exists(candidatePath);
+        if (!exists.ok() || !(*exists.value)) {
+            continue;
+        }
+        const auto channelFile = _fileSystemService.ReadTextFile(candidatePath);
+        if (!channelFile.ok()) {
+            continue;
+        }
+        return NormalizeUpdateChannel(*channelFile.value);
+    }
+
+    return "stable";
 }
 
 void MainWindow::SaveCrashRecoveryJournal() const {
@@ -3513,12 +6554,13 @@ bool MainWindow::RestoreCrashRecoveryJournal() {
 
 bool MainWindow::RestoreSession() {
     EnsureConfigRoot();
-    const auto exists = _fileSystemService.Exists(SessionFilePath());
+    const std::string sessionPath = SessionFilePath();
+    const auto exists = _fileSystemService.Exists(sessionPath);
     if (!exists.ok() || !(*exists.value)) {
         return false;
     }
 
-    const auto sessionJson = _fileSystemService.ReadTextFile(SessionFilePath());
+    const auto sessionJson = _fileSystemService.ReadTextFile(sessionPath);
     if (!sessionJson.ok()) {
         return false;
     }
@@ -3577,8 +6619,62 @@ bool MainWindow::RestoreSession() {
     return true;
 }
 
+std::string MainWindow::DetermineProjectSessionRootFromOpenTabs() const {
+    std::vector<std::filesystem::path> parentDirectories;
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ScintillaEditBase *editor = EditorAt(index);
+        if (!editor) {
+            continue;
+        }
+
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end() || stateIt->second.filePathUtf8.empty()) {
+            continue;
+        }
+
+        std::filesystem::path parentPath = std::filesystem::path(stateIt->second.filePathUtf8).parent_path();
+        if (parentPath.empty()) {
+            continue;
+        }
+        parentDirectories.push_back(parentPath.lexically_normal());
+    }
+
+    if (parentDirectories.empty()) {
+        return std::string{};
+    }
+
+    std::vector<std::string> commonComponents;
+    for (const auto &component : parentDirectories.front()) {
+        commonComponents.push_back(component.string());
+    }
+
+    for (size_t pathIndex = 1; pathIndex < parentDirectories.size(); ++pathIndex) {
+        std::vector<std::string> currentComponents;
+        for (const auto &component : parentDirectories[pathIndex]) {
+            currentComponents.push_back(component.string());
+        }
+
+        const size_t maxCommon = std::min(commonComponents.size(), currentComponents.size());
+        size_t matchCount = 0;
+        while (matchCount < maxCommon && commonComponents[matchCount] == currentComponents[matchCount]) {
+            ++matchCount;
+        }
+        commonComponents.resize(matchCount);
+        if (commonComponents.empty()) {
+            return std::string{};
+        }
+    }
+
+    std::filesystem::path commonPath;
+    for (const std::string &component : commonComponents) {
+        commonPath /= component;
+    }
+    return commonPath.string();
+}
+
 void MainWindow::SaveSession() const {
-    const_cast<MainWindow *>(this)->EnsureConfigRoot();
+    MainWindow *self = const_cast<MainWindow *>(this);
+    self->EnsureConfigRoot();
 
     QJsonArray files;
     for (int index = 0; index < _tabs->count(); ++index) {
@@ -3593,6 +6689,14 @@ void MainWindow::SaveSession() const {
         files.append(ToQString(stateIt->second.filePathUtf8));
     }
 
+    if (_editorSettings.usePerProjectSessionStorage) {
+        const std::string projectRoot = DetermineProjectSessionRootFromOpenTabs();
+        if (!projectRoot.empty() && projectRoot != _editorSettings.lastProjectSessionRootUtf8) {
+            self->_editorSettings.lastProjectSessionRootUtf8 = projectRoot;
+            self->SaveEditorSettings();
+        }
+    }
+
     QJsonObject root;
     root.insert(QStringLiteral("openFiles"), files);
     root.insert(QStringLiteral("activeIndex"), _tabs->currentIndex());
@@ -3602,13 +6706,28 @@ void MainWindow::SaveSession() const {
     npp::platform::WriteFileOptions options;
     options.atomic = true;
     options.createParentDirs = true;
-    const_cast<MainWindow *>(this)->_fileSystemService.WriteTextFile(
+    self->_fileSystemService.WriteTextFile(
         SessionFilePath(),
         std::string(json.constData(), static_cast<size_t>(json.size())),
         options);
 }
 
 std::string MainWindow::SessionFilePath() const {
+    if (_editorSettings.usePerProjectSessionStorage) {
+        const std::string projectRoot = _editorSettings.lastProjectSessionRootUtf8;
+        if (!projectRoot.empty()) {
+            const size_t projectHash = std::hash<std::string>{}(projectRoot);
+            std::ostringstream hashStream;
+            hashStream << std::hex << projectHash;
+
+            std::string projectName = std::filesystem::path(projectRoot).filename().string();
+            if (projectName.empty() || projectName == "/" || projectName == ".") {
+                projectName = "root";
+            }
+
+            return ConfigRootPath() + "/sessions/" + projectName + "-" + hashStream.str() + ".json";
+        }
+    }
     return ConfigRootPath() + "/session.json";
 }
 

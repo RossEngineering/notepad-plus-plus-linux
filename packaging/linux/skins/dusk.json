@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/RossEngineering/notepad-plus-plus-linux/master/docs/schemas/skin-v1.schema.json",
+  "formatVersion": 1,
+  "metadata": {
+    "id": "builtin.dusk",
+    "name": "Built-in Dusk",
+    "author": "notepad-plus-plus-linux",
+    "description": "Low-light purple-toned skin with warm accents."
+  },
+  "appChrome": {
+    "windowBackground": "#211F2A",
+    "windowForeground": "#F2ECFF",
+    "menuBackground": "#2B2837",
+    "menuForeground": "#F2ECFF",
+    "statusBackground": "#272332",
+    "statusForeground": "#E7DFFF",
+    "accent": "#E38D45"
+  },
+  "editor": {
+    "background": "#191722",
+    "foreground": "#EEE8FF",
+    "lineNumberBackground": "#252238",
+    "lineNumberForeground": "#9A92BA",
+    "caretLineBackground": "#2B2640",
+    "selectionBackground": "#4B3C63",
+    "selectionForeground": "#FFF6EA",
+    "comment": "#8D9B7A",
+    "keyword": "#D9A7FF",
+    "number": "#7ADFF2",
+    "stringColor": "#FFC58B",
+    "operatorColor": "#EEE8FF"
+  },
+  "dialogs": {
+    "background": "#2B2837",
+    "foreground": "#F2ECFF",
+    "buttonBackground": "#3A3450",
+    "buttonForeground": "#F2ECFF",
+    "border": "#6F638F"
+  }
+}

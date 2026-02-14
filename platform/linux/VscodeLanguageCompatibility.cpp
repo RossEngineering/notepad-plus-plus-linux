@@ -8,7 +8,7 @@
 #include <sstream>
 #include <utility>
 
-#include "json/json.hpp"
+#include "json.hpp"
 
 namespace npp::platform {
 

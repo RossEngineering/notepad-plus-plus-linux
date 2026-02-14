@@ -16,6 +16,10 @@ fi
 
 startup_mean_max_us="${NPP_STARTUP_MEAN_MAX_US:-200.0}"
 startup_p95_max_us="${NPP_STARTUP_P95_MAX_US:-300.0}"
+large_file_open_mean_max_us="${NPP_LARGE_FILE_OPEN_MEAN_MAX_US:-75000.0}"
+large_file_open_p95_max_us="${NPP_LARGE_FILE_OPEN_P95_MAX_US:-100000.0}"
+search_mean_max_us="${NPP_SEARCH_MEAN_MAX_US:-850.0}"
+search_p95_max_us="${NPP_SEARCH_P95_MAX_US:-1500.0}"
 typing_mean_max_us="${NPP_TYPING_MEAN_MAX_US:-5.0}"
 typing_p95_max_us="${NPP_TYPING_P95_MAX_US:-10.0}"
 
@@ -29,6 +33,10 @@ extract_metric() {
 
 startup_mean="$(extract_metric "startup_mean_us")"
 startup_p95="$(extract_metric "startup_p95_us")"
+large_file_open_mean="$(extract_metric "large_file_open_mean_us")"
+large_file_open_p95="$(extract_metric "large_file_open_p95_us")"
+search_mean="$(extract_metric "search_mean_us")"
+search_p95="$(extract_metric "search_p95_us")"
 typing_mean="$(extract_metric "typing_mean_us")"
 typing_p95="$(extract_metric "typing_p95_us")"
 
@@ -44,6 +52,10 @@ assert_within_budget() {
 
 assert_within_budget "startup_mean_us" "${startup_mean}" "${startup_mean_max_us}"
 assert_within_budget "startup_p95_us" "${startup_p95}" "${startup_p95_max_us}"
+assert_within_budget "large_file_open_mean_us" "${large_file_open_mean}" "${large_file_open_mean_max_us}"
+assert_within_budget "large_file_open_p95_us" "${large_file_open_p95}" "${large_file_open_p95_max_us}"
+assert_within_budget "search_mean_us" "${search_mean}" "${search_mean_max_us}"
+assert_within_budget "search_p95_us" "${search_p95}" "${search_p95_max_us}"
 assert_within_budget "typing_mean_us" "${typing_mean}" "${typing_mean_max_us}"
 assert_within_budget "typing_p95_us" "${typing_p95}" "${typing_p95_max_us}"
 

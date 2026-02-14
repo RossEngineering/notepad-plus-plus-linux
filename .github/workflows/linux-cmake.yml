@@ -7,6 +7,16 @@ on:
   pull_request:
 
 jobs:
+  linux-win32-cleanliness:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enforce Linux source Win32 cleanliness
+        run: ./scripts/check_linux_source_win32_clean.sh
+
   build-and-test:
     runs-on: ubuntu-latest
     strategy:
@@ -44,6 +54,10 @@ jobs:
         env:
           NPP_STARTUP_MEAN_MAX_US: "200.0"
           NPP_STARTUP_P95_MAX_US: "300.0"
+          NPP_LARGE_FILE_OPEN_MEAN_MAX_US: "75000.0"
+          NPP_LARGE_FILE_OPEN_P95_MAX_US: "100000.0"
+          NPP_SEARCH_MEAN_MAX_US: "850.0"
+          NPP_SEARCH_P95_MAX_US: "1500.0"
           NPP_TYPING_MEAN_MAX_US: "5.0"
           NPP_TYPING_P95_MAX_US: "10.0"
         run: >

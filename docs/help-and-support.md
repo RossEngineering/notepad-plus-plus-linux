@@ -16,6 +16,10 @@ This project uses GitHub as the primary support and collaboration hub.
   - `https://github.com/RossEngineering/notepad-plus-plus-linux/wiki`
 - Project README:
   - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/README.md`
+- Extension authoring guide:
+  - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/extension-authoring-guide.md`
+- Top requested features board:
+  - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/top-requested-features.md`
 
 ## Report a bug
 
@@ -29,6 +33,8 @@ Please include:
 - App version/tag or commit SHA.
 - Repro steps and expected vs actual behavior.
 - Logs/screenshots if available.
+- Crash bundle from `Help -> Export Crash Report Bundle...` when available.
+- Optional startup trace generated with `--startup-trace` for cold-start regressions.
 
 ## Request a feature
 

@@ -2,7 +2,7 @@
 
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
-Last updated: 2026-02-13
+Last updated: 2026-02-14
 
 ## Scope
 
@@ -29,6 +29,7 @@ Per distro lane:
 3. Sanitizer lane where supported
 4. Package/install smoke check
 5. App launch smoke check
+6. Wayland compositor launch smoke check (headless `weston` + `QT_QPA_PLATFORM=wayland`)
 
 ## Rollout plan
 
@@ -42,4 +43,3 @@ Per distro lane:
 1. Arch + Ubuntu lanes stable and required.
 2. Debian + Fedora lanes stable for 14 consecutive days.
 3. Known distro-specific issues documented with owner and mitigation path.
-

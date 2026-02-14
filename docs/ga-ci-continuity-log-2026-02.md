@@ -11,6 +11,16 @@ for 7 consecutive days.
 2. `Linux Desktop Integration`
 3. `Win32 Boundary Guard`
 
+## Daily update flow
+
+1. Ensure GitHub CLI auth is ready (`gh auth login` if not already authenticated).
+2. Wait for the target commit's required CI lanes to finish.
+3. Run:
+   - `./scripts/ga/update_ci_continuity_log.sh --commit <sha>`
+4. Commit the continuity log update on `ga-dev-week1` (or current GA tracking branch).
+5. If needed, preview without editing using:
+   - `./scripts/ga/update_ci_continuity_log.sh --commit <sha> --dry-run`
+
 ## Continuity record
 
 | Date (UTC) | Candidate commit | Linux CMake Build | Linux Desktop Integration | Win32 Boundary Guard | Day result | Evidence |
@@ -18,6 +28,7 @@ for 7 consecutive days.
 | 2026-02-14 | `ae154f56c` | Pass | Pass | Pass | Counted (1/7) | `22016250682`, `22016250672`, `22016250679` |
 | 2026-02-14 | `25214be78` | Pass | Pass | Pass | Pass (same day, continuity unchanged) | `22016385005`, `22016385013`, `22016385012` |
 | 2026-02-14 | `74c2e7e98` | Pass | Pass | Pass | Pass (same day, continuity unchanged) | `22016423969`, `22016423986`, `22016423973` |
+| 2026-02-14 | `14b73c212` | Pass | Pass | Pass | Pass (same day, continuity unchanged) | `22016991517`, `22016991516`, `22016991524` |
 
 ## Notes
 

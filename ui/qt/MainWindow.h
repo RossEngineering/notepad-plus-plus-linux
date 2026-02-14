@@ -18,20 +18,26 @@
 
 class QAction;
 class QCloseEvent;
+class QEvent;
 class QLabel;
+class QSplitter;
 class QTabWidget;
 class QTimer;
+class QWidget;
 class ScintillaEditBase;
 
 class MainWindow final : public QMainWindow {
 	Q_OBJECT
 
 public:
-	explicit MainWindow(QWidget *parent = nullptr);
+	explicit MainWindow(bool safeModeNoExtensions = false, QWidget *parent = nullptr);
 	~MainWindow() override = default;
+	bool OpenPathFromCli(const QString &path);
+	bool OpenMostRecentFileFromSession();
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
 	enum class TextEncoding {
@@ -60,11 +66,29 @@ private:
 		bool autoDetectLanguage = true;
 		bool autoCloseHtmlTags = true;
 		bool autoCloseDelimiters = true;
+		bool formatOnSaveEnabled = false;
+		std::vector<std::string> formatOnSaveLanguages;
+		std::string formatterDefaultProfile = "auto";
+		std::map<std::string, std::string> formatterProfilesByLanguage;
+		int splitViewMode = 0;
+		bool minimapEnabled = false;
+		bool restoreSessionOnStartup = true;
+		bool usePerProjectSessionStorage = false;
+		std::string lastProjectSessionRootUtf8;
+		bool autoSaveOnFocusLost = false;
+		bool autoSaveOnInterval = false;
+		bool autoSaveBeforeRun = false;
+		int autoSaveIntervalSeconds = 30;
 		bool extensionGuardrailsEnabled = true;
 		int extensionStartupBudgetMs = 1200;
 		int extensionPerExtensionBudgetMs = 250;
 		int crashRecoveryAutosaveSeconds = 15;
+		bool onboardingCompleted = false;
+		std::string importedSettingsSource;
+		std::string lastSeenAppVersion;
 		std::string skinId = "builtin.light";
+		std::string iconVariant = "auto";
+		std::string updateChannel = "stable";
 	};
 
 	struct ThemeSettings {
@@ -120,13 +144,36 @@ private:
 	void OnFindInFiles();
 	void OnGoToLine();
 	void OnFormatDocument();
+	bool FormatEditorWithAvailableFormatter(
+		ScintillaEditBase *editor,
+		bool showUserMessages,
+		bool *formattedApplied = nullptr);
+	bool ShouldFormatOnSaveForLexer(const std::string &lexerName) const;
+	std::string ResolveFormatterProfileForLanguage(
+		const std::string &lexerName,
+		const std::string &languageId) const;
+	void OnDisableSplitView();
+	void OnEnableSplitVertical();
+	void OnEnableSplitHorizontal();
+	void OnToggleMinimap();
 	void OnPreferences();
 	void OnRunCommand();
+	void OnCommandPalette();
+	void OnMultiCursorAddCaretAbove();
+	void OnMultiCursorAddCaretBelow();
+	void OnMultiCursorAddNextMatch();
+	void OnMultiCursorSelectAllMatches();
+	void OnImportSettings();
 	void OnOpenHelpDocs();
 	void OnOpenHelpWiki();
+	void OnOpenTopRequestedFeatures();
 	void OnReportBug();
 	void OnRequestFeature();
+	void OnExportCrashReportBundle();
+	void OnCheckForUpdates();
 	void OnAboutDialog();
+	void OnOpenExtensionMarketplace();
+	void OnRestartSafeMode();
 	void OnInstallExtensionFromDirectory();
 	void OnManageExtensions();
 	void OnAutoDetectLanguage();
@@ -136,10 +183,15 @@ private:
 	void OnLspShowHover();
 	void OnLspGoToDefinition();
 	void OnLspShowDiagnostics();
+	void OnLspShowDocumentSymbols();
+	void OnLspRenameSymbol();
+	void OnLspCodeActions();
 	void OnSetSkin(const std::string &skinId);
+	void OnSetIconVariant(const std::string &iconVariant);
 	void SetCurrentEditorManualLexer(const std::string &lexerName);
 	void UpdateLanguageActionState();
 	void UpdateSkinActionState();
+	void UpdateIconVariantActionState();
 
 	bool FindNextInEditor(ScintillaEditBase *editor, const std::string &needleUtf8, bool matchCase);
 	int ReplaceAllInEditor(
@@ -190,16 +242,32 @@ private:
 	void ApplyShortcuts();
 	void ReloadShortcuts();
 	void OpenShortcutConfigFile();
+	void MaybeShowFirstRunOnboarding();
+	void MaybeShowWhatsNewDialog();
+	bool IsHeadlessPlatform() const;
 	void OpenExternalLink(const QString &url, const QString &label);
+	bool ImportSettingsFromSource(
+		const std::string &sourceId,
+		const std::string &sourcePathUtf8,
+		QString *summaryOut);
 	void InitializeLspServers();
 	void StopLspSessionForEditor(ScintillaEditBase *editor);
 	void InitializeExtensionsWithGuardrails();
+	void NotifyExtensionUpdatesIfAvailable();
 	void StartCrashRecoveryTimer();
+	void StartAutoSaveTimer();
+	bool AutoSaveEditorIfNeeded(ScintillaEditBase *editor, std::string *savedPathUtf8 = nullptr);
+	int AutoSaveDirtyEditors(std::vector<std::string> *savedPathsUtf8 = nullptr);
 	void SaveCrashRecoveryJournal() const;
 	bool RestoreCrashRecoveryJournal();
 	void ClearCrashRecoveryJournal() const;
 	bool RestoreSession();
 	void SaveSession() const;
+	std::string DetermineProjectSessionRootFromOpenTabs() const;
+	void ApplySplitViewModeFromSettings();
+	void ApplyMinimapStateFromSettings();
+	void SyncAuxiliaryEditorsToCurrentTab();
+	void UpdateMinimapViewportHighlight();
 
 	std::string ConfigRootPath() const;
 	std::string SkinDirectoryPath() const;
@@ -209,14 +277,28 @@ private:
 	std::string ThemeFilePath() const;
 	std::string SessionFilePath() const;
 	std::string CrashRecoveryJournalPath() const;
+	std::string IconSvgPathForVariant(const std::string &iconVariant) const;
+	void ApplyWindowIconFromSettings();
+	std::string ResolveDefaultUpdateChannelFromInstall() const;
+	std::string ResolveLocalExtensionMarketplaceIndexPath() const;
+	std::string BuildCrashReportBundleJson();
 	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
 	static QString ToQString(const std::string &value);
 
 private:
 	static constexpr const char *kAppName = "notepad-plus-plus-linux";
+	static constexpr int kSplitModeDisabled = 0;
+	static constexpr int kSplitModeVertical = 1;
+	static constexpr int kSplitModeHorizontal = 2;
+	static constexpr int kMinimapViewportIndicator = 31;
 
+	QWidget *_centralHost = nullptr;
+	QSplitter *_rootSplitter = nullptr;
+	QSplitter *_editorSplit = nullptr;
 	QTabWidget *_tabs = nullptr;
+	ScintillaEditBase *_splitEditor = nullptr;
+	ScintillaEditBase *_minimapEditor = nullptr;
 	QLabel *_cursorStatusLabel = nullptr;
 
 	std::map<ScintillaEditBase *, EditorState> _editorStates;
@@ -228,9 +310,14 @@ private:
 	std::string _lastFindUtf8;
 	std::string _lastRunCommandUtf8;
 	std::string _lastRunWorkingDirUtf8;
+	std::map<std::string, double> _extensionStartupEstimateMsById;
+	std::map<std::string, double> _extensionManifestScanMsById;
+	bool _safeModeNoExtensions = false;
+	bool _hasPersistedSettings = false;
 	bool _closingApplication = false;
 	bool _suppressAutoCloseHandler = false;
 	QTimer *_crashRecoveryTimer = nullptr;
+	QTimer *_autoSaveTimer = nullptr;
 
 	npp::platform::LinuxPathService _pathService;
 	npp::platform::LinuxFileSystemService _fileSystemService;

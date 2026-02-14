@@ -49,8 +49,10 @@ jobs:
             ninja-build \
             g++ \
             pkg-config \
+            rpm \
             qt6-base-dev \
-            qt6-5compat-dev
+            qt6-5compat-dev \
+            zstd
 
       - name: Resolve release metadata
         id: release_meta
@@ -59,7 +61,13 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF_NAME}"
             PUBLISH="true"
-            PRERELEASE="false"
+            if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+              PRERELEASE="true"
+              MAKE_LATEST="false"
+            else
+              PRERELEASE="false"
+              MAKE_LATEST="true"
+            fi
             TAG_NAME="${GITHUB_REF_NAME}"
           else
             RAW_VERSION="${{ inputs.version }}"
@@ -69,18 +77,25 @@ jobs:
             VERSION="${RAW_VERSION//\//-}"
             PUBLISH="${{ inputs.publish_release }}"
             PRERELEASE="${{ inputs.prerelease }}"
+            if [[ "${PRERELEASE}" == "true" ]]; then
+              MAKE_LATEST="false"
+            else
+              MAKE_LATEST="true"
+            fi
             TAG_NAME="${VERSION}"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "publish=${PUBLISH}" >> "$GITHUB_OUTPUT"
           echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "make_latest=${MAKE_LATEST}" >> "$GITHUB_OUTPUT"
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
           echo "release_name=Notepad++ Linux ${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build release artifacts
         shell: bash
         run: |
-          ./scripts/release/create_linux_release_artifacts.sh "${{ steps.release_meta.outputs.version }}"
+          NPP_RELEASE_NATIVE_PACKAGES=1 \
+            ./scripts/release/create_linux_release_artifacts.sh "${{ steps.release_meta.outputs.version }}"
 
       - name: Import GPG key (optional)
         if: ${{ env.LINUX_RELEASE_GPG_KEY != '' }}
@@ -93,7 +108,10 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          for artifact in out/release/*.tar.xz out/release/*.sha256; do
+          for artifact in out/release/*; do
+            if [[ "${artifact}" == *.asc ]]; then
+              continue
+            fi
             gpg --batch --yes --pinentry-mode loopback \
               --passphrase "$LINUX_RELEASE_GPG_PASSPHRASE" \
               --armor --detach-sign "$artifact"
@@ -116,6 +134,6 @@ jobs:
           name: ${{ steps.release_meta.outputs.release_name }}
           prerelease: ${{ steps.release_meta.outputs.prerelease }}
           generate_release_notes: true
-          make_latest: true
+          make_latest: ${{ steps.release_meta.outputs.make_latest }}
           fail_on_unmatched_files: true
           files: out/release/*

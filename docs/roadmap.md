@@ -3,8 +3,9 @@
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
 This timeline reflects project direction as of February 14, 2026.
-RC3, RC3a, and RC3b are complete and published. The project now focuses on final
+RC3, RC3a, RC3b, and RC4 are complete and published. The project now focuses on final
 1.0.0 promotion.
+Repository lifecycle status is promoted (incubator exit executed at `v0.10.0-rc.4`).
 
 ## Milestones
 
@@ -19,6 +20,7 @@ RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 | M6: RC3 (`v0.9.9-rc.3`) | Completed | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Done |
 | M6a: RC3a (`v0.9.9-rc.3a`) | Completed | Post-freeze maintenance respin for formatter UX and targeted low-risk fixes. | Done |
 | M6b: RC3b (`v0.9.9-rc.3b`) | Completed | Post-freeze maintenance respin for language auto-detect default/toggle and issue-link correctness fixes. | Done |
+| M6c: RC4 (`v0.10.0-rc.4`) | Completed | Consolidate GA-dev scope to `master`, close adoption/polish section, and execute incubator exit. | Done |
 | M7: General Availability (`v1.0.0`) | Current | Final go/no-go and production release. | In Progress |
 
 ## RC train structure
@@ -28,6 +30,7 @@ RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 3. RC3 train: `v0.9.7` through `v0.9.9-rc.3`
 4. RC3a maintenance respin: `v0.9.9-rc.3a` (exception lane)
 5. RC3b maintenance respin: `v0.9.9-rc.3b` (exception lane)
+6. RC4 consolidation lane: `v0.10.0-rc.4` (merge + governance closure lane)
 
 ## Proposed scope by RC
 
@@ -80,13 +83,21 @@ RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 4. Re-run targeted CI gates (Linux CMake Build, Linux Desktop Integration, Win32 boundary guard).
 5. Publish `v0.9.9-rc.3b` and carry forward as the final pre-GA baseline.
 
+### RC4 (`v0.10.0-rc.4`) - consolidation and governance closure
+
+1. Merge GA development branch scope back to `master`.
+2. Close adoption/product-polish user-facing scope.
+3. Refresh packaged assets/install payloads for new skin/icon variants.
+4. Re-run release dry-run and targeted regression coverage.
+5. Record incubator promotion decision and update project status text.
+
 ## 1.0.0 promotion gate
 
 1. Zero open P0 defects.
 2. No unresolved data-loss or crash-recovery regressions.
 3. Required Linux CI lanes green for 7 consecutive days before final tag.
 4. `v1.0.0` release notes and migration guidance finalized and reviewed.
-5. Incubator promotion decision recorded (promote/defer) with README/governance docs aligned.
+5. Maintain promoted repository status text and governance alignment through GA cut.
 
 ## GA execution artifacts
 
@@ -94,6 +105,12 @@ RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 2. CI continuity evidence log: `docs/ga-ci-continuity-log-2026-02.md`
 3. Final go/no-go review: `docs/v1.0.0-go-no-go-review-2026-02-14.md`
 4. GA release checklist: `docs/releases/v1.0.0-checklist.md`
+
+## Delivery cadence rule
+
+1. Complete work by TODO section.
+2. At the end of each completed TODO section, publish a tagged prerelease.
+3. Update release checklist and release notes in the same section-close pass.
 
 ## Next planning outputs
 
@@ -103,3 +120,11 @@ RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 4. `docs/releases/v0.9.9-rc.3a-checklist.md`
 5. `docs/releases/v0.9.9-rc.3b-checklist.md`
 6. `docs/releases/v1.0.0-checklist.md`
+7. `docs/releases/v0.10.0-beta.1-checklist.md`
+8. `docs/releases/v0.10.0-beta.2-checklist.md`
+9. `docs/releases/v0.10.0-beta.3-checklist.md`
+10. `docs/releases/v0.10.0-beta.4-checklist.md`
+11. `docs/releases/v0.10.0-beta.5-checklist.md`
+12. `docs/releases/v0.10.0-beta.6-checklist.md`
+13. `docs/releases/v0.10.0-beta.7-checklist.md`
+14. `docs/releases/v0.10.0-rc.4-checklist.md`
