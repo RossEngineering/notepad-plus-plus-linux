@@ -3,8 +3,8 @@
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
 This timeline reflects project direction as of February 14, 2026.
-RC3 is complete and published. The project is running a scoped RC3a maintenance
-respin before final 1.0.0 promotion.
+RC3 and RC3a are complete and published. The project now focuses on final
+1.0.0 promotion.
 
 ## Milestones
 
@@ -17,8 +17,8 @@ respin before final 1.0.0 promotion.
 | M4: RC1 (`v0.9.3-rc.1`) | Completed | Correctness/stability pass, distro matrix baseline, extension permission hardening. | Done |
 | M5: RC2 (`v0.9.6-rc.2`) | Completed | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Done |
 | M6: RC3 (`v0.9.9-rc.3`) | Completed | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Done |
-| M6a: RC3a (`v0.9.9-rc.3a`) | Current | Post-freeze maintenance respin for formatter UX and targeted low-risk fixes. | In Progress |
-| M7: General Availability (`v1.0.0`) | Planned | Final go/no-go and production release. | Planned |
+| M6a: RC3a (`v0.9.9-rc.3a`) | Completed | Post-freeze maintenance respin for formatter UX and targeted low-risk fixes. | Done |
+| M7: General Availability (`v1.0.0`) | Current | Final go/no-go and production release. | In Progress |
 
 ## RC train structure
 

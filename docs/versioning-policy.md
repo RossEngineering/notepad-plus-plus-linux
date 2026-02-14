@@ -24,7 +24,7 @@ This repository is in pre-1.0 migration status.
   - `v0.9.3-rc.1` (RC1)
   - `v0.9.6-rc.2` (RC2)
   - `v0.9.9-rc.3` (RC3)
-- RC3a maintenance respin target: `v0.9.9-rc.3a`.
+- RC3a maintenance respin: `v0.9.9-rc.3a` (published).
 - RC3 feature freeze remains the base policy: `docs/feature-freeze-rc3.md`
 - `v1.0.0` is targeted after satisfactory RC3/RC3a validation.
 

@@ -14,7 +14,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete RC1 scope and cut `v0.9.3-rc.1`.
 - [x] Complete RC2 scope and cut `v0.9.6-rc.2`.
 - [x] Complete RC3 scope and cut `v0.9.9-rc.3`.
-- [ ] Cut RC3a maintenance release `v0.9.9-rc.3a`.
+- [x] Cut RC3a maintenance release `v0.9.9-rc.3a`.
 - [ ] Promote `v1.0.0` after RC3/RC3a validation.
 
 ## Release track from Beta 2 to 1.0.0
@@ -52,8 +52,8 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Add language-aware `Format Document` baseline behavior (Python indentation-sensitive normalization, line-ending preservation, and safe no-op fallback).
 - [x] Add extension-declared formatter contributions so executable extensions can act as language formatters.
 - [x] Gate formatter execution behind extension permissions and deterministic failure handling.
-- [ ] Validate formatter paths in debug/release CI and regression runs.
-- [ ] Cut and validate `v0.9.9-rc.3a`.
+- [x] Validate formatter paths in debug/release CI and regression runs.
+- [x] Cut and validate `v0.9.9-rc.3a`.
 
 ### 1.0.0 promotion gate
 

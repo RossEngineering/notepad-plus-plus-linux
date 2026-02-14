@@ -21,8 +21,8 @@ This repository tracks the transition from the original **Windows-first architec
   - `v0.9.3-rc.1` published.
   - `v0.9.6-rc.2` published.
   - `v0.9.9-rc.3` published.
-- `v0.9.9-rc.3a` in progress (maintenance respin).
-- **Next target**: `v0.9.9-rc.3a`, then `v1.0.0`.
+- `v0.9.9-rc.3a` published.
+- **Next target**: `v1.0.0`.
 - **RC3 freeze state**: completed, with scoped post-freeze maintenance exceptions for RC3a fixes.
 - **Upstream codebase** remains Windows-centric; Linux-first migration is still active.
 
@@ -49,7 +49,7 @@ For details, see:
 | RC1 (`v0.9.3-rc.1`)       | Stabilization baseline, distro matrix baseline, extension permission hardening             | Complete        | [`docs/releases/v0.9.3-rc.1.md`](docs/releases/v0.9.3-rc.1.md)           |
 | RC2 (`v0.9.6-rc.2`)       | LSP baseline UX wiring, compatibility expansion, CI performance gates, distro install docs | Complete / Live | [`docs/releases/v0.9.6-rc.2.md`](docs/releases/v0.9.6-rc.2.md)           |
 | RC3 (`v0.9.9-rc.3`)       | Feature freeze, full regression, release dry-run, blocker closure                          | Complete / Live | [`docs/releases/v0.9.9-rc.3.md`](docs/releases/v0.9.9-rc.3.md)           |
-| RC3a (`v0.9.9-rc.3a`)     | Post-RC3 maintenance respin: formatter UX/documentation alignment and targeted risk fixes   | In progress     | [`docs/releases/v0.9.9-rc.3a.md`](docs/releases/v0.9.9-rc.3a.md)         |
+| RC3a (`v0.9.9-rc.3a`)     | Post-RC3 maintenance respin: formatter UX/documentation alignment and targeted risk fixes   | Complete / Live | [`docs/releases/v0.9.9-rc.3a.md`](docs/releases/v0.9.9-rc.3a.md)         |
 | GA (`v1.0.0`)             | Final go/no-go and production release                                                      | In progress     | [`docs/releases/v1.0.0-checklist.md`](docs/releases/v1.0.0-checklist.md) |
 
 ---
