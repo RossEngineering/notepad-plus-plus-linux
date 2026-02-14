@@ -76,6 +76,13 @@ RC3 and RC3a are complete and published. The project now focuses on final
 4. `v1.0.0` release notes and migration guidance finalized and reviewed.
 5. Incubator promotion decision recorded (promote/defer) with README/governance docs aligned.
 
+## GA execution artifacts
+
+1. GA blocker tracker: `docs/ga-blockers.md`
+2. CI continuity evidence log: `docs/ga-ci-continuity-log-2026-02.md`
+3. Final go/no-go review: `docs/v1.0.0-go-no-go-review-2026-02-14.md`
+4. GA release checklist: `docs/releases/v1.0.0-checklist.md`
+
 ## Next planning outputs
 
 1. `docs/releases/v0.9.3-rc.1-checklist.md`

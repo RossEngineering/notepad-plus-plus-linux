@@ -14,6 +14,8 @@ This file indexes architecture and governance decisions used by this repository.
 - Package split strategy: `docs/package-split-strategy.md`
 - Reproducible release approach: `docs/reproducible-release.md`
 - Release publishing/signing flow: `docs/release-publishing.md`
+- GA blocker tracker: `docs/ga-blockers.md`
+- GA CI continuity log: `docs/ga-ci-continuity-log-2026-02.md`
 
 ## ADR records (repo-local)
 

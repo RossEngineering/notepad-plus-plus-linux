@@ -15,6 +15,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete RC2 scope and cut `v0.9.6-rc.2`.
 - [x] Complete RC3 scope and cut `v0.9.9-rc.3`.
 - [x] Cut RC3a maintenance release `v0.9.9-rc.3a`.
+- [ ] Complete GA scope and cut `v1.0.0`.
 - [ ] Promote `v1.0.0` after RC3/RC3a validation.
 
 ## Release track from Beta 2 to 1.0.0
@@ -55,6 +56,15 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Validate formatter paths in debug/release CI and regression runs.
 - [x] Cut and validate `v0.9.9-rc.3a`.
 
+### GA program (`v1.0.0`)
+
+- [x] Lock final RC baseline at `v0.9.9-rc.3a`.
+- [ ] Close all `P0` GA blockers in `docs/ga-blockers.md`.
+- [ ] Keep the 7-day continuity record current in `docs/ga-ci-continuity-log-2026-02.md`.
+- [ ] Finalize `docs/releases/v1.0.0.md` migration guidance and known limitations.
+- [ ] Record explicit incubator promote/defer decision and sync repository status text.
+- [ ] Cut and validate `v1.0.0`.
+
 ### 1.0.0 promotion gate
 
 - [ ] Zero open P0 defects.
@@ -75,3 +85,5 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Create and prioritize RC3 blocker list from RC2 exit signals.
 - [x] Create `v0.9.9-rc.3` release checklist and notes stub in `docs/releases/`.
 - [x] Create `v0.9.9-rc.3a` release checklist and notes stub in `docs/releases/`.
+- [x] Create GA blocker tracker and continuity log scaffolding (`docs/ga-blockers.md`, `docs/ga-ci-continuity-log-2026-02.md`).
+- [ ] Update GA continuity log daily until 7/7 pass window is closed.
