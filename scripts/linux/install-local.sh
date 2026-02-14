@@ -112,7 +112,8 @@ if [[ "${set_default}" -eq 1 ]]; then
       text/x-python \
       text/x-csrc \
       text/x-c++src; do
-      xdg-mime default notepad-plus-plus-linux.desktop "${mime}" || true
+      DE=generic XDG_CURRENT_DESKTOP= \
+        xdg-mime default notepad-plus-plus-linux.desktop "${mime}" || true
     done
   else
     echo "xdg-mime not found; skipped default handler registration"

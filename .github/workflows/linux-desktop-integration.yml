@@ -1,0 +1,26 @@
+name: Linux Desktop Integration
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  desktop-file-handler-integration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - arch-derivative
+          - ubuntu-lts
+          - fedora-stable
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate desktop + file-handler integration
+        run: ./scripts/linux/run-desktop-integration-matrix.sh "${{ matrix.distro }}"
