@@ -13,7 +13,7 @@ RC2 is complete and published. The project now moves through RC3 and then 1.0.0.
 | M3: Beta 2 (`v0.9.0-beta.2`) | Completed | Phases 10-12 complete (skinning, extension platform, hardening/language intelligence). | Done |
 | M4: RC1 (`v0.9.3-rc.1`) | Completed | Correctness/stability pass, distro matrix baseline, extension permission hardening. | Done |
 | M5: RC2 (`v0.9.6-rc.2`) | Completed | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Done |
-| M6: RC3 (`v0.9.9-rc.3`) | Next | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Planned |
+| M6: RC3 (`v0.9.9-rc.3`) | Current | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | In Progress |
 | M7: General Availability (`v1.0.0`) | After satisfactory RC3 | Final go/no-go and production release. | Planned |
 
 ## RC train structure
@@ -44,6 +44,7 @@ RC2 is complete and published. The project now moves through RC3 and then 1.0.0.
 ### RC3 (`v0.9.9-rc.3`) - release readiness
 
 1. Enter feature freeze; accept only bug fixes, docs, release engineering, and reliability changes.
+   - Freeze policy: `docs/feature-freeze-rc3.md`
 2. Deliver consumer-friendly install UX across target distros:
    - package install/uninstall polish
    - desktop/launcher/dock registration

@@ -19,6 +19,7 @@ This repository tracks the transition from the original **Windows-first architec
   - `v0.9.3-rc.1` published.
   - `v0.9.6-rc.2` published.
 - **Next target**: `v0.9.9-rc.3`, then `v1.0.0`.
+- **RC3 freeze state**: feature freeze is active (bug fixes, docs, packaging, release reliability only).
 - **Upstream codebase** remains Windows-centric; Linux-first migration is still active.
 
 **Planned state:**
@@ -53,6 +54,7 @@ For details, see:
 - **Roadmap and active backlog:**
   - [`TODO.md`](TODO.md)
   - [`docs/roadmap.md`](docs/roadmap.md)
+  - [`docs/feature-freeze-rc3.md`](docs/feature-freeze-rc3.md)
 - **Build, install, and release:**
   - [`BUILD.md`](BUILD.md)
   - [`docs/install-linux.md`](docs/install-linux.md)

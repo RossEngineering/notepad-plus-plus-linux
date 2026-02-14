@@ -47,6 +47,21 @@ This fork uses label groups to keep migration work triage consistent:
 
 Migration-focused issue templates are available in `.github/ISSUE_TEMPLATE`.
 
+### RC3 feature freeze
+
+RC3 freeze is active for this release train. During freeze:
+
+1. Allowed: bug fixes, packaging/install reliability, release engineering, tests, and docs.
+2. Not allowed: new non-blocking features, broad refactors, or risky dependency additions.
+3. PR descriptions should include a freeze classification:
+   - `freeze-type: bugfix`
+   - `freeze-type: packaging`
+   - `freeze-type: release`
+   - `freeze-type: docs`
+   - `freeze-type: tests`
+
+See `docs/feature-freeze-rc3.md` for full policy and exception handling.
+
 ### Guidelines for pull requests
 
 1. Respect existing Notepad++ coding style. Observe the code near your intended change, and attempt to preserve the style of that code with the changes you make.
