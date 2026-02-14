@@ -2,7 +2,7 @@
 
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
-Last updated: 2026-02-13
+Last updated: 2026-02-14
 Status: Accepted for Phase 11 implementation
 
 ## Purpose
@@ -29,6 +29,10 @@ Extension API v1 supports three extension classes:
 3. `tool-integration`
    - Declares external-tool command templates integrated with editor commands.
 
+Extension API v1 also supports optional formatter contributions from executable
+extensions (`command-plugin` or `tool-integration`) so extensions can provide
+language-specific document formatting entrypoints.
+
 ## Non-goals (v1)
 
 These are explicitly not part of Extension API v1:
@@ -49,6 +53,9 @@ Each extension ships as a directory or archive with:
    - `language-pack`: `syntaxes/*.tmLanguage.json`, `language-configuration.json`
    - `command-plugin`: executable entrypoint plus metadata
    - `tool-integration`: command templates
+4. optional formatter contribution metadata:
+   - `formatters[].languages`: language IDs handled by the extension formatter
+   - `formatters[].args`: argument template list for entrypoint invocation
 
 Reference schema: `docs/schemas/extension-manifest-v1.schema.json`.
 
@@ -81,6 +88,28 @@ Forbidden in v1:
 2. direct Qt object access,
 3. direct process-wide environment mutation.
 
+## Formatter contributions (v1)
+
+Optional manifest field for executable extensions:
+
+```json
+"formatters": [
+  {
+    "languages": ["python", "json"],
+    "args": ["--stdin-filepath", "${filePath}", "--tab-width", "${tabWidth}"]
+  }
+]
+```
+
+Rules:
+
+1. Formatter contributions are ignored for `language-pack` extensions.
+2. Formatter execution is out-of-process via the declared extension entrypoint.
+3. Formatter input is the current document content over stdin.
+4. Formatter output must be full-document text over stdout.
+5. On formatter failure, the host reports an error and preserves original content.
+6. If no formatter matches, host fallback formatter behavior applies.
+
 ## Security Model
 
 ### Trust assumptions
@@ -102,7 +131,7 @@ Forbidden in v1:
 5. `network.client`
    - Outbound network requests.
 6. `process.spawn`
-   - Spawn subprocesses.
+   - Spawn subprocesses (required for external formatter execution).
 7. `clipboard.read`
    - Read system clipboard.
 8. `clipboard.write`
@@ -161,6 +190,20 @@ Using XDG-aligned directories:
     "workspace.read",
     "workspace.write",
     "process.spawn"
+  ],
+  "formatters": [
+    {
+      "languages": [
+        "python",
+        "json"
+      ],
+      "args": [
+        "--stdin-filepath",
+        "${filePath}",
+        "--tab-width",
+        "${tabWidth}"
+      ]
+    }
   ]
 }
 ```

@@ -3,7 +3,8 @@
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
 This timeline reflects project direction as of February 14, 2026.
-RC3 is complete and published. The project now focuses on 1.0.0 promotion.
+RC3 is complete and published. The project is running a scoped RC3a maintenance
+respin before final 1.0.0 promotion.
 
 ## Milestones
 
@@ -16,13 +17,15 @@ RC3 is complete and published. The project now focuses on 1.0.0 promotion.
 | M4: RC1 (`v0.9.3-rc.1`) | Completed | Correctness/stability pass, distro matrix baseline, extension permission hardening. | Done |
 | M5: RC2 (`v0.9.6-rc.2`) | Completed | Deeper language-intelligence wiring, compatibility expansion, CI-enforced performance budgets. | Done |
 | M6: RC3 (`v0.9.9-rc.3`) | Completed | Feature freeze, full regression sweep, release engineering dry-run, blocker closure. | Done |
-| M7: General Availability (`v1.0.0`) | Current | Final go/no-go and production release. | In Progress |
+| M6a: RC3a (`v0.9.9-rc.3a`) | Current | Post-freeze maintenance respin for formatter UX and targeted low-risk fixes. | In Progress |
+| M7: General Availability (`v1.0.0`) | Planned | Final go/no-go and production release. | Planned |
 
 ## RC train structure
 
 1. RC1 train: `v0.9.1` through `v0.9.3-rc.1`
 2. RC2 train: `v0.9.4` through `v0.9.6-rc.2`
 3. RC3 train: `v0.9.7` through `v0.9.9-rc.3`
+4. RC3a maintenance respin: `v0.9.9-rc.3a` (exception lane)
 
 ## Proposed scope by RC
 
@@ -55,6 +58,16 @@ RC3 is complete and published. The project now focuses on 1.0.0 promotion.
 4. Run release dry-run (artifacts, checksums, optional signing, rollback plan) and verify reproducibility controls.
 5. Reach zero open release blockers for go/no-go review.
 
+### RC3a (`v0.9.9-rc.3a`) - maintenance respin
+
+1. Keep freeze discipline:
+   - only user-visible correctness/polish and release documentation alignment
+   - no broad net-new platform surface
+2. Deliver language-aware formatting baseline behavior for core workflows.
+3. Allow extension-declared formatter providers with explicit permission gating.
+4. Re-run targeted regression and CI quality gates for formatter and editor safety.
+5. Publish `v0.9.9-rc.3a` and carry forward as the final pre-GA baseline.
+
 ## 1.0.0 promotion gate
 
 1. Zero open P0 defects.
@@ -68,4 +81,5 @@ RC3 is complete and published. The project now focuses on 1.0.0 promotion.
 1. `docs/releases/v0.9.3-rc.1-checklist.md`
 2. `docs/releases/v0.9.6-rc.2-checklist.md`
 3. `docs/releases/v0.9.9-rc.3-checklist.md`
-4. `docs/releases/v1.0.0-checklist.md`
+4. `docs/releases/v0.9.9-rc.3a-checklist.md`
+5. `docs/releases/v1.0.0-checklist.md`

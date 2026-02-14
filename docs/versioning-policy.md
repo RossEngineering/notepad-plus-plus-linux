@@ -2,7 +2,7 @@
 
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
-Last updated: 2026-02-13
+Last updated: 2026-02-14
 
 ## Current release phase
 
@@ -12,6 +12,8 @@ This repository is in pre-1.0 migration status.
 - Stable tag format: `v<major>.<minor>.<patch>`
 - Pre-release tag format: `v<major>.<minor>.<patch>-<channel>.<n>`
   - Example: `v0.8.0-beta.1`
+- Maintenance respin suffixes are allowed for late RC fixes when needed:
+  - Example: `v0.9.9-rc.3a`
 
 ## Current release direction
 
@@ -22,8 +24,9 @@ This repository is in pre-1.0 migration status.
   - `v0.9.3-rc.1` (RC1)
   - `v0.9.6-rc.2` (RC2)
   - `v0.9.9-rc.3` (RC3)
-- RC3 feature freeze is active: `docs/feature-freeze-rc3.md`
-- `v1.0.0` is targeted after satisfactory RC3 validation.
+- RC3a maintenance respin target: `v0.9.9-rc.3a`.
+- RC3 feature freeze remains the base policy: `docs/feature-freeze-rc3.md`
+- `v1.0.0` is targeted after satisfactory RC3/RC3a validation.
 
 ## Version increment rules
 

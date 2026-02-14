@@ -194,6 +194,8 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
 
         add_executable(npp_linux_shell
             ui/qt/main.cpp
+            ui/qt/LanguageAwareFormatter.cpp
+            ui/qt/LanguageAwareFormatter.h
             ui/qt/MainWindow.cpp
             ui/qt/MainWindow.h
             ui/qt/LspBaselineFeatures.cpp
@@ -298,6 +300,17 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/ui/qt"
     )
     add_test(NAME lsp_baseline_ux_regression_test COMMAND lsp_baseline_ux_regression_test)
+
+    add_executable(
+        language_aware_formatting_regression_test
+        tests/regression/language_aware_formatting_regression_test.cpp
+        ui/qt/LanguageAwareFormatter.cpp)
+    target_include_directories(language_aware_formatting_regression_test PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ui/qt"
+    )
+    add_test(
+        NAME language_aware_formatting_regression_test
+        COMMAND language_aware_formatting_regression_test)
 endif()
 
 if(BUILD_TESTING AND TARGET npp_lexilla)

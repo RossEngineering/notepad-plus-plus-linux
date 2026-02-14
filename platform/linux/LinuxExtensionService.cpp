@@ -98,6 +98,40 @@ std::vector<std::string> JsonStringArray(const Json& root, const char* key) {
     return out;
 }
 
+StatusOr<std::vector<ExtensionManifest::FormatterContribution>> ParseFormatterContributions(const Json& root) {
+    std::vector<ExtensionManifest::FormatterContribution> contributions;
+    const auto formattersIt = root.find("formatters");
+    if (formattersIt == root.end()) {
+        return StatusOr<std::vector<ExtensionManifest::FormatterContribution>>{
+            Status::Ok(),
+            contributions};
+    }
+    if (!formattersIt->is_array()) {
+        return StatusOr<std::vector<ExtensionManifest::FormatterContribution>>::FromStatus(
+            MakeInvalidStatus("extension.json field 'formatters' must be an array"));
+    }
+
+    for (const Json& formatter : *formattersIt) {
+        if (!formatter.is_object()) {
+            return StatusOr<std::vector<ExtensionManifest::FormatterContribution>>::FromStatus(
+                MakeInvalidStatus("extension.json formatter entries must be objects"));
+        }
+
+        ExtensionManifest::FormatterContribution contribution;
+        contribution.languages = JsonStringArray(formatter, "languages");
+        contribution.args = JsonStringArray(formatter, "args");
+        if (contribution.languages.empty()) {
+            return StatusOr<std::vector<ExtensionManifest::FormatterContribution>>::FromStatus(
+                MakeInvalidStatus("extension.json formatter entry must include non-empty languages"));
+        }
+        contributions.push_back(std::move(contribution));
+    }
+
+    return StatusOr<std::vector<ExtensionManifest::FormatterContribution>>{
+        Status::Ok(),
+        contributions};
+}
+
 Status ValidateExtensionId(const std::string& extensionId) {
     if (extensionId.empty()) {
         return MakeInvalidStatus("Extension id must not be empty");
@@ -272,6 +306,11 @@ StatusOr<ExtensionManifest> LinuxExtensionService::LoadManifestFromDirectory(
     manifest.apiVersion = apiVersionIt->get<std::string>();
     manifest.permissions = JsonStringArray(root, "permissions");
     manifest.categories = JsonStringArray(root, "categories");
+    const auto formatterContributions = ParseFormatterContributions(root);
+    if (!formatterContributions.ok()) {
+        return StatusOr<ExtensionManifest>::FromStatus(formatterContributions.status);
+    }
+    manifest.formatters = *formatterContributions.value;
 
     if (const auto descriptionIt = root.find("description"); descriptionIt != root.end() && descriptionIt->is_string()) {
         manifest.description = descriptionIt->get<std::string>();

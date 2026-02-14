@@ -14,7 +14,8 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete RC1 scope and cut `v0.9.3-rc.1`.
 - [x] Complete RC2 scope and cut `v0.9.6-rc.2`.
 - [x] Complete RC3 scope and cut `v0.9.9-rc.3`.
-- [ ] Promote `v1.0.0` after RC3 validation.
+- [ ] Cut RC3a maintenance release `v0.9.9-rc.3a`.
+- [ ] Promote `v1.0.0` after RC3/RC3a validation.
 
 ## Release track from Beta 2 to 1.0.0
 
@@ -46,6 +47,14 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Resolve all open release blockers and cut `v0.9.9-rc.3`.
 - [x] Perform go/no-go review for `v1.0.0`.
 
+### RC3a maintenance program (`v0.9.9-rc.3a`)
+
+- [x] Add language-aware `Format Document` baseline behavior (Python indentation-sensitive normalization, line-ending preservation, and safe no-op fallback).
+- [x] Add extension-declared formatter contributions so executable extensions can act as language formatters.
+- [x] Gate formatter execution behind extension permissions and deterministic failure handling.
+- [ ] Validate formatter paths in debug/release CI and regression runs.
+- [ ] Cut and validate `v0.9.9-rc.3a`.
+
 ### 1.0.0 promotion gate
 
 - [ ] Zero open P0 defects.
@@ -65,3 +74,4 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Add automated desktop/file-handler integration validation lane for Arch derivatives, Ubuntu LTS, and Fedora stable.
 - [x] Create and prioritize RC3 blocker list from RC2 exit signals.
 - [x] Create `v0.9.9-rc.3` release checklist and notes stub in `docs/releases/`.
+- [x] Create `v0.9.9-rc.3a` release checklist and notes stub in `docs/releases/`.

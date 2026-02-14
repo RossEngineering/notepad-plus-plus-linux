@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "LanguageAwareFormatter.h"
 #include "LanguageDetection.h"
 #include "LexerStyleConfig.h"
 #include "LspBaselineFeatures.h"
@@ -85,6 +86,7 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"search.findInFiles", QKeySequence(QStringLiteral("Ctrl+Shift+F"))},
         {"edit.replace", QKeySequence(QStringLiteral("Ctrl+H"))},
         {"edit.gotoLine", QKeySequence(QStringLiteral("Ctrl+G"))},
+        {"edit.formatDocument", QKeySequence(QStringLiteral("Ctrl+Shift+I"))},
         {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
         {"language.autoDetect", QKeySequence(QStringLiteral("Ctrl+Alt+L"))},
         {"language.lockCurrent", QKeySequence(QStringLiteral("Ctrl+Alt+Shift+L"))},
@@ -241,6 +243,79 @@ std::string SkinActionIdForSkinId(const std::string &skinId) {
         return "view.skin.highContrast";
     }
     return "view.skin.light";
+}
+
+std::string ReplaceAll(std::string text, const std::string& needle, const std::string& replacement) {
+    if (needle.empty()) {
+        return text;
+    }
+    size_t position = 0;
+    while ((position = text.find(needle, position)) != std::string::npos) {
+        text.replace(position, needle.size(), replacement);
+        position += replacement.size();
+    }
+    return text;
+}
+
+QStringList BuildFormatterArguments(
+    const std::vector<std::string>& argTemplates,
+    const std::string& filePathUtf8,
+    const std::string& languageId,
+    int tabWidth) {
+    QStringList args;
+    for (const std::string& argTemplate : argTemplates) {
+        std::string expanded = argTemplate;
+        expanded = ReplaceAll(expanded, "${filePath}", filePathUtf8);
+        expanded = ReplaceAll(expanded, "${languageId}", languageId);
+        expanded = ReplaceAll(expanded, "${tabWidth}", std::to_string(tabWidth));
+        args.append(QString::fromStdString(expanded));
+    }
+    return args;
+}
+
+std::vector<std::string> FormatterLanguageCandidates(
+    const std::string& lexerName,
+    const std::string& languageId) {
+    std::set<std::string> candidates;
+    if (!lexerName.empty()) {
+        candidates.insert(AsciiLower(lexerName));
+    }
+    if (!languageId.empty()) {
+        candidates.insert(AsciiLower(languageId));
+    }
+    if (lexerName == "null") {
+        candidates.insert("plaintext");
+        candidates.insert("plain_text");
+        candidates.insert("text");
+    }
+    if (lexerName == "xml") {
+        candidates.insert("html");
+        candidates.insert("xml");
+    }
+    if (lexerName == "cpp") {
+        candidates.insert("c");
+        candidates.insert("c++");
+        candidates.insert("cpp");
+    }
+    if (lexerName == "bash") {
+        candidates.insert("shell");
+        candidates.insert("sh");
+    }
+    return std::vector<std::string>(candidates.begin(), candidates.end());
+}
+
+bool FormatterContributionMatchesLanguage(
+    const npp::platform::ExtensionManifest::FormatterContribution& contribution,
+    const std::string& lexerName,
+    const std::string& languageId) {
+    const std::vector<std::string> candidates = FormatterLanguageCandidates(lexerName, languageId);
+    for (const std::string& language : contribution.languages) {
+        const std::string normalized = AsciiLower(language);
+        if (std::find(candidates.begin(), candidates.end(), normalized) != candidates.end()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool IsIdentifierChar(char ch) {
@@ -420,6 +495,7 @@ void MainWindow::BuildMenus() {
     editMenu->addAction(_actionsById.at("search.findInFiles"));
     editMenu->addAction(_actionsById.at("edit.replace"));
     editMenu->addAction(_actionsById.at("edit.gotoLine"));
+    editMenu->addAction(_actionsById.at("edit.formatDocument"));
     editMenu->addSeparator();
     editMenu->addAction(_actionsById.at("edit.preferences"));
 
@@ -492,6 +568,7 @@ void MainWindow::BuildActions() {
     registerAction("search.findInFiles", tr("Find in Files..."), [this]() { OnFindInFiles(); });
     registerAction("edit.replace", tr("Replace..."), [this]() { OnReplace(); });
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
+    registerAction("edit.formatDocument", tr("Format Document"), [this]() { OnFormatDocument(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
     registerAction("tools.runCommand", tr("Run Command..."), [this]() { OnRunCommand(); });
     registerAction(
@@ -1113,6 +1190,136 @@ void MainWindow::OnGoToLine() {
     editor->send(SCI_GOTOLINE, static_cast<uptr_t>(line - 1));
     editor->send(SCI_SCROLLCARET);
     UpdateCursorStatus();
+}
+
+void MainWindow::OnFormatDocument() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return;
+    }
+
+    const std::string inputText = GetEditorText(editor);
+    const std::string lexerName = stateIt->second.lexerName.empty() ? "null" : stateIt->second.lexerName;
+    const std::string languageId = npp::ui::MapLexerToLspLanguageId(lexerName).empty()
+        ? lexerName
+        : npp::ui::MapLexerToLspLanguageId(lexerName);
+
+    std::string formatterName;
+    std::string outputText;
+    bool formatterSupported = false;
+    bool extensionFormatterSucceeded = false;
+
+    const auto installedExtensions = _extensionService.DiscoverInstalled();
+    if (installedExtensions.ok()) {
+        for (const npp::platform::InstalledExtension& extension : *installedExtensions.value) {
+            if (!extension.enabled) {
+                continue;
+            }
+            if (extension.manifest.type == npp::platform::ExtensionType::kLanguagePack) {
+                continue;
+            }
+            if (extension.manifest.entrypoint.empty()) {
+                continue;
+            }
+            if (extension.manifest.formatters.empty()) {
+                continue;
+            }
+
+            for (const auto& contribution : extension.manifest.formatters) {
+                if (!FormatterContributionMatchesLanguage(contribution, lexerName, languageId)) {
+                    continue;
+                }
+
+                const auto permissionGranted = _extensionService.RequestPermission(
+                    extension.manifest.id,
+                    "process.spawn",
+                    "format document");
+                if (!permissionGranted.ok() || !(*permissionGranted.value)) {
+                    continue;
+                }
+
+                std::filesystem::path formatterEntrypoint(extension.manifest.entrypoint);
+                if (formatterEntrypoint.is_relative()) {
+                    formatterEntrypoint = std::filesystem::path(extension.installPath) / formatterEntrypoint;
+                }
+
+                QProcess process(this);
+                process.setProgram(ToQString(formatterEntrypoint.string()));
+                process.setArguments(BuildFormatterArguments(
+                    contribution.args,
+                    stateIt->second.filePathUtf8,
+                    languageId,
+                    _editorSettings.tabWidth));
+                process.setWorkingDirectory(ToQString(extension.installPath));
+                process.start();
+                if (!process.waitForStarted(5000)) {
+                    continue;
+                }
+
+                process.write(inputText.data(), static_cast<qint64>(inputText.size()));
+                process.closeWriteChannel();
+                if (!process.waitForFinished(60000)) {
+                    process.kill();
+                    process.waitForFinished(1000);
+                    continue;
+                }
+                if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+                    continue;
+                }
+
+                const QByteArray stdOut = process.readAllStandardOutput();
+                const std::string formattedUtf8(stdOut.constData(), static_cast<size_t>(stdOut.size()));
+                if (!IsValidUtf8(formattedUtf8)) {
+                    continue;
+                }
+
+                formatterSupported = true;
+                extensionFormatterSucceeded = true;
+                formatterName = extension.manifest.name.empty() ? extension.manifest.id : extension.manifest.name;
+                outputText = NormalizeEol(formattedUtf8, stateIt->second.eolMode);
+                break;
+            }
+
+            if (extensionFormatterSucceeded) {
+                break;
+            }
+        }
+    }
+
+    if (!extensionFormatterSucceeded) {
+        const npp::ui::LanguageAwareFormatResult builtInResult = npp::ui::FormatDocumentLanguageAware(
+            inputText,
+            lexerName,
+            _editorSettings.tabWidth);
+        formatterSupported = builtInResult.supported;
+        formatterName = builtInResult.formatterName;
+        outputText = NormalizeEol(builtInResult.formattedTextUtf8, stateIt->second.eolMode);
+    }
+
+    if (!formatterSupported) {
+        statusBar()->showMessage(
+            tr("No formatter available for language: %1").arg(ToQString(lexerName)),
+            2500);
+        return;
+    }
+
+    if (outputText == inputText) {
+        statusBar()->showMessage(
+            tr("Document already formatted (%1)").arg(ToQString(formatterName)),
+            2500);
+        return;
+    }
+
+    SetEditorText(editor, outputText);
+    SetEditorEolMode(editor, stateIt->second.eolMode);
+    editor->send(SCI_COLOURISE, 0, -1);
+    statusBar()->showMessage(
+        tr("Formatted document with %1").arg(ToQString(formatterName)),
+        2500);
 }
 
 void MainWindow::OnPreferences() {

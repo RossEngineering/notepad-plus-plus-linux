@@ -85,7 +85,13 @@ int main() {
             "  \"type\": \"command-plugin\",\n"
             "  \"apiVersion\": \"1.0\",\n"
             "  \"entrypoint\": \"bin/formatter\",\n"
-            "  \"permissions\": [\"workspace.read\", \"process.spawn\"]\n"
+            "  \"permissions\": [\"workspace.read\", \"process.spawn\"],\n"
+            "  \"formatters\": [\n"
+            "    {\n"
+            "      \"languages\": [\"python\", \"json\"],\n"
+            "      \"args\": [\"--stdin-filepath\", \"${filePath}\", \"--tab-width\", \"${tabWidth}\"]\n"
+            "    }\n"
+            "  ]\n"
             "}\n")) {
         std::cerr << "failed writing sample extension manifest\n";
         return 4;
@@ -109,6 +115,15 @@ int main() {
         !discoveredAfterInstall.value->front().enabled) {
         std::cerr << "unexpected installed extension metadata\n";
         return 8;
+    }
+    if (discoveredAfterInstall.value->front().manifest.formatters.size() != 1) {
+        std::cerr << "expected formatter contribution metadata to be parsed\n";
+        return 29;
+    }
+    const auto& parsedFormatter = discoveredAfterInstall.value->front().manifest.formatters.front();
+    if (parsedFormatter.languages.size() != 2 || parsedFormatter.args.size() != 4) {
+        std::cerr << "unexpected formatter contribution shape\n";
+        return 30;
     }
 
     const auto processPermission = extensionService.IsPermissionGranted(

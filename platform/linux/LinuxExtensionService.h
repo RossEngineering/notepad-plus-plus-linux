@@ -26,6 +26,11 @@ enum class PermissionGrantMode {
 };
 
 struct ExtensionManifest {
+    struct FormatterContribution {
+        std::vector<std::string> languages;
+        std::vector<std::string> args;
+    };
+
     int schemaVersion = 1;
     std::string id;
     std::string name;
@@ -38,6 +43,7 @@ struct ExtensionManifest {
     std::string entrypoint;
     std::vector<std::string> permissions;
     std::vector<std::string> categories;
+    std::vector<FormatterContribution> formatters;
 };
 
 struct InstalledExtension {

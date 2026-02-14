@@ -118,6 +118,7 @@ private:
 	void OnReplace();
 	void OnFindInFiles();
 	void OnGoToLine();
+	void OnFormatDocument();
 	void OnPreferences();
 	void OnRunCommand();
 	void OnOpenHelpDocs();
