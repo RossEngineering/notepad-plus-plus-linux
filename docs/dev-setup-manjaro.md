@@ -1,5 +1,7 @@
 # Arch-Family Dev Setup (Manjaro Baseline)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This is the fastest path to a working local development environment for this repo.
 
 ## One-command setup

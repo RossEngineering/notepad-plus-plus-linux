@@ -1,5 +1,7 @@
 # ADR-005 — Repository Admission & Lifecycle Policy
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 **Status**: Accepted
 **Date**: 2026-01-26
 **Scope**: Organisation-wide (RossEngineering)

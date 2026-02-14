@@ -1,5 +1,7 @@
 # ADR Conformance Check (2026-02-13)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This review checks current implementation status against ADRs in `docs/adr`.
 
 ## Summary

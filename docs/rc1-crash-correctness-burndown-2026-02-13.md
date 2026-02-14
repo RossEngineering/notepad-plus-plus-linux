@@ -1,5 +1,7 @@
 # RC1 Crash/Correctness Burndown (2026-02-13)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 - Candidate: `v0.9.3-rc.1`
 - Candidate SHA: `fe525477f`
 - Status: complete for RC1 cut

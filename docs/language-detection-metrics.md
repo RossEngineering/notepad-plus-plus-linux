@@ -1,5 +1,7 @@
 # Language Detection Metrics (Beta 1)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This document defines acceptance metrics and report format for Phase 9 language detection.
 
 ## Scope

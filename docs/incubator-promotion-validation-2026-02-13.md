@@ -1,5 +1,7 @@
 # Incubator Promotion Validation (2026-02-13)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Reference criteria:
 
 - `docs/adr/rossengineering-bafc82c7/ADR-006 — Incubator Policy & Promotion Criteria.md`

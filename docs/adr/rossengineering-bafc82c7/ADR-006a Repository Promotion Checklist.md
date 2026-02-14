@@ -1,5 +1,7 @@
 # RossEngineering — Repository Promotion Checklist
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This checklist is used to determine whether a repository is ready to be **promoted** within the RossEngineering organisation.
 
 Promotion indicates that a project is **professional, intentional, and portfolio-grade**.

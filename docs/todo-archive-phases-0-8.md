@@ -1,5 +1,7 @@
 # TODO Archive - Phases 0-8
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Archived on: 2026-02-13
 
 This archive preserves completed roadmap work that was previously tracked in `TODO.md`.

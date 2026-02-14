@@ -1,5 +1,7 @@
 # TODO Archive - Beta 1 and Beta 2
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Archived on 2026-02-13 from `TODO.md`.
 This file preserves completed Beta 1 and Beta 2 execution detail.
 

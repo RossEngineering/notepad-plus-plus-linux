@@ -1,5 +1,7 @@
 # Skin Format v1
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This document defines the Phase 10 skin file format for the Linux-native UI.
 
 ## File location

@@ -1,5 +1,7 @@
 # Consumer Install Guide (Linux)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Last updated: 2026-02-14
 
 This guide covers consumer-friendly install and uninstall flows with desktop integration.

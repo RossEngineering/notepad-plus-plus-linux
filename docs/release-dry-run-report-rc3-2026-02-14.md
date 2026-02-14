@@ -1,5 +1,7 @@
 # RC3 Release Dry-Run Report - 2026-02-14
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This report records RC3 release-engineering dry-run evidence for:
 
 1. artifact generation

@@ -1,5 +1,7 @@
 # RC3 Feature Freeze Policy
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Last updated: 2026-02-14
 Applies to: `v0.9.7` through `v0.9.9-rc.3`
 

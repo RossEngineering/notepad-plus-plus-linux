@@ -1,5 +1,7 @@
 # ADR 0006: Arch-Derivatives-First (Manjaro Baseline) Packaging and Signed Release Practices
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 - Status: Accepted
 - Date: 2026-02-13
 - Decision Makers: project maintainers

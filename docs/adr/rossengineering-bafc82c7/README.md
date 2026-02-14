@@ -1,5 +1,7 @@
 # RossEngineering ADR Snapshot
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Source:
 - Repository: `RossEngineering/RossEngineering`
 - Path: `docs/adr`

@@ -1,5 +1,7 @@
 # TODO - notepad-plus-plus-linux
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This file now tracks active post-Phase-8 work.
 Completed Phases 0-8 are archived in `docs/todo-archive-phases-0-8.md`.
 Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.md`.
@@ -11,7 +13,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
 - [x] Complete RC1 scope and cut `v0.9.3-rc.1`.
 - [x] Complete RC2 scope and cut `v0.9.6-rc.2`.
-- [ ] Complete RC3 scope and cut `v0.9.9-rc.3`.
+- [x] Complete RC3 scope and cut `v0.9.9-rc.3`.
 - [ ] Promote `v1.0.0` after RC3 validation.
 
 ## Release track from Beta 2 to 1.0.0
@@ -41,8 +43,8 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Validate file-handler integration end-to-end (MIME/app defaults, open-with behavior, double-click launch) across Arch derivatives, Ubuntu LTS, and Fedora stable.
 - [x] Run full regression on editor, skinning, extension lifecycle, crash recovery, and language workflows.
 - [x] Complete release engineering dry-run (artifacts, checksums, signing, rollback plan).
-- [ ] Resolve all open release blockers and cut `v0.9.9-rc.3`.
-- [ ] Perform go/no-go review for `v1.0.0`.
+- [x] Resolve all open release blockers and cut `v0.9.9-rc.3`.
+- [x] Perform go/no-go review for `v1.0.0`.
 
 ### 1.0.0 promotion gate
 
@@ -50,6 +52,12 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [ ] No unresolved data-loss/crash-recovery regressions.
 - [ ] Linux required CI lanes green for 7 consecutive days before tag.
 - [ ] Publish `v1.0.0` release notes and migration guidance.
+
+### Incubator promotion gate
+
+- [x] Re-run incubator promotion validation at RC3 completion.
+- [ ] Record explicit promote/defer decision for incubator exit during `v1.0.0` go/no-go.
+- [ ] Update `README.md` repository status and linked governance docs to match incubator decision.
 
 ## Immediate next actions
 

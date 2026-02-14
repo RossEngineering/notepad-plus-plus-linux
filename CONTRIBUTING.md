@@ -1,5 +1,7 @@
 # Contributing
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 ***Ask not what Notepad++ can do for you - ask what you can do for Notepad++***
 
 ## Reporting Issues

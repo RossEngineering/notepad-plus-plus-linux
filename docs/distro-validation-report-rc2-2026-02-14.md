@@ -1,5 +1,7 @@
 # Distro Validation Report - RC2 Candidate
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 - Date: 2026-02-14
 - Reporter: Dan Ross + Codex
 - Candidate: `v0.9.6-rc.2`

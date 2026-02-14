@@ -1,5 +1,7 @@
 # RC3 Blockers - v0.9.9-rc.3
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Last updated: 2026-02-14 (post-RC2 exit review)
 
 This list tracks prioritized blockers that must be resolved or explicitly deferred before cutting `v0.9.9-rc.3`.

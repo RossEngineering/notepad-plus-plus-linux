@@ -1,5 +1,7 @@
 # Notepad++ Linux-native Fork
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Linux-native fork and reengineering effort based on Notepad++.
 
 This repository tracks the transition from the original **Windows-first architecture** to a **native Linux application**, specifically targeting **Arch Linux** and derivatives (including Manjaro, used as the baseline environment).
@@ -10,7 +12,7 @@ This repository tracks the transition from the original **Windows-first architec
 
 **Current state:**
 
-- **Repository status**: _Incubator_ (intentional migration stage).
+- **Repository status**: _Incubator_ (promotion review active as part of the `v1.0.0` go/no-go gate).
 - **Linux-native Qt shell builds and runs** on Arch Linux derivatives (Manjaro baseline).
 - **Foundation migration phases** are complete (`0-12`).
 - **Release train progress**:
@@ -18,8 +20,9 @@ This repository tracks the transition from the original **Windows-first architec
   - `v0.9.0-beta.2` published.
   - `v0.9.3-rc.1` published.
   - `v0.9.6-rc.2` published.
-- **Next target**: `v0.9.9-rc.3`, then `v1.0.0`.
-- **RC3 freeze state**: feature freeze is active (bug fixes, docs, packaging, release reliability only).
+  - `v0.9.9-rc.3` published.
+- **Next target**: `v1.0.0`.
+- **RC3 freeze state**: completed.
 - **Upstream codebase** remains Windows-centric; Linux-first migration is still active.
 
 **Planned state:**
@@ -44,8 +47,8 @@ For details, see:
 | Beta 2 (`v0.9.0-beta.2`)  | Phases `10-12`: skinning, extension platform, hardening/language intelligence              | Complete        | [`docs/releases/v0.9.0-beta.2.md`](docs/releases/v0.9.0-beta.2.md)       |
 | RC1 (`v0.9.3-rc.1`)       | Stabilization baseline, distro matrix baseline, extension permission hardening             | Complete        | [`docs/releases/v0.9.3-rc.1.md`](docs/releases/v0.9.3-rc.1.md)           |
 | RC2 (`v0.9.6-rc.2`)       | LSP baseline UX wiring, compatibility expansion, CI performance gates, distro install docs | Complete / Live | [`docs/releases/v0.9.6-rc.2.md`](docs/releases/v0.9.6-rc.2.md)           |
-| RC3 (`v0.9.9-rc.3`)       | Feature freeze, full regression, release dry-run, blocker closure                          | In progress     | [`TODO.md`](TODO.md)                                                     |
-| GA (`v1.0.0`)             | Final go/no-go and production release                                                      | Planned         | [`docs/releases/v1.0.0-checklist.md`](docs/releases/v1.0.0-checklist.md) |
+| RC3 (`v0.9.9-rc.3`)       | Feature freeze, full regression, release dry-run, blocker closure                          | Complete / Live | [`docs/releases/v0.9.9-rc.3.md`](docs/releases/v0.9.9-rc.3.md)           |
+| GA (`v1.0.0`)             | Final go/no-go and production release                                                      | In progress     | [`docs/releases/v1.0.0-checklist.md`](docs/releases/v1.0.0-checklist.md) |
 
 ---
 

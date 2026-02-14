@@ -1,5 +1,7 @@
 # Phase 9+ Scope Brainstorm
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Date: 2026-02-13
 
 This document proposes post-Phase-8 priorities aligned with `TODO.md` and `docs/roadmap.md`.

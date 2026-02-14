@@ -1,5 +1,7 @@
 # Distro Validation Evidence Format (RC1+)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Last updated: 2026-02-13
 
 Use this format for each distro report attached to RC1/RC2/RC3 release checklists.

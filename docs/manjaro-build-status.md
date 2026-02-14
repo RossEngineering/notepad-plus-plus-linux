@@ -1,5 +1,7 @@
 # Arch-Derivatives Build Status (Manjaro Baseline)
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 Last updated: 2026-02-13
 Host: Manjaro Linux (`x86_64`, kernel `6.18.8-1-MANJARO`)
 

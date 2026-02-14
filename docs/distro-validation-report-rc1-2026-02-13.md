@@ -1,5 +1,7 @@
 # Distro Validation Report - RC1 Baseline
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 - Date: 2026-02-13
 - Reporter: Dan Ross + Codex
 - Candidate: RC1 preparation baseline (pre-`v0.9.3-rc.1`)

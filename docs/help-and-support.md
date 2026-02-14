@@ -1,5 +1,7 @@
 # Help and Support
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This project uses GitHub as the primary support and collaboration hub.
 
 ## Quick links

@@ -1,5 +1,7 @@
 # Performance Baseline
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This project tracks a lightweight baseline for startup cost and typing latency to detect regressions as Linux-native work continues.
 
 ## Benchmark harness

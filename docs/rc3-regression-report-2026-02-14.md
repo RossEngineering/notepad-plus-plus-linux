@@ -1,5 +1,7 @@
 # RC3 Regression Report - 2026-02-14
 
+> **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
+
 This report records the RC3 full-regression matrix run that validates:
 
 1. editor core behavior
