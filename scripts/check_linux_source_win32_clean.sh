@@ -17,16 +17,6 @@ TARGET_DIRS=(
   "tests"
 )
 
-require_cmd() {
-  local cmd="$1"
-  if ! command -v "${cmd}" >/dev/null 2>&1; then
-    echo "required command not found: ${cmd}" >&2
-    exit 1
-  fi
-}
-
-require_cmd rg
-
 for dir in "${TARGET_DIRS[@]}"; do
   if [[ ! -d "${dir}" ]]; then
     echo "expected directory not found: ${dir}" >&2
@@ -34,20 +24,42 @@ for dir in "${TARGET_DIRS[@]}"; do
   fi
 done
 
-set +e
-matches="$(
-  rg -n -H -e "${WIN32_PATTERN}" "${TARGET_DIRS[@]}" \
-    --glob '*.c' \
-    --glob '*.cc' \
-    --glob '*.cpp' \
-    --glob '*.cxx' \
-    --glob '*.h' \
-    --glob '*.hh' \
-    --glob '*.hpp' \
-    --glob '!tests/**/catch.hpp'
-)"
-rc=$?
-set -e
+matches=""
+rc=1
+
+if command -v rg >/dev/null 2>&1; then
+  set +e
+  matches="$(
+    rg -n -H -e "${WIN32_PATTERN}" "${TARGET_DIRS[@]}" \
+      --glob '*.c' \
+      --glob '*.cc' \
+      --glob '*.cpp' \
+      --glob '*.cxx' \
+      --glob '*.h' \
+      --glob '*.hh' \
+      --glob '*.hpp' \
+      --glob '!tests/**/catch.hpp'
+  )"
+  rc=$?
+  set -e
+else
+  echo "warning: rg not found; falling back to grep scan" >&2
+  mapfile -t source_files < <(
+    find "${TARGET_DIRS[@]}" -type f \
+      \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' -o -name '*.hh' -o -name '*.hpp' \) \
+      ! -path '*/tests/**/catch.hpp'
+  )
+
+  if [[ ${#source_files[@]} -eq 0 ]]; then
+    echo "failed: no source files found to scan" >&2
+    exit 1
+  fi
+
+  set +e
+  matches="$(grep -n -H -E "${WIN32_PATTERN}" "${source_files[@]}")"
+  rc=$?
+  set -e
+fi
 
 if [[ "${rc}" -eq 0 ]]; then
   echo "failed: found Win32 usage in Linux shipping/build source path"

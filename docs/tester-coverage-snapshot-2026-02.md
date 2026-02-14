@@ -7,6 +7,8 @@ Owner: Maintainers
 Scope: External tester signals during GA window (`v0.9.9-rc.3b` -> `v1.0.0`)
 
 This file tracks real-world coverage from incoming tester issues.
+Current reality: external tester intake is limited; maintainer-led verification is
+the primary coverage source until issue volume increases.
 
 ## Coverage matrix
 
@@ -27,6 +29,7 @@ Track confirmed high-risk reports here before promoting to GA blockers.
 | Date (UTC) | New tester issues reviewed | Escalated to blocker candidates | Notes |
 | --- | --- | --- | --- |
 | 2026-02-14 | 0 | 0 | First triage pass completed after enabling Issues; no tester reports yet. |
+| 2026-02-14 | 0 | 0 | Continued triage pass; no external reports yet, maintainer-led validation remains active. |
 
 ## Usage rules
 

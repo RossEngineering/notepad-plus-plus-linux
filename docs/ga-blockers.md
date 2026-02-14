@@ -14,7 +14,7 @@ deferred before cutting `v1.0.0`.
 | ID | Priority | Area | Source | Status | Exit criteria |
 | --- | --- | --- | --- | --- | --- |
 | GA-B01 | P0 | CI continuity gate | `docs/releases/v1.0.0-checklist.md` | Open | Required Linux CI lanes remain green for 7 consecutive days on the GA candidate path, with evidence logged in `docs/ga-ci-continuity-log-2026-02.md`. |
-| GA-B02 | P0 | Release notes and migration docs | `docs/v1.0.0-go-no-go-review-2026-02-14.md` | Open | `docs/releases/v1.0.0.md` is publication-ready and migration guidance is finalized/reviewed. |
+| GA-B02 | P0 | Release notes and migration docs | `docs/v1.0.0-go-no-go-review-2026-02-14.md` | Closed | `docs/releases/v1.0.0.md` finalized on 2026-02-14 with migration guidance and accepted known limitations. |
 | GA-B03 | P0 | Incubator lifecycle decision | `docs/incubator-promotion-validation-2026-02-14.md` | Closed | Promotion approved and recorded at `v0.10.0-rc.4`; repository status/governance text synchronized. |
 
 ## Intake and closure rules
