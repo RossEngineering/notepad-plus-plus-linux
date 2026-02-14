@@ -7,6 +7,16 @@ on:
   pull_request:
 
 jobs:
+  linux-win32-cleanliness:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enforce Linux source Win32 cleanliness
+        run: ./scripts/check_linux_source_win32_clean.sh
+
   build-and-test:
     runs-on: ubuntu-latest
     strategy:

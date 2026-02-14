@@ -6,7 +6,7 @@
 #include <utility>
 
 #include "VscodeLanguageCompatibility.h"
-#include "json/json.hpp"
+#include "json.hpp"
 
 namespace npp::platform {
 

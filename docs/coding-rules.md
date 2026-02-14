@@ -2,7 +2,7 @@
 
 > **Linux-only fork notice:** This repository and its releases target Linux only. For the original Windows Notepad++ application, visit [notepad-plus-plus.org](https://notepad-plus-plus.org/).
 
-Last updated: 2026-02-13
+Last updated: 2026-02-14
 
 ## Rule 1: No new direct Win32 usage outside platform layer
 
@@ -32,3 +32,5 @@ Legacy Win32 code still exists in `PowerEditor/` during migration. This rule is 
 
 - Script: `scripts/check_win32_boundaries.sh`
 - CI workflow: `.github/workflows/win32-boundary.yml`
+- Script: `scripts/check_linux_source_win32_clean.sh`
+- CI workflow: `.github/workflows/linux-cmake.yml` (`linux-win32-cleanliness` job)

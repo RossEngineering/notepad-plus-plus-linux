@@ -131,7 +131,7 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_PLATFORM_LINUX)
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/include"
         PRIVATE
             "${CMAKE_CURRENT_SOURCE_DIR}/platform/linux"
-            "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src"
+            "${CMAKE_CURRENT_SOURCE_DIR}/PowerEditor/src/json"
     )
 endif()
 
