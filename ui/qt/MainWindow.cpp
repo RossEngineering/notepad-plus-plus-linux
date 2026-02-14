@@ -24,6 +24,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDateTime>
+#include <QEvent>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -409,6 +410,7 @@ MainWindow::MainWindow(QWidget *parent)
     InitializeLspServers();
     LoadEditorSettings();
     StartCrashRecoveryTimer();
+    StartAutoSaveTimer();
     InitializeExtensionsWithGuardrails();
     _extensionService.SetPermissionPrompt([this](const npp::platform::PermissionPromptRequest& request) {
         const QStringList options = {
@@ -468,12 +470,33 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     if (_crashRecoveryTimer) {
         _crashRecoveryTimer->stop();
     }
+    if (_autoSaveTimer) {
+        _autoSaveTimer->stop();
+    }
     SaveSession();
     ClearCrashRecoveryJournal();
     _lspService.StopAllSessions();
     _lspSessionByEditor.clear();
     _closingApplication = false;
     event->accept();
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (!_closingApplication &&
+        _editorSettings.autoSaveOnFocusLost &&
+        event != nullptr &&
+        event->type() == QEvent::FocusOut) {
+        auto *editor = qobject_cast<ScintillaEditBase *>(watched);
+        if (editor) {
+            std::string savedPathUtf8;
+            if (AutoSaveEditorIfNeeded(editor, &savedPathUtf8)) {
+                statusBar()->showMessage(
+                    tr("Auto-saved %1 (focus lost).").arg(FileNameFromPath(savedPathUtf8)),
+                    1500);
+            }
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::BuildUi() {
@@ -683,6 +706,7 @@ ScintillaEditBase *MainWindow::CreateEditor() {
     editor->send(SCI_SETADDITIONALSELECTIONTYPING, 1);
     editor->send(SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH);
     editor->send(SCI_GRABFOCUS);
+    editor->installEventFilter(this);
 
     connect(editor, &ScintillaEditBase::notifyChange, this, [this, editor]() {
         auto it = _editorStates.find(editor);
@@ -1368,6 +1392,16 @@ void MainWindow::OnPreferences() {
     autoCloseHtmlTagsCheck->setChecked(_editorSettings.autoCloseHtmlTags);
     auto *autoCloseDelimitersCheck = new QCheckBox(tr("Auto-close paired delimiters"), &dialog);
     autoCloseDelimitersCheck->setChecked(_editorSettings.autoCloseDelimiters);
+    auto *autoSaveOnFocusLostCheck = new QCheckBox(tr("Auto-save on focus lost"), &dialog);
+    autoSaveOnFocusLostCheck->setChecked(_editorSettings.autoSaveOnFocusLost);
+    auto *autoSaveOnIntervalCheck = new QCheckBox(tr("Auto-save on interval"), &dialog);
+    autoSaveOnIntervalCheck->setChecked(_editorSettings.autoSaveOnInterval);
+    auto *autoSaveIntervalSpin = new QSpinBox(&dialog);
+    autoSaveIntervalSpin->setRange(5, 600);
+    autoSaveIntervalSpin->setValue(_editorSettings.autoSaveIntervalSeconds);
+    autoSaveIntervalSpin->setEnabled(_editorSettings.autoSaveOnInterval);
+    auto *autoSaveBeforeRunCheck = new QCheckBox(tr("Auto-save before Run Command"), &dialog);
+    autoSaveBeforeRunCheck->setChecked(_editorSettings.autoSaveBeforeRun);
 
     form->addRow(tr("Tab width:"), tabWidthSpin);
     form->addRow(QString(), wrapCheck);
@@ -1375,7 +1409,13 @@ void MainWindow::OnPreferences() {
     form->addRow(QString(), autoDetectLanguageCheck);
     form->addRow(QString(), autoCloseHtmlTagsCheck);
     form->addRow(QString(), autoCloseDelimitersCheck);
+    form->addRow(QString(), autoSaveOnFocusLostCheck);
+    form->addRow(QString(), autoSaveOnIntervalCheck);
+    form->addRow(tr("Auto-save interval (sec):"), autoSaveIntervalSpin);
+    form->addRow(QString(), autoSaveBeforeRunCheck);
     layout->addLayout(form);
+
+    connect(autoSaveOnIntervalCheck, &QCheckBox::toggled, autoSaveIntervalSpin, &QSpinBox::setEnabled);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
@@ -1392,8 +1432,13 @@ void MainWindow::OnPreferences() {
     _editorSettings.autoDetectLanguage = autoDetectLanguageCheck->isChecked();
     _editorSettings.autoCloseHtmlTags = autoCloseHtmlTagsCheck->isChecked();
     _editorSettings.autoCloseDelimiters = autoCloseDelimitersCheck->isChecked();
+    _editorSettings.autoSaveOnFocusLost = autoSaveOnFocusLostCheck->isChecked();
+    _editorSettings.autoSaveOnInterval = autoSaveOnIntervalCheck->isChecked();
+    _editorSettings.autoSaveBeforeRun = autoSaveBeforeRunCheck->isChecked();
+    _editorSettings.autoSaveIntervalSeconds = autoSaveIntervalSpin->value();
     ApplyEditorSettingsToAllEditors();
     SaveEditorSettings();
+    StartAutoSaveTimer();
     statusBar()->showMessage(tr("Preferences updated"), 1500);
 }
 
@@ -1456,6 +1501,15 @@ void MainWindow::OnRunCommand() {
     const QString workingDir = workingDirEdit->text().trimmed();
     if (command.isEmpty()) {
         return;
+    }
+
+    if (_editorSettings.autoSaveBeforeRun) {
+        const int savedCount = AutoSaveDirtyEditors();
+        if (savedCount > 0) {
+            statusBar()->showMessage(
+                tr("Auto-saved %1 file(s) before running command.").arg(savedCount),
+                1800);
+        }
     }
 
     const QStringList parts = QProcess::splitCommand(command);
@@ -2795,6 +2849,13 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.autoDetectLanguage = obj.value(QStringLiteral("autoDetectLanguage")).toBool(true);
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
+    _editorSettings.autoSaveOnFocusLost = obj.value(QStringLiteral("autoSaveOnFocusLost")).toBool(false);
+    _editorSettings.autoSaveOnInterval = obj.value(QStringLiteral("autoSaveOnInterval")).toBool(false);
+    _editorSettings.autoSaveBeforeRun = obj.value(QStringLiteral("autoSaveBeforeRun")).toBool(false);
+    _editorSettings.autoSaveIntervalSeconds = std::clamp(
+        obj.value(QStringLiteral("autoSaveIntervalSeconds")).toInt(30),
+        5,
+        600);
     _editorSettings.extensionGuardrailsEnabled =
         obj.value(QStringLiteral("extensionGuardrailsEnabled")).toBool(true);
     _editorSettings.extensionStartupBudgetMs = std::clamp(
@@ -2827,6 +2888,10 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("autoDetectLanguage"), _editorSettings.autoDetectLanguage);
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
+    settingsObject.insert(QStringLiteral("autoSaveOnFocusLost"), _editorSettings.autoSaveOnFocusLost);
+    settingsObject.insert(QStringLiteral("autoSaveOnInterval"), _editorSettings.autoSaveOnInterval);
+    settingsObject.insert(QStringLiteral("autoSaveBeforeRun"), _editorSettings.autoSaveBeforeRun);
+    settingsObject.insert(QStringLiteral("autoSaveIntervalSeconds"), _editorSettings.autoSaveIntervalSeconds);
     settingsObject.insert(QStringLiteral("extensionGuardrailsEnabled"), _editorSettings.extensionGuardrailsEnabled);
     settingsObject.insert(QStringLiteral("extensionStartupBudgetMs"), _editorSettings.extensionStartupBudgetMs);
     settingsObject.insert(
@@ -3542,6 +3607,79 @@ void MainWindow::StartCrashRecoveryTimer() {
         SaveCrashRecoveryJournal();
     });
     _crashRecoveryTimer->start();
+}
+
+void MainWindow::StartAutoSaveTimer() {
+    if (_autoSaveTimer) {
+        _autoSaveTimer->stop();
+        _autoSaveTimer->deleteLater();
+        _autoSaveTimer = nullptr;
+    }
+
+    if (!_editorSettings.autoSaveOnInterval) {
+        return;
+    }
+
+    _autoSaveTimer = new QTimer(this);
+    _autoSaveTimer->setInterval(std::clamp(_editorSettings.autoSaveIntervalSeconds, 5, 600) * 1000);
+    connect(_autoSaveTimer, &QTimer::timeout, this, [this]() {
+        const int savedCount = AutoSaveDirtyEditors();
+        if (savedCount > 0) {
+            statusBar()->showMessage(
+                tr("Auto-saved %1 file(s).").arg(savedCount),
+                1500);
+        }
+    });
+    _autoSaveTimer->start();
+}
+
+bool MainWindow::AutoSaveEditorIfNeeded(ScintillaEditBase *editor, std::string *savedPathUtf8) {
+    if (!editor) {
+        return false;
+    }
+
+    const auto stateIt = _editorStates.find(editor);
+    if (stateIt == _editorStates.end()) {
+        return false;
+    }
+
+    const EditorState &state = stateIt->second;
+    if (!state.dirty || state.filePathUtf8.empty()) {
+        return false;
+    }
+
+    if (!SaveEditorToFile(editor, state.filePathUtf8)) {
+        return false;
+    }
+
+    if (savedPathUtf8) {
+        *savedPathUtf8 = state.filePathUtf8;
+    }
+    return true;
+}
+
+int MainWindow::AutoSaveDirtyEditors(std::vector<std::string> *savedPathsUtf8) {
+    if (!_tabs) {
+        return 0;
+    }
+
+    int savedCount = 0;
+    for (int index = 0; index < _tabs->count(); ++index) {
+        ScintillaEditBase *editor = EditorAt(index);
+        if (!editor) {
+            continue;
+        }
+
+        std::string savedPathUtf8;
+        if (AutoSaveEditorIfNeeded(editor, &savedPathUtf8)) {
+            ++savedCount;
+            if (savedPathsUtf8) {
+                savedPathsUtf8->push_back(savedPathUtf8);
+            }
+        }
+    }
+
+    return savedCount;
 }
 
 std::string MainWindow::ConfigRootPath() const {

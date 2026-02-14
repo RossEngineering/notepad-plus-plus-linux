@@ -18,6 +18,7 @@
 
 class QAction;
 class QCloseEvent;
+class QEvent;
 class QLabel;
 class QTabWidget;
 class QTimer;
@@ -32,6 +33,7 @@ public:
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
 	enum class TextEncoding {
@@ -60,6 +62,10 @@ private:
 		bool autoDetectLanguage = true;
 		bool autoCloseHtmlTags = true;
 		bool autoCloseDelimiters = true;
+		bool autoSaveOnFocusLost = false;
+		bool autoSaveOnInterval = false;
+		bool autoSaveBeforeRun = false;
+		int autoSaveIntervalSeconds = 30;
 		bool extensionGuardrailsEnabled = true;
 		int extensionStartupBudgetMs = 1200;
 		int extensionPerExtensionBudgetMs = 250;
@@ -200,6 +206,9 @@ private:
 	void StopLspSessionForEditor(ScintillaEditBase *editor);
 	void InitializeExtensionsWithGuardrails();
 	void StartCrashRecoveryTimer();
+	void StartAutoSaveTimer();
+	bool AutoSaveEditorIfNeeded(ScintillaEditBase *editor, std::string *savedPathUtf8 = nullptr);
+	int AutoSaveDirtyEditors(std::vector<std::string> *savedPathsUtf8 = nullptr);
 	void SaveCrashRecoveryJournal() const;
 	bool RestoreCrashRecoveryJournal();
 	void ClearCrashRecoveryJournal() const;
@@ -236,6 +245,7 @@ private:
 	bool _closingApplication = false;
 	bool _suppressAutoCloseHandler = false;
 	QTimer *_crashRecoveryTimer = nullptr;
+	QTimer *_autoSaveTimer = nullptr;
 
 	npp::platform::LinuxPathService _pathService;
 	npp::platform::LinuxFileSystemService _fileSystemService;
