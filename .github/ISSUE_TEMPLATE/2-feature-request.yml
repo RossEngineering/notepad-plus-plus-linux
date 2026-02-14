@@ -1,53 +1,58 @@
 name: Feature request
-description: Suggest an idea for Notepad++
-title: "[Feature request] <title>"
-#labels: ["feature"]
-#type: feature
+description: Suggest an improvement for the Linux-native editor.
+title: "[Feature] <short summary>"
+labels: ["type:enhancement", "area:linux"]
 body:
 - type: checkboxes
   attributes:
-    label: Is there an existing issue for this?
-    description: Please search to see if an issue already exists for the feature you request.
+    label: Pre-flight checks
     options:
-    - label: I have searched the existing issues
+    - label: I searched existing issues and did not find a duplicate request.
       required: true
 - type: textarea
   attributes:
-    label: Description of the Issue
-    description: A clear and concise description of what the problem is.
+    label: Problem statement
+    description: What workflow or pain point should be improved?
   validations:
     required: true
 - type: textarea
   attributes:
-    label: Describe the solution you'd like.
-    description: A clear and concise description of what you want to happen.
+    label: Proposed solution
+    description: What behavior, UI, or API change do you want?
   validations:
     required: true
 - type: textarea
   attributes:
-    label: Debug Information
-    description: |
-      In your Notepad++, click on the "?" menu (found to the right of "Window" in the menu bar).
-      In the menu that drops down, choose "Debug Info...".
-      A dialog will open detailing specifics about your Notepad++ version, plugins, etc.
-      CLICK ON THE BUTTON "Copy debug info into clipboard".
-      Do a PASTE HERE
-    render: shell
+    label: Alternatives considered
+    description: Other options you evaluated and why they are less suitable.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: User impact
+    description: Who benefits and how often this would be used.
   validations:
     required: true
 - type: textarea
   attributes:
-    label: Anything else?
-    description: |
-      Links? References? Anything that will give us more context about the feature you want!
-
-      Notepad++ relies on the Lexilla and Scintilla libraries.
-      For more details, visit https://github.com/ScintillaOrg/lexilla and https://sourceforge.net/p/scintilla.
-      If you have specific language feature requests, consider using the reference program SciTE to verify whether the desired feature is supported.
-      You can download SciTE from here https://www.scintilla.org/SciTEDownload.html.
-
-      If you have any questions about Notepad++ usage, explore the community forum https://community.notepad-plus-plus.org/category/7/faq.
-
-      Tip: You can attach images by clicking this area to highlight it and then dragging files in.
+    label: Compatibility and performance considerations
+    description: Any known constraints (distro/desktop behavior, extension compatibility, perf impact).
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Environment (if relevant)
+    description: Include distro, kernel, desktop environment/window manager, and app version.
+    placeholder: |
+      Distro: Manjaro / Arch / Ubuntu / Fedora
+      Kernel: 6.x
+      Desktop: KDE / GNOME / Xfce / sway
+      App version: v0.9.9-rc.3a
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Additional context
+    description: Links, screenshots, mockups, or related issues.
   validations:
     required: false

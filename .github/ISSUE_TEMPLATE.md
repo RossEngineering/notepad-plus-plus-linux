@@ -1,10 +1,13 @@
-<!--- This is a generic template and may not be applicable in all cases. -->
-<!--- Try to follow it where possible. -->
+<!--- Fallback template for Linux-native issue reporting. -->
+<!--- Prefer the structured forms in .github/ISSUE_TEMPLATE when possible. -->
 
-### Description of the Issue
-<!--- Provide a more detailed description to the issue itself -->
+### Summary
+<!--- One or two lines describing the issue/request -->
 
-### Steps to Reproduce the Issue
+### Environment
+<!--- Distro, kernel, desktop environment/window manager, app version/tag -->
+
+### Steps to Reproduce
 <!--- Set of steps to reproduce this issue -->
 1. 
 2. 
@@ -16,11 +19,8 @@
 ### Actual Behavior
 <!--- What actually happened -->
 
-### Debug Information
-<!--- In your Notepad++, click on the "?" menu (found to the right of "Window" in the menu bar) -->
-<!--- In the menu that drops down, choose "Debug Info..." -->
-<!--- A message box will open detailing specifics about your Notepad++ version, plugins, etc. -->
-<!--- CLICK ON THE BUTTON with the text "Copy debug info into clipboard" -->
-<!--- Do a PASTE HERE -->
+### Logs / Evidence
+<!--- Attach console output, screenshots, trace logs, or recordings if available -->
 
-<!--- Feel free to include any other info, such as screenshots, etc -->
+### Additional Context
+<!--- Any related links, prior issues, or constraints -->
