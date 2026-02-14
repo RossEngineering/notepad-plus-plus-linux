@@ -38,6 +38,8 @@ This repository is in pre-1.0 migration status.
   - `alpha`: early internal milestones (currently closed out).
   - `beta`: broader validation milestone before release candidates.
   - `rc`: release candidate stabilization before final.
+- TODO-section cadence rule:
+  - when a planned TODO section is completed, publish a tagged prerelease and corresponding checklist/release notes update before starting the next section.
 
 ## Compatibility stance
 

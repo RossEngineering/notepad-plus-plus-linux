@@ -95,6 +95,12 @@ RC3, RC3a, and RC3b are complete and published. The project now focuses on final
 3. Final go/no-go review: `docs/v1.0.0-go-no-go-review-2026-02-14.md`
 4. GA release checklist: `docs/releases/v1.0.0-checklist.md`
 
+## Delivery cadence rule
+
+1. Complete work by TODO section.
+2. At the end of each completed TODO section, publish a tagged prerelease.
+3. Update release checklist and release notes in the same section-close pass.
+
 ## Next planning outputs
 
 1. `docs/releases/v0.9.3-rc.1-checklist.md`
