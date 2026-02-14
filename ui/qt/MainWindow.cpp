@@ -43,6 +43,7 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QStandardPaths>
 #include <QStatusBar>
 #include <QSysInfo>
 #include <QTabWidget>
@@ -863,7 +864,12 @@ bool MainWindow::SaveCurrentFileAs() {
     if (!stateIt->second.filePathUtf8.empty()) {
         suggestedPath = ToQString(stateIt->second.filePathUtf8);
     } else {
-        suggestedPath = QStringLiteral("untitled%1").arg(ToQString(suggestedExtension));
+        QString defaultDirectory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        if (defaultDirectory.isEmpty()) {
+            defaultDirectory = QDir::homePath();
+        }
+        const QString defaultFileName = QStringLiteral("untitled%1").arg(ToQString(suggestedExtension));
+        suggestedPath = QDir(defaultDirectory).filePath(defaultFileName);
     }
 
     QString target = QFileDialog::getSaveFileName(this, tr("Save File As"), suggestedPath);
