@@ -1,1 +1,8 @@
 blank_issues_enabled: false
+contact_links:
+- name: Tester quickstart
+  url: https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/tester-quickstart.md
+  about: Use this checklist before filing RC/GA validation feedback.
+- name: Help and support
+  url: https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/help-and-support.md
+  about: Support links, bug reporting, feature requests, and security reporting.

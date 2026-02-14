@@ -1,0 +1,107 @@
+name: Linux bug report
+description: Report a Linux runtime, UI, packaging, or editor behavior issue.
+title: "[Bug] <short summary>"
+labels: ["type:bug", "area:linux"]
+body:
+- type: checkboxes
+  attributes:
+    label: Pre-flight checks
+    options:
+    - label: I searched existing issues and did not find a duplicate.
+      required: true
+    - label: I reproduced this on the latest release or latest `master` build.
+      required: true
+- type: dropdown
+  attributes:
+    label: Affected area
+    options:
+    - Editor behavior
+    - Syntax highlighting / language tooling
+    - Formatting
+    - Extensions
+    - Performance
+    - Install / uninstall
+    - Desktop integration (launcher, MIME, file associations)
+    - Crash / data loss risk
+    - Other
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: App version / commit
+    description: Tag (for example `v0.9.9-rc.3a`) or commit SHA.
+    placeholder: "v0.9.9-rc.3a or abc1234"
+  validations:
+    required: true
+- type: dropdown
+  attributes:
+    label: Install method
+    options:
+    - Release tarball (manual install)
+    - Consumer installer script
+    - Built from source
+    - Distro package
+    - Other
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Linux distribution
+    description: Include distro and version.
+    placeholder: "Manjaro 25.x / Arch / Ubuntu 24.04 / Fedora 42"
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Kernel version
+    placeholder: "6.12.x"
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Desktop environment / window manager
+    placeholder: "KDE Plasma / GNOME / Xfce / i3 / sway"
+  validations:
+    required: true
+- type: dropdown
+  attributes:
+    label: Theme mode
+    options:
+    - Light
+    - Dark
+    - Mixed / custom
+    - Not applicable
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Steps to reproduce
+    placeholder: |
+      1.
+      2.
+      3.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Expected result
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Actual result
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Logs and evidence
+    description: Attach console logs, screenshots, or short recordings if useful.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Debug information
+    description: Paste app debug info if available, otherwise include any relevant version output.
+    render: shell
+  validations:
+    required: false

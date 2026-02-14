@@ -65,6 +65,13 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [ ] Record explicit incubator promote/defer decision and sync repository status text.
 - [ ] Cut and validate `v1.0.0`.
 
+### External tester intake (GA window)
+
+- [ ] Route community bug reports to `bug_report.yml` and triage daily.
+- [ ] Maintain a rolling distro/kernel/DE coverage snapshot from incoming tester issues.
+- [ ] Convert confirmed crash/data-loss/installer regressions into `docs/ga-blockers.md` entries.
+- [ ] Close or defer non-GA feedback with clear milestone tagging (`v1.0.0` vs post-GA).
+
 ### 1.0.0 promotion gate
 
 - [ ] Zero open P0 defects.
@@ -86,4 +93,5 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Create `v0.9.9-rc.3` release checklist and notes stub in `docs/releases/`.
 - [x] Create `v0.9.9-rc.3a` release checklist and notes stub in `docs/releases/`.
 - [x] Create GA blocker tracker and continuity log scaffolding (`docs/ga-blockers.md`, `docs/ga-ci-continuity-log-2026-02.md`).
+- [x] Add tester quickstart and Linux-focused bug intake template for community validation.
 - [ ] Update GA continuity log daily until 7/7 pass window is closed.

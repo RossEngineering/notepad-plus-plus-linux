@@ -6,6 +6,8 @@ This project uses GitHub as the primary support and collaboration hub.
 
 ## Quick links
 
+- Tester quickstart:
+  - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/tester-quickstart.md`
 - Project wiki:
   - `https://github.com/RossEngineering/notepad-plus-plus-linux/wiki`
 - Project README:
@@ -15,7 +17,7 @@ This project uses GitHub as the primary support and collaboration hub.
 
 Use the bug form:
 
-- `https://github.com/RossEngineering/notepad-plus-plus-linux/issues/new?template=1-bug.yml`
+- `https://github.com/RossEngineering/notepad-plus-plus-linux/issues/new?template=bug_report.yml`
 
 Please include:
 

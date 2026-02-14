@@ -78,6 +78,7 @@ For details, see:
   - [`docs/adr`](docs/adr)
   - [`docs/versioning-policy.md`](docs/versioning-policy.md)
 - **User support:**
+  - [`docs/tester-quickstart.md`](docs/tester-quickstart.md)
   - [`docs/help-and-support.md`](docs/help-and-support.md)
   - [`SECURITY.md`](SECURITY.md)
 
