@@ -19,7 +19,7 @@ bool Expect(bool condition, const std::string& message) {
     return true;
 }
 
-std::string ReadFile(const std::filesystem::path& path) {
+std::string ReadFixtureFile(const std::filesystem::path& path) {
     std::ifstream stream(path, std::ios::binary);
     if (!stream) {
         return {};
@@ -38,7 +38,7 @@ int main() {
 
     for (const std::string& fixtureName : fixtureNames) {
         const std::filesystem::path fixturePath = sourceRoot / "tests/fixtures/config-migration" / fixtureName;
-        const std::string input = ReadFile(fixturePath);
+        const std::string input = ReadFixtureFile(fixturePath);
         if (!Expect(!input.empty(), "read fixture " + fixtureName)) {
             return 1;
         }
