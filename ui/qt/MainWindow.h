@@ -122,6 +122,7 @@ private:
 	void OnFormatDocument();
 	void OnPreferences();
 	void OnRunCommand();
+	void OnCommandPalette();
 	void OnOpenHelpDocs();
 	void OnOpenHelpWiki();
 	void OnReportBug();

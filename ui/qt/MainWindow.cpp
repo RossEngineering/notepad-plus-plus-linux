@@ -33,6 +33,7 @@
 #include <QLabel>
 #include <QKeySequence>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
@@ -96,6 +97,7 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"language.lsp.hover", QKeySequence(QStringLiteral("Ctrl+K"))},
         {"language.lsp.gotoDefinition", QKeySequence(QStringLiteral("F12"))},
         {"language.lsp.diagnostics", QKeySequence(QStringLiteral("Alt+F8"))},
+        {"tools.commandPalette", QKeySequence(QStringLiteral("Ctrl+Shift+P"))},
         {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
@@ -501,6 +503,7 @@ void MainWindow::BuildMenus() {
     editMenu->addAction(_actionsById.at("edit.preferences"));
 
     QMenu *toolsMenu = menuBar()->addMenu(tr("&Tools"));
+    toolsMenu->addAction(_actionsById.at("tools.commandPalette"));
     toolsMenu->addAction(_actionsById.at("tools.runCommand"));
     toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.extensions.install"));
@@ -571,6 +574,7 @@ void MainWindow::BuildActions() {
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
     registerAction("edit.formatDocument", tr("Format Document"), [this]() { OnFormatDocument(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
+    registerAction("tools.commandPalette", tr("Command Palette..."), [this]() { OnCommandPalette(); });
     registerAction("tools.runCommand", tr("Run Command..."), [this]() { OnRunCommand(); });
     registerAction(
         "tools.extensions.install",
@@ -1468,6 +1472,119 @@ void MainWindow::OnRunCommand() {
         this,
         tr("Run Command"),
         tr("Command finished with exit code %1.").arg(result.value->exitCode));
+}
+
+void MainWindow::OnCommandPalette() {
+    if (_actionsById.empty()) {
+        return;
+    }
+
+    struct PaletteEntry {
+        std::string id;
+        QString label;
+        QString shortcut;
+        bool enabled = true;
+    };
+
+    std::vector<PaletteEntry> entries;
+    entries.reserve(_actionsById.size());
+    for (const auto &[id, action] : _actionsById) {
+        if (!action || id == "tools.commandPalette") {
+            continue;
+        }
+        PaletteEntry entry;
+        entry.id = id;
+        entry.label = action->text();
+        entry.label.remove('&');
+        entry.shortcut = action->shortcut().toString(QKeySequence::NativeText);
+        entry.enabled = action->isEnabled();
+        entries.push_back(std::move(entry));
+    }
+
+    if (entries.empty()) {
+        return;
+    }
+
+    std::sort(entries.begin(), entries.end(), [](const PaletteEntry &left, const PaletteEntry &right) {
+        const int labelCompare = QString::compare(left.label, right.label, Qt::CaseInsensitive);
+        if (labelCompare != 0) {
+            return labelCompare < 0;
+        }
+        return left.id < right.id;
+    });
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Command Palette"));
+
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *filterEdit = new QLineEdit(&dialog);
+    filterEdit->setPlaceholderText(tr("Type to search commands"));
+    filterEdit->setClearButtonEnabled(true);
+    layout->addWidget(filterEdit);
+
+    auto *commandList = new QListWidget(&dialog);
+    commandList->setSelectionMode(QAbstractItemView::SingleSelection);
+    layout->addWidget(commandList);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    layout->addWidget(buttons);
+
+    const auto refillCommands = [&]() {
+        commandList->clear();
+        const QString query = filterEdit->text().trimmed();
+        for (const auto &entry : entries) {
+            const QString searchable = (entry.label + QStringLiteral(" ") +
+                                        QString::fromStdString(entry.id) + QStringLiteral(" ") +
+                                        entry.shortcut)
+                                           .toLower();
+            if (!query.isEmpty() && !searchable.contains(query.toLower())) {
+                continue;
+            }
+
+            const QString itemLabel = entry.shortcut.isEmpty()
+                ? entry.label
+                : tr("%1 (%2)").arg(entry.label, entry.shortcut);
+
+            auto *item = new QListWidgetItem(itemLabel, commandList);
+            item->setData(Qt::UserRole, ToQString(entry.id));
+            if (!entry.enabled) {
+                item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+            }
+        }
+
+        if (commandList->count() > 0) {
+            commandList->setCurrentRow(0);
+        }
+    };
+
+    connect(filterEdit, &QLineEdit::textChanged, &dialog, refillCommands);
+    connect(commandList, &QListWidget::itemDoubleClicked, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    refillCommands();
+    filterEdit->setFocus();
+
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    QListWidgetItem *selectedItem = commandList->currentItem();
+    if (!selectedItem) {
+        return;
+    }
+
+    const std::string actionId = ToUtf8(selectedItem->data(Qt::UserRole).toString());
+    const auto actionIt = _actionsById.find(actionId);
+    if (actionIt == _actionsById.end() || actionIt->second == nullptr) {
+        return;
+    }
+    if (!actionIt->second->isEnabled()) {
+        QMessageBox::information(this, tr("Command Palette"), tr("Selected command is currently unavailable."));
+        return;
+    }
+
+    actionIt->second->trigger();
 }
 
 void MainWindow::OnOpenHelpDocs() {
