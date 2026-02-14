@@ -17,6 +17,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Complete RC3 scope and cut `v0.9.9-rc.3`.
 - [x] Cut RC3a maintenance release `v0.9.9-rc.3a`.
 - [x] Cut RC3b maintenance release `v0.9.9-rc.3b`.
+- [x] Cut section-close prerelease `v0.10.0-beta.1` for completed `Editor UX and workflows`.
 - [ ] Complete GA scope and cut `v1.0.0`.
 - [ ] Promote `v1.0.0` after RC3 maintenance validation.
 
