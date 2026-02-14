@@ -238,7 +238,8 @@ Notepad++ Linux is a Linux-native editor inspired by Notepad++ workflows.
 
 %install
 rm -rf %{buildroot}
-cp -a ${STAGE_DIR}/usr %{buildroot}/
+mkdir -p %{buildroot}/usr
+cp -a ${STAGE_DIR}/usr/. %{buildroot}/usr/
 
 %post
 if command -v update-desktop-database >/dev/null 2>&1; then
@@ -273,6 +274,7 @@ fi
 /usr/share/icons/hicolor/scalable/apps/notepad-plus-plus-linux.svg
 /usr/share/mime/packages/notepad-plus-plus-linux.xml
 /usr/share/notepad-plus-plus-linux/skins/*
+/usr/share/notepad-plus-plus-linux/default-update-channel
 EOF
 
   rpmbuild \
