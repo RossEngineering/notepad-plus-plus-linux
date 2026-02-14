@@ -123,6 +123,10 @@ private:
 	void OnPreferences();
 	void OnRunCommand();
 	void OnCommandPalette();
+	void OnMultiCursorAddCaretAbove();
+	void OnMultiCursorAddCaretBelow();
+	void OnMultiCursorAddNextMatch();
+	void OnMultiCursorSelectAllMatches();
 	void OnOpenHelpDocs();
 	void OnOpenHelpWiki();
 	void OnReportBug();

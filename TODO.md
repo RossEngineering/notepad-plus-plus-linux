@@ -116,7 +116,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 - [ ] Add split editor view (vertical and horizontal) with synchronized tab/session behavior.
 - [ ] Add minimap toggle and viewport highlight for large files.
-- [ ] Add multi-cursor editing baseline (add cursor, next match, all matches).
+- [x] Add multi-cursor editing baseline (add cursor, next match, all matches).
 - [x] Add command palette for discoverable quick actions.
 - [ ] Add configurable autosave modes (focus lost, interval, on build/run).
 - [ ] Add persistent workspace/session restore options with per-project settings.

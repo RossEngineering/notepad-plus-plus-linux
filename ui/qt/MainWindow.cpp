@@ -88,6 +88,10 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"search.findInFiles", QKeySequence(QStringLiteral("Ctrl+Shift+F"))},
         {"edit.replace", QKeySequence(QStringLiteral("Ctrl+H"))},
         {"edit.gotoLine", QKeySequence(QStringLiteral("Ctrl+G"))},
+        {"edit.multiCursor.addAbove", QKeySequence(QStringLiteral("Ctrl+Alt+Up"))},
+        {"edit.multiCursor.addBelow", QKeySequence(QStringLiteral("Ctrl+Alt+Down"))},
+        {"edit.multiCursor.addNextMatch", QKeySequence(QStringLiteral("Ctrl+D"))},
+        {"edit.multiCursor.selectAllMatches", QKeySequence(QStringLiteral("Ctrl+Shift+L"))},
         {"edit.formatDocument", QKeySequence(QStringLiteral("Ctrl+Shift+I"))},
         {"edit.preferences", QKeySequence(QStringLiteral("Ctrl+Comma"))},
         {"language.autoDetect", QKeySequence(QStringLiteral("Ctrl+Alt+L"))},
@@ -498,6 +502,12 @@ void MainWindow::BuildMenus() {
     editMenu->addAction(_actionsById.at("search.findInFiles"));
     editMenu->addAction(_actionsById.at("edit.replace"));
     editMenu->addAction(_actionsById.at("edit.gotoLine"));
+    QMenu *multiCursorMenu = editMenu->addMenu(tr("Multi-Cursor"));
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.addAbove"));
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.addBelow"));
+    multiCursorMenu->addSeparator();
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.addNextMatch"));
+    multiCursorMenu->addAction(_actionsById.at("edit.multiCursor.selectAllMatches"));
     editMenu->addAction(_actionsById.at("edit.formatDocument"));
     editMenu->addSeparator();
     editMenu->addAction(_actionsById.at("edit.preferences"));
@@ -572,6 +582,10 @@ void MainWindow::BuildActions() {
     registerAction("search.findInFiles", tr("Find in Files..."), [this]() { OnFindInFiles(); });
     registerAction("edit.replace", tr("Replace..."), [this]() { OnReplace(); });
     registerAction("edit.gotoLine", tr("Go To Line..."), [this]() { OnGoToLine(); });
+    registerAction("edit.multiCursor.addAbove", tr("Add Caret Above"), [this]() { OnMultiCursorAddCaretAbove(); });
+    registerAction("edit.multiCursor.addBelow", tr("Add Caret Below"), [this]() { OnMultiCursorAddCaretBelow(); });
+    registerAction("edit.multiCursor.addNextMatch", tr("Add Next Match"), [this]() { OnMultiCursorAddNextMatch(); });
+    registerAction("edit.multiCursor.selectAllMatches", tr("Select All Matches"), [this]() { OnMultiCursorSelectAllMatches(); });
     registerAction("edit.formatDocument", tr("Format Document"), [this]() { OnFormatDocument(); });
     registerAction("edit.preferences", tr("Preferences..."), [this]() { OnPreferences(); });
     registerAction("tools.commandPalette", tr("Command Palette..."), [this]() { OnCommandPalette(); });
@@ -665,6 +679,9 @@ ScintillaEditBase *MainWindow::CreateEditor() {
     editor->send(SCI_SETMARGINWIDTHN, 0, LineNumberMarginWidth(editor));
     editor->send(SCI_SETWRAPMODE, SC_WRAP_NONE);
     editor->send(SCI_SETTABWIDTH, 4);
+    editor->send(SCI_SETMULTIPLESELECTION, 1);
+    editor->send(SCI_SETADDITIONALSELECTIONTYPING, 1);
+    editor->send(SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH);
     editor->send(SCI_GRABFOCUS);
 
     connect(editor, &ScintillaEditBase::notifyChange, this, [this, editor]() {
@@ -1585,6 +1602,103 @@ void MainWindow::OnCommandPalette() {
     }
 
     actionIt->second->trigger();
+}
+
+void MainWindow::OnMultiCursorAddCaretAbove() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const int currentPos = static_cast<int>(editor->send(SCI_GETCURRENTPOS));
+    const int currentLine = static_cast<int>(editor->send(SCI_LINEFROMPOSITION, currentPos));
+    if (currentLine <= 0) {
+        statusBar()->showMessage(tr("No line above current caret."), 1500);
+        return;
+    }
+
+    const int targetLine = currentLine - 1;
+    const int column = static_cast<int>(editor->send(SCI_GETCOLUMN, currentPos));
+    const int targetPos = static_cast<int>(editor->send(SCI_FINDCOLUMN, targetLine, column));
+
+    const int selectionCount = static_cast<int>(editor->send(SCI_GETSELECTIONS));
+    for (int i = 0; i < selectionCount; ++i) {
+        const int caret = static_cast<int>(editor->send(SCI_GETSELECTIONNCARET, i));
+        const int anchor = static_cast<int>(editor->send(SCI_GETSELECTIONNANCHOR, i));
+        if (caret == targetPos && anchor == targetPos) {
+            return;
+        }
+    }
+
+    editor->send(SCI_ADDSELECTION, targetPos, targetPos);
+    statusBar()->showMessage(tr("Added caret above."), 1200);
+}
+
+void MainWindow::OnMultiCursorAddCaretBelow() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const int currentPos = static_cast<int>(editor->send(SCI_GETCURRENTPOS));
+    const int currentLine = static_cast<int>(editor->send(SCI_LINEFROMPOSITION, currentPos));
+    const int lineCount = static_cast<int>(editor->send(SCI_GETLINECOUNT));
+    if (currentLine >= lineCount - 1) {
+        statusBar()->showMessage(tr("No line below current caret."), 1500);
+        return;
+    }
+
+    const int targetLine = currentLine + 1;
+    const int column = static_cast<int>(editor->send(SCI_GETCOLUMN, currentPos));
+    const int targetPos = static_cast<int>(editor->send(SCI_FINDCOLUMN, targetLine, column));
+
+    const int selectionCount = static_cast<int>(editor->send(SCI_GETSELECTIONS));
+    for (int i = 0; i < selectionCount; ++i) {
+        const int caret = static_cast<int>(editor->send(SCI_GETSELECTIONNCARET, i));
+        const int anchor = static_cast<int>(editor->send(SCI_GETSELECTIONNANCHOR, i));
+        if (caret == targetPos && anchor == targetPos) {
+            return;
+        }
+    }
+
+    editor->send(SCI_ADDSELECTION, targetPos, targetPos);
+    statusBar()->showMessage(tr("Added caret below."), 1200);
+}
+
+void MainWindow::OnMultiCursorAddNextMatch() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    if (GetSelectedText(editor).empty()) {
+        QMessageBox::information(
+            this,
+            tr("Multi-Cursor"),
+            tr("Select text first, then add the next match."));
+        return;
+    }
+
+    editor->send(SCI_MULTIPLESELECTADDNEXT);
+    statusBar()->showMessage(tr("Added next match."), 1200);
+}
+
+void MainWindow::OnMultiCursorSelectAllMatches() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    if (GetSelectedText(editor).empty()) {
+        QMessageBox::information(
+            this,
+            tr("Multi-Cursor"),
+            tr("Select text first, then select all matches."));
+        return;
+    }
+
+    editor->send(SCI_MULTIPLESELECTADDEACH);
+    statusBar()->showMessage(tr("Selected all matches."), 1200);
 }
 
 void MainWindow::OnOpenHelpDocs() {
