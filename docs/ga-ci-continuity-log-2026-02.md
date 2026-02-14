@@ -16,12 +16,15 @@ for 7 consecutive days.
 | Date (UTC) | Candidate commit | Linux CMake Build | Linux Desktop Integration | Win32 Boundary Guard | Day result | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-02-14 | `ae154f56c` | Pass | Pass | Pass | Counted (1/7) | `22016250682`, `22016250672`, `22016250679` |
-| 2026-02-14 | `25214be78` | In progress | In progress | Pass | Pending | `22016385005`, `22016385013`, `22016385012` |
+| 2026-02-14 | `25214be78` | Pass | Pass | Pass | Pass (same day, continuity unchanged) | `22016385005`, `22016385013`, `22016385012` |
+| 2026-02-14 | `74c2e7e98` | Pass | Pass | Pass | Pass (same day, continuity unchanged) | `22016423969`, `22016423986`, `22016423973` |
 
 ## Notes
 
 1. Only days where all required lanes are green count toward the 7-day gate.
 2. If any required lane fails on a counted day, continuity resets to 0 and a
    new 7-day window starts.
-3. Keep this log updated daily until the gate is closed in
+3. Multiple green commits on the same UTC day do not increment the continuity
+   counter beyond that day's single count.
+4. Keep this log updated daily until the gate is closed in
    `docs/releases/v1.0.0-checklist.md`.
