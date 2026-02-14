@@ -21,6 +21,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Cut section-close prerelease `v0.10.0-beta.2` for completed `Formatting, language intelligence, and coding tools`.
 - [x] Cut section-close prerelease `v0.10.0-beta.3` for completed `Linux integration and distribution`.
 - [x] Cut maintenance prerelease `v0.10.0-beta.4` to fix native RPM packaging for Linux integration/distribution artifacts.
+- [x] Cut section-close prerelease `v0.10.0-beta.5` for completed `Extensions ecosystem`.
 - [ ] Complete GA scope and cut `v1.0.0`.
 - [ ] Promote `v1.0.0` after RC3 maintenance validation.
 
