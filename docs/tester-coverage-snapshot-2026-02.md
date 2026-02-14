@@ -26,7 +26,7 @@ Track confirmed high-risk reports here before promoting to GA blockers.
 
 | Date (UTC) | New tester issues reviewed | Escalated to blocker candidates | Notes |
 | --- | --- | --- | --- |
-| 2026-02-14 | 0 | 0 | Snapshot initialized. |
+| 2026-02-14 | 0 | 0 | First triage pass completed after enabling Issues; no tester reports yet. |
 
 ## Usage rules
 
