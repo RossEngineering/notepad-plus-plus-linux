@@ -20,8 +20,10 @@ class QAction;
 class QCloseEvent;
 class QEvent;
 class QLabel;
+class QSplitter;
 class QTabWidget;
 class QTimer;
+class QWidget;
 class ScintillaEditBase;
 
 class MainWindow final : public QMainWindow {
@@ -64,6 +66,8 @@ private:
 		bool autoCloseDelimiters = true;
 		bool formatOnSaveEnabled = false;
 		std::vector<std::string> formatOnSaveLanguages;
+		int splitViewMode = 0;
+		bool minimapEnabled = false;
 		bool restoreSessionOnStartup = true;
 		bool usePerProjectSessionStorage = false;
 		std::string lastProjectSessionRootUtf8;
@@ -136,6 +140,10 @@ private:
 		bool showUserMessages,
 		bool *formattedApplied = nullptr);
 	bool ShouldFormatOnSaveForLexer(const std::string &lexerName) const;
+	void OnDisableSplitView();
+	void OnEnableSplitVertical();
+	void OnEnableSplitHorizontal();
+	void OnToggleMinimap();
 	void OnPreferences();
 	void OnRunCommand();
 	void OnCommandPalette();
@@ -225,6 +233,10 @@ private:
 	bool RestoreSession();
 	void SaveSession() const;
 	std::string DetermineProjectSessionRootFromOpenTabs() const;
+	void ApplySplitViewModeFromSettings();
+	void ApplyMinimapStateFromSettings();
+	void SyncAuxiliaryEditorsToCurrentTab();
+	void UpdateMinimapViewportHighlight();
 
 	std::string ConfigRootPath() const;
 	std::string SkinDirectoryPath() const;
@@ -240,8 +252,17 @@ private:
 
 private:
 	static constexpr const char *kAppName = "notepad-plus-plus-linux";
+	static constexpr int kSplitModeDisabled = 0;
+	static constexpr int kSplitModeVertical = 1;
+	static constexpr int kSplitModeHorizontal = 2;
+	static constexpr int kMinimapViewportIndicator = 31;
 
+	QWidget *_centralHost = nullptr;
+	QSplitter *_rootSplitter = nullptr;
+	QSplitter *_editorSplit = nullptr;
 	QTabWidget *_tabs = nullptr;
+	ScintillaEditBase *_splitEditor = nullptr;
+	ScintillaEditBase *_minimapEditor = nullptr;
 	QLabel *_cursorStatusLabel = nullptr;
 
 	std::map<ScintillaEditBase *, EditorState> _editorStates;

@@ -8,6 +8,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ## Release direction
 
+- [ ] At the end of each TODO section, cut and publish a tagged prerelease with notes/checklist updates.
 - [x] Complete Phase 9 and cut `v0.8.0-beta.1`.
 - [x] No further alpha tags after `v0.7.0-alpha.1`.
 - [x] Complete Phases 10-12 and cut `v0.9.0-beta.2`.
@@ -114,8 +115,8 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### Editor UX and workflows
 
-- [ ] Add split editor view (vertical and horizontal) with synchronized tab/session behavior.
-- [ ] Add minimap toggle and viewport highlight for large files.
+- [x] Add split editor view (vertical and horizontal) with synchronized tab/session behavior.
+- [x] Add minimap toggle and viewport highlight for large files.
 - [x] Add multi-cursor editing baseline (add cursor, next match, all matches).
 - [x] Add command palette for discoverable quick actions.
 - [x] Add configurable autosave modes (focus lost, interval, on build/run).

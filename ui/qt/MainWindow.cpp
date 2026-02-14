@@ -40,10 +40,12 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMouseEvent>
 #include <QProcess>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QSplitter>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QSysInfo>
@@ -52,6 +54,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QWidget>
 
 #include "Scintilla.h"
 #include "ScintillaEditBase.h"
@@ -108,6 +111,10 @@ const std::map<std::string, QKeySequence> &DefaultShortcutMap() {
         {"tools.runCommand", QKeySequence(QStringLiteral("F5"))},
         {"tools.shortcuts.open", QKeySequence(QStringLiteral("Ctrl+Alt+K"))},
         {"tools.shortcuts.reload", QKeySequence(QStringLiteral("Ctrl+Alt+R"))},
+        {"view.split.none", QKeySequence(QStringLiteral("Ctrl+Alt+0"))},
+        {"view.split.vertical", QKeySequence(QStringLiteral("Ctrl+Alt+1"))},
+        {"view.split.horizontal", QKeySequence(QStringLiteral("Ctrl+Alt+2"))},
+        {"view.minimap.toggle", QKeySequence(QStringLiteral("Ctrl+Alt+M"))},
         {"help.wiki", QKeySequence(QStringLiteral("F1"))},
     };
     return kShortcuts;
@@ -455,6 +462,8 @@ MainWindow::MainWindow(QWidget *parent)
     BuildUi();
     InitializeLspServers();
     LoadEditorSettings();
+    ApplySplitViewModeFromSettings();
+    ApplyMinimapStateFromSettings();
     StartCrashRecoveryTimer();
     StartAutoSaveTimer();
     InitializeExtensionsWithGuardrails();
@@ -532,12 +541,41 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == _minimapEditor && event != nullptr) {
+        const bool isMousePress = event->type() == QEvent::MouseButtonPress;
+        const bool isMouseDrag = event->type() == QEvent::MouseMove;
+        if (isMousePress || isMouseDrag) {
+            auto *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (isMouseDrag && (mouseEvent->buttons() & Qt::LeftButton) == 0) {
+                return QMainWindow::eventFilter(watched, event);
+            }
+
+            ScintillaEditBase *editor = CurrentEditor();
+            if (editor && _editorSettings.minimapEnabled) {
+                const QPoint position = mouseEvent->position().toPoint();
+                const sptr_t documentPos = _minimapEditor->send(
+                    SCI_POSITIONFROMPOINTCLOSE,
+                    position.x(),
+                    position.y());
+                if (documentPos >= 0) {
+                    const int targetLine = static_cast<int>(_minimapEditor->send(SCI_LINEFROMPOSITION, documentPos));
+                    const int visibleLines = std::max(1, static_cast<int>(editor->send(SCI_LINESONSCREEN)));
+                    const int targetFirstVisibleLine = std::max(0, targetLine - (visibleLines / 2));
+                    editor->send(SCI_SETFIRSTVISIBLELINE, targetFirstVisibleLine);
+                    editor->send(SCI_GOTOLINE, targetLine);
+                    UpdateMinimapViewportHighlight();
+                    return true;
+                }
+            }
+        }
+    }
+
     if (!_closingApplication &&
         _editorSettings.autoSaveOnFocusLost &&
         event != nullptr &&
         event->type() == QEvent::FocusOut) {
         auto *editor = qobject_cast<ScintillaEditBase *>(watched);
-        if (editor) {
+        if (editor && _editorStates.find(editor) != _editorStates.end()) {
             std::string savedPathUtf8;
             if (AutoSaveEditorIfNeeded(editor, &savedPathUtf8)) {
                 statusBar()->showMessage(
@@ -619,6 +657,12 @@ void MainWindow::BuildMenus() {
     skinsMenu->addAction(_actionsById.at("view.skin.light"));
     skinsMenu->addAction(_actionsById.at("view.skin.dark"));
     skinsMenu->addAction(_actionsById.at("view.skin.highContrast"));
+    viewMenu->addSeparator();
+    QMenu *splitMenu = viewMenu->addMenu(tr("Split Editor"));
+    splitMenu->addAction(_actionsById.at("view.split.none"));
+    splitMenu->addAction(_actionsById.at("view.split.vertical"));
+    splitMenu->addAction(_actionsById.at("view.split.horizontal"));
+    viewMenu->addAction(_actionsById.at("view.minimap.toggle"));
 
     QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(_actionsById.at("help.docs"));
@@ -699,9 +743,18 @@ void MainWindow::BuildActions() {
     registerAction("view.skin.light", tr("Light"), [this]() { OnSetSkin("builtin.light"); });
     registerAction("view.skin.dark", tr("Dark"), [this]() { OnSetSkin("builtin.dark"); });
     registerAction("view.skin.highContrast", tr("High Contrast"), [this]() { OnSetSkin("builtin.high_contrast"); });
+    registerAction("view.split.none", tr("No Split"), [this]() { OnDisableSplitView(); });
+    registerAction("view.split.vertical", tr("Vertical Split"), [this]() { OnEnableSplitVertical(); });
+    registerAction("view.split.horizontal", tr("Horizontal Split"), [this]() { OnEnableSplitHorizontal(); });
+    registerAction("view.minimap.toggle", tr("Show Minimap"), [this]() { OnToggleMinimap(); });
     _actionsById.at("view.skin.light")->setCheckable(true);
     _actionsById.at("view.skin.dark")->setCheckable(true);
     _actionsById.at("view.skin.highContrast")->setCheckable(true);
+    _actionsById.at("view.split.none")->setCheckable(true);
+    _actionsById.at("view.split.vertical")->setCheckable(true);
+    _actionsById.at("view.split.horizontal")->setCheckable(true);
+    _actionsById.at("view.minimap.toggle")->setCheckable(true);
+    _actionsById.at("view.split.none")->setChecked(true);
 
     registerAction(
         "tools.shortcuts.open",
@@ -720,22 +773,88 @@ void MainWindow::BuildActions() {
 }
 
 void MainWindow::BuildTabs() {
-    _tabs = new QTabWidget(this);
+    _centralHost = new QWidget(this);
+    auto *hostLayout = new QVBoxLayout(_centralHost);
+    hostLayout->setContentsMargins(0, 0, 0, 0);
+    hostLayout->setSpacing(0);
+
+    _rootSplitter = new QSplitter(Qt::Horizontal, _centralHost);
+    _editorSplit = new QSplitter(Qt::Horizontal, _rootSplitter);
+
+    _tabs = new QTabWidget(_editorSplit);
     _tabs->setTabsClosable(true);
     _tabs->setMovable(true);
     _tabs->setDocumentMode(true);
+
+    _splitEditor = CreateEditor();
+    _splitEditor->setParent(_editorSplit);
+    _splitEditor->hide();
+
+    _editorSplit->addWidget(_tabs);
+    _editorSplit->addWidget(_splitEditor);
+    _editorSplit->setStretchFactor(0, 1);
+    _editorSplit->setStretchFactor(1, 1);
+
+    _minimapEditor = CreateEditor();
+    _minimapEditor->setParent(_rootSplitter);
+    _minimapEditor->send(SCI_SETREADONLY, 1);
+    _minimapEditor->send(SCI_SETMARGINWIDTHN, 0, 0);
+    _minimapEditor->send(SCI_SETCARETSTYLE, CARETSTYLE_INVISIBLE);
+    _minimapEditor->send(SCI_SETVSCROLLBAR, 0);
+    _minimapEditor->send(SCI_SETHSCROLLBAR, 0);
+    _minimapEditor->send(SCI_SETZOOM, -8);
+    _minimapEditor->installEventFilter(this);
+    _minimapEditor->hide();
+
+    _rootSplitter->addWidget(_editorSplit);
+    _rootSplitter->addWidget(_minimapEditor);
+    _rootSplitter->setStretchFactor(0, 1);
+    _rootSplitter->setStretchFactor(1, 0);
+
+    hostLayout->addWidget(_rootSplitter);
 
     connect(_tabs, &QTabWidget::tabCloseRequested, this, [this](int index) {
         CloseTabAt(index);
     });
 
     connect(_tabs, &QTabWidget::currentChanged, this, [this](int) {
+        SyncAuxiliaryEditorsToCurrentTab();
+        UpdateMinimapViewportHighlight();
         UpdateWindowTitle();
         UpdateCursorStatus();
         UpdateLanguageActionState();
     });
 
-    setCentralWidget(_tabs);
+    connect(_splitEditor, &ScintillaEditBase::notifyChange, this, [this]() {
+        ScintillaEditBase *editor = CurrentEditor();
+        if (!editor) {
+            return;
+        }
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end()) {
+            return;
+        }
+        stateIt->second.dirty = true;
+        UpdateTabTitle(editor);
+        UpdateMinimapViewportHighlight();
+    });
+    connect(_splitEditor, &ScintillaEditBase::savePointChanged, this, [this](bool dirty) {
+        ScintillaEditBase *editor = CurrentEditor();
+        if (!editor) {
+            return;
+        }
+        const auto stateIt = _editorStates.find(editor);
+        if (stateIt == _editorStates.end()) {
+            return;
+        }
+        stateIt->second.dirty = dirty;
+        UpdateTabTitle(editor);
+    });
+    connect(_splitEditor, &ScintillaEditBase::updateUi, this, [this](Scintilla::Update) {
+        UpdateMinimapViewportHighlight();
+    });
+
+    setCentralWidget(_centralHost);
 }
 
 ScintillaEditBase *MainWindow::CreateEditor() {
@@ -781,8 +900,17 @@ ScintillaEditBase *MainWindow::CreateEditor() {
         UpdateTabTitle(editor);
     });
 
-    connect(editor, &ScintillaEditBase::updateUi, this, [this](Scintilla::Update) {
-        UpdateCursorStatus();
+    connect(editor, &ScintillaEditBase::updateUi, this, [this, editor](Scintilla::Update) {
+        if (editor == CurrentEditor() &&
+            _splitEditor &&
+            _editorSettings.splitViewMode != kSplitModeDisabled &&
+            _splitEditor->isVisible()) {
+            _splitEditor->send(SCI_SETFIRSTVISIBLELINE, editor->send(SCI_GETFIRSTVISIBLELINE));
+        }
+        if (editor != _minimapEditor) {
+            UpdateCursorStatus();
+            UpdateMinimapViewportHighlight();
+        }
     });
 
     connect(editor, &ScintillaEditBase::charAdded, this, [this, editor](int ch) {
@@ -2415,6 +2543,14 @@ void MainWindow::OnSetSkin(const std::string &skinId) {
             : stateIt->second.lexerName;
         ApplyLexerByName(editor, lexerName);
     }
+    if (_splitEditor) {
+        ApplyTheme(_splitEditor);
+    }
+    if (_minimapEditor) {
+        ApplyTheme(_minimapEditor);
+    }
+    SyncAuxiliaryEditorsToCurrentTab();
+    UpdateMinimapViewportHighlight();
     UpdateSkinActionState();
 
     if (statusBar()) {
@@ -2446,6 +2582,154 @@ void MainWindow::UpdateSkinActionState() {
         QSignalBlocker blocker(activeIt->second);
         activeIt->second->setChecked(true);
     }
+}
+
+void MainWindow::OnDisableSplitView() {
+    _editorSettings.splitViewMode = kSplitModeDisabled;
+    SaveEditorSettings();
+    ApplySplitViewModeFromSettings();
+    statusBar()->showMessage(tr("Split view disabled"), 1500);
+}
+
+void MainWindow::OnEnableSplitVertical() {
+    _editorSettings.splitViewMode = kSplitModeVertical;
+    SaveEditorSettings();
+    ApplySplitViewModeFromSettings();
+    statusBar()->showMessage(tr("Vertical split enabled"), 1500);
+}
+
+void MainWindow::OnEnableSplitHorizontal() {
+    _editorSettings.splitViewMode = kSplitModeHorizontal;
+    SaveEditorSettings();
+    ApplySplitViewModeFromSettings();
+    statusBar()->showMessage(tr("Horizontal split enabled"), 1500);
+}
+
+void MainWindow::OnToggleMinimap() {
+    _editorSettings.minimapEnabled = !_editorSettings.minimapEnabled;
+    SaveEditorSettings();
+    ApplyMinimapStateFromSettings();
+    statusBar()->showMessage(
+        _editorSettings.minimapEnabled ? tr("Minimap enabled") : tr("Minimap disabled"),
+        1500);
+}
+
+void MainWindow::ApplySplitViewModeFromSettings() {
+    if (!_editorSplit || !_splitEditor) {
+        return;
+    }
+
+    const int splitMode = std::clamp(_editorSettings.splitViewMode, kSplitModeDisabled, kSplitModeHorizontal);
+    _editorSettings.splitViewMode = splitMode;
+
+    const bool splitEnabled = splitMode != kSplitModeDisabled;
+    if (splitMode == kSplitModeHorizontal) {
+        _editorSplit->setOrientation(Qt::Vertical);
+    } else {
+        _editorSplit->setOrientation(Qt::Horizontal);
+    }
+
+    if (splitEnabled) {
+        _splitEditor->show();
+        _editorSplit->setSizes({1, 1});
+    } else {
+        _splitEditor->hide();
+    }
+
+    const auto updateChecked = [this](const std::string &actionId, bool checked) {
+        const auto it = _actionsById.find(actionId);
+        if (it == _actionsById.end() || !it->second) {
+            return;
+        }
+        QSignalBlocker blocker(it->second);
+        it->second->setChecked(checked);
+    };
+    updateChecked("view.split.none", splitMode == kSplitModeDisabled);
+    updateChecked("view.split.vertical", splitMode == kSplitModeVertical);
+    updateChecked("view.split.horizontal", splitMode == kSplitModeHorizontal);
+
+    SyncAuxiliaryEditorsToCurrentTab();
+}
+
+void MainWindow::ApplyMinimapStateFromSettings() {
+    if (!_rootSplitter || !_minimapEditor) {
+        return;
+    }
+
+    if (_editorSettings.minimapEnabled) {
+        _minimapEditor->show();
+        _rootSplitter->setSizes({9, 2});
+        SyncAuxiliaryEditorsToCurrentTab();
+        UpdateMinimapViewportHighlight();
+    } else {
+        _minimapEditor->hide();
+        _minimapEditor->send(SCI_SETINDICATORCURRENT, kMinimapViewportIndicator);
+        _minimapEditor->send(SCI_INDICATORCLEARRANGE, 0, _minimapEditor->send(SCI_GETTEXTLENGTH));
+    }
+
+    const auto toggleIt = _actionsById.find("view.minimap.toggle");
+    if (toggleIt != _actionsById.end() && toggleIt->second) {
+        QSignalBlocker blocker(toggleIt->second);
+        toggleIt->second->setChecked(_editorSettings.minimapEnabled);
+    }
+}
+
+void MainWindow::SyncAuxiliaryEditorsToCurrentTab() {
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const sptr_t documentPointer = editor->send(SCI_GETDOCPOINTER);
+    if (documentPointer <= 0) {
+        return;
+    }
+
+    if (_splitEditor && _editorSettings.splitViewMode != kSplitModeDisabled) {
+        _splitEditor->send(SCI_SETDOCPOINTER, 0, documentPointer);
+        _splitEditor->send(SCI_GOTOPOS, editor->send(SCI_GETCURRENTPOS));
+        _splitEditor->send(SCI_SETFIRSTVISIBLELINE, editor->send(SCI_GETFIRSTVISIBLELINE));
+    }
+
+    if (_minimapEditor && _editorSettings.minimapEnabled) {
+        _minimapEditor->send(SCI_SETDOCPOINTER, 0, documentPointer);
+    }
+}
+
+void MainWindow::UpdateMinimapViewportHighlight() {
+    if (!_minimapEditor || !_editorSettings.minimapEnabled) {
+        return;
+    }
+
+    ScintillaEditBase *editor = CurrentEditor();
+    if (!editor) {
+        return;
+    }
+
+    const sptr_t textLength = _minimapEditor->send(SCI_GETTEXTLENGTH);
+    _minimapEditor->send(SCI_SETINDICATORCURRENT, kMinimapViewportIndicator);
+    _minimapEditor->send(SCI_INDICSETSTYLE, kMinimapViewportIndicator, INDIC_ROUNDBOX);
+    _minimapEditor->send(SCI_INDICSETFORE, kMinimapViewportIndicator, _themeSettings.accent);
+    _minimapEditor->send(SCI_INDICSETALPHA, kMinimapViewportIndicator, 40);
+    _minimapEditor->send(SCI_INDICSETOUTLINEALPHA, kMinimapViewportIndicator, 90);
+    _minimapEditor->send(SCI_INDICATORCLEARRANGE, 0, textLength);
+
+    const int lineCount = std::max(1, static_cast<int>(editor->send(SCI_GETLINECOUNT)));
+    const int firstVisibleLine = std::max(0, static_cast<int>(editor->send(SCI_GETFIRSTVISIBLELINE)));
+    const int linesOnScreen = std::max(1, static_cast<int>(editor->send(SCI_LINESONSCREEN)));
+    const int lastVisibleLine = std::min(lineCount - 1, firstVisibleLine + linesOnScreen);
+
+    const sptr_t startPos = _minimapEditor->send(SCI_POSITIONFROMLINE, firstVisibleLine);
+    const sptr_t endPos = _minimapEditor->send(SCI_GETLINEENDPOSITION, lastVisibleLine);
+    const sptr_t rangeLength = std::max<sptr_t>(1, endPos - startPos + 1);
+    _minimapEditor->send(SCI_INDICATORFILLRANGE, startPos, rangeLength);
+
+    const int minimapVisibleLines = std::max(1, static_cast<int>(_minimapEditor->send(SCI_LINESONSCREEN)));
+    const int minimapFirstLine = std::clamp(
+        firstVisibleLine - (minimapVisibleLines / 2),
+        0,
+        std::max(0, lineCount - minimapVisibleLines));
+    _minimapEditor->send(SCI_SETFIRSTVISIBLELINE, minimapFirstLine);
 }
 
 bool MainWindow::FindNextInEditor(
@@ -2978,6 +3262,11 @@ void MainWindow::LoadEditorSettings() {
     _editorSettings.autoCloseHtmlTags = obj.value(QStringLiteral("autoCloseHtmlTags")).toBool(true);
     _editorSettings.autoCloseDelimiters = obj.value(QStringLiteral("autoCloseDelimiters")).toBool(true);
     _editorSettings.formatOnSaveEnabled = obj.value(QStringLiteral("formatOnSaveEnabled")).toBool(false);
+    _editorSettings.splitViewMode = std::clamp(
+        obj.value(QStringLiteral("splitViewMode")).toInt(kSplitModeDisabled),
+        kSplitModeDisabled,
+        kSplitModeHorizontal);
+    _editorSettings.minimapEnabled = obj.value(QStringLiteral("minimapEnabled")).toBool(false);
     _editorSettings.formatOnSaveLanguages.clear();
     const QJsonValue formatOnSaveLanguagesValue = obj.value(QStringLiteral("formatOnSaveLanguages"));
     if (formatOnSaveLanguagesValue.isArray()) {
@@ -3046,6 +3335,8 @@ void MainWindow::SaveEditorSettings() const {
     settingsObject.insert(QStringLiteral("autoCloseHtmlTags"), _editorSettings.autoCloseHtmlTags);
     settingsObject.insert(QStringLiteral("autoCloseDelimiters"), _editorSettings.autoCloseDelimiters);
     settingsObject.insert(QStringLiteral("formatOnSaveEnabled"), _editorSettings.formatOnSaveEnabled);
+    settingsObject.insert(QStringLiteral("splitViewMode"), _editorSettings.splitViewMode);
+    settingsObject.insert(QStringLiteral("minimapEnabled"), _editorSettings.minimapEnabled);
     QJsonArray formatOnSaveLanguagesArray;
     for (const std::string &language : _editorSettings.formatOnSaveLanguages) {
         formatOnSaveLanguagesArray.append(ToQString(language));
@@ -3091,6 +3382,7 @@ void MainWindow::ApplyEditorSettingsToAllEditors() {
     for (int index = 0; index < _tabs->count(); ++index) {
         ApplyEditorSettings(EditorAt(index));
     }
+    ApplyEditorSettings(_splitEditor);
 }
 
 void MainWindow::ApplyEditorSettings(ScintillaEditBase *editor) {
