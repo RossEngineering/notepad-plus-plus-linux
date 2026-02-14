@@ -11,7 +11,10 @@
 #include <filesystem>
 #include <functional>
 #include <iomanip>
+#include <iterator>
+#include <limits>
 #include <map>
+#include <optional>
 #include <set>
 #include <sstream>
 
@@ -34,6 +37,7 @@
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QKeySequence>
 #include <QLineEdit>
@@ -568,6 +572,221 @@ int BlendThemeColor(int firstBgr, int secondBgr, double secondWeight) {
     return mixedBlue << 16 | mixedGreen << 8 | mixedRed;
 }
 
+struct ExtensionMarketplaceEntry {
+    std::string id;
+    std::string name;
+    std::string version;
+    std::string description;
+    std::string homepage;
+    std::string sourceDirectoryUtf8;
+};
+
+struct ExtensionDirectoryFootprint {
+    std::uint64_t totalBytes = 0;
+    std::size_t fileCount = 0;
+};
+
+std::vector<std::string> SplitVersionTokens(const std::string &version) {
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    for (size_t index = 0; index <= version.size(); ++index) {
+        const bool separator = index == version.size() ||
+            version[index] == '.' || version[index] == '-' ||
+            version[index] == '_' || version[index] == '+';
+        if (!separator) {
+            continue;
+        }
+        if (index > start) {
+            tokens.push_back(version.substr(start, index - start));
+        }
+        start = index + 1;
+    }
+    return tokens;
+}
+
+bool IsAsciiNumber(const std::string &token) {
+    if (token.empty()) {
+        return false;
+    }
+    return std::all_of(token.begin(), token.end(), [](unsigned char c) {
+        return std::isdigit(c) != 0;
+    });
+}
+
+int CompareLooseVersion(const std::string &left, const std::string &right) {
+    if (left == right) {
+        return 0;
+    }
+
+    const std::vector<std::string> leftTokens = SplitVersionTokens(left);
+    const std::vector<std::string> rightTokens = SplitVersionTokens(right);
+    const size_t maxSize = std::max(leftTokens.size(), rightTokens.size());
+    for (size_t index = 0; index < maxSize; ++index) {
+        const std::string leftToken = index < leftTokens.size() ? leftTokens[index] : "0";
+        const std::string rightToken = index < rightTokens.size() ? rightTokens[index] : "0";
+        if (leftToken == rightToken) {
+            continue;
+        }
+
+        const bool leftNumeric = IsAsciiNumber(leftToken);
+        const bool rightNumeric = IsAsciiNumber(rightToken);
+        if (leftNumeric && rightNumeric) {
+            long long leftValue = 0;
+            long long rightValue = 0;
+            try {
+                leftValue = std::stoll(leftToken);
+                rightValue = std::stoll(rightToken);
+            } catch (...) {
+                // Fallback to lexical comparison when values overflow.
+                const int lexical = leftToken.compare(rightToken);
+                return lexical < 0 ? -1 : 1;
+            }
+            if (leftValue < rightValue) {
+                return -1;
+            }
+            if (leftValue > rightValue) {
+                return 1;
+            }
+            continue;
+        }
+
+        if (leftNumeric != rightNumeric) {
+            // Prefer numeric tokens over textual qualifiers (for example 1.2.0 > 1.2.0-rc.1).
+            return leftNumeric ? 1 : -1;
+        }
+
+        const int lexical = leftToken.compare(rightToken);
+        return lexical < 0 ? -1 : 1;
+    }
+
+    return 0;
+}
+
+QString FormatBytesBinary(std::uint64_t bytes) {
+    static const char *kUnits[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+    double value = static_cast<double>(bytes);
+    size_t unitIndex = 0;
+    while (value >= 1024.0 && unitIndex + 1 < std::size(kUnits)) {
+        value /= 1024.0;
+        ++unitIndex;
+    }
+    const int precision = unitIndex == 0 ? 0 : 1;
+    return QStringLiteral("%1 %2")
+        .arg(QString::number(value, 'f', precision))
+        .arg(QString::fromLatin1(kUnits[unitIndex]));
+}
+
+std::optional<ExtensionDirectoryFootprint> ComputeDirectoryFootprint(const std::string &rootUtf8) {
+    std::error_code ec;
+    const std::filesystem::path rootPath(rootUtf8);
+    if (rootUtf8.empty() || !std::filesystem::exists(rootPath, ec) || ec) {
+        return std::nullopt;
+    }
+
+    ExtensionDirectoryFootprint footprint;
+    for (const auto &entry : std::filesystem::recursive_directory_iterator(rootPath, ec)) {
+        if (ec) {
+            return std::nullopt;
+        }
+        if (!entry.is_regular_file(ec) || ec) {
+            ec.clear();
+            continue;
+        }
+        ++footprint.fileCount;
+        const auto size = entry.file_size(ec);
+        if (!ec) {
+            footprint.totalBytes += static_cast<std::uint64_t>(size);
+        }
+        ec.clear();
+    }
+    return footprint;
+}
+
+std::vector<ExtensionMarketplaceEntry> ParseMarketplaceIndex(
+    const std::string &indexJsonUtf8,
+    const std::string &indexPathUtf8,
+    QString *errorOut) {
+    if (errorOut) {
+        errorOut->clear();
+    }
+
+    QJsonParseError parseError{};
+    const QByteArray bytes(indexJsonUtf8.data(), static_cast<int>(indexJsonUtf8.size()));
+    const QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        if (errorOut) {
+            *errorOut = QObject::tr("Invalid marketplace index JSON: %1")
+                            .arg(parseError.errorString());
+        }
+        return {};
+    }
+
+    const QJsonObject root = doc.object();
+    if (root.value(QStringLiteral("schemaVersion")).toInt(1) != 1) {
+        if (errorOut) {
+            *errorOut = QObject::tr("Unsupported marketplace schemaVersion in %1")
+                            .arg(QString::fromStdString(indexPathUtf8));
+        }
+        return {};
+    }
+
+    const QJsonValue extensionsValue = root.value(QStringLiteral("extensions"));
+    if (!extensionsValue.isArray()) {
+        if (errorOut) {
+            *errorOut = QObject::tr("Marketplace index is missing an extensions array.");
+        }
+        return {};
+    }
+
+    const std::filesystem::path indexDir = std::filesystem::path(indexPathUtf8).parent_path();
+    std::vector<ExtensionMarketplaceEntry> entries;
+    for (const QJsonValue &entryValue : extensionsValue.toArray()) {
+        if (!entryValue.isObject()) {
+            continue;
+        }
+        const QJsonObject entryObject = entryValue.toObject();
+        const auto toStdStringUtf8 = [](const QString &value) {
+            const QByteArray bytes = value.toUtf8();
+            return std::string(bytes.constData(), static_cast<size_t>(bytes.size()));
+        };
+
+        const std::string id = AsciiLower(TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("id")).toString())));
+        const std::string version = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("version")).toString()));
+        const std::string sourceDirectoryRaw = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("sourceDirectory")).toString()));
+        if (id.empty() || version.empty() || sourceDirectoryRaw.empty()) {
+            continue;
+        }
+
+        std::filesystem::path sourcePath(sourceDirectoryRaw);
+        if (sourcePath.is_relative()) {
+            sourcePath = indexDir / sourcePath;
+        }
+
+        ExtensionMarketplaceEntry entry;
+        entry.id = id;
+        entry.version = version;
+        entry.name = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("name")).toString()));
+        if (entry.name.empty()) {
+            entry.name = entry.id;
+        }
+        entry.description = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("description")).toString()));
+        entry.homepage = TrimAsciiWhitespace(
+            toStdStringUtf8(entryObject.value(QStringLiteral("homepage")).toString()));
+        entry.sourceDirectoryUtf8 = sourcePath.lexically_normal().string();
+        entries.push_back(std::move(entry));
+    }
+
+    std::sort(entries.begin(), entries.end(), [](const ExtensionMarketplaceEntry &left, const ExtensionMarketplaceEntry &right) {
+        return left.id < right.id;
+    });
+    return entries;
+}
+
 std::vector<npp::platform::LspServerConfig> DefaultLspServerConfigs() {
     using npp::platform::LspServerConfig;
     return {
@@ -584,9 +803,10 @@ std::vector<npp::platform::LspServerConfig> DefaultLspServerConfigs() {
 
 }  // namespace
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(bool safeModeNoExtensions, QWidget *parent)
     : QMainWindow(parent),
       _diagnosticsService(_pathService, _fileSystemService),
+      _safeModeNoExtensions(safeModeNoExtensions),
       _extensionService(&_pathService, &_fileSystemService, kAppName),
       _lspService(&_processService) {
     BuildUi();
@@ -596,7 +816,6 @@ MainWindow::MainWindow(QWidget *parent)
     ApplyMinimapStateFromSettings();
     StartCrashRecoveryTimer();
     StartAutoSaveTimer();
-    InitializeExtensionsWithGuardrails();
     _extensionService.SetPermissionPrompt([this](const npp::platform::PermissionPromptRequest& request) {
         const QStringList options = {
             tr("Deny"),
@@ -627,6 +846,21 @@ MainWindow::MainWindow(QWidget *parent)
         }
         return npp::platform::PermissionGrantMode::kAllowAlways;
     });
+    if (_safeModeNoExtensions) {
+        for (const std::string actionId : {
+                 "tools.extensions.install",
+                 "tools.extensions.manage",
+                 "tools.extensions.marketplace"}) {
+            const auto it = _actionsById.find(actionId);
+            if (it != _actionsById.end() && it->second) {
+                it->second->setEnabled(false);
+            }
+        }
+        statusBar()->showMessage(tr("Safe mode active: extensions are disabled"), 5000);
+    } else {
+        InitializeExtensionsWithGuardrails();
+        NotifyExtensionUpdatesIfAvailable();
+    }
     EnsureBuiltInSkins();
     EnsureThemeFile();
     LoadTheme();
@@ -759,6 +993,9 @@ void MainWindow::BuildMenus() {
     toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.extensions.install"));
     toolsMenu->addAction(_actionsById.at("tools.extensions.manage"));
+    toolsMenu->addAction(_actionsById.at("tools.extensions.marketplace"));
+    toolsMenu->addSeparator();
+    toolsMenu->addAction(_actionsById.at("tools.safeMode.restart"));
     toolsMenu->addSeparator();
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.open"));
     toolsMenu->addAction(_actionsById.at("tools.shortcuts.reload"));
@@ -849,6 +1086,16 @@ void MainWindow::BuildActions() {
         "tools.extensions.manage",
         tr("Manage Extensions..."),
         [this]() { OnManageExtensions(); });
+    registerAction(
+        "tools.extensions.marketplace",
+        tr("Extension Marketplace (Local Index)..."),
+        [this]() { OnOpenExtensionMarketplace(); });
+    registerAction(
+        "tools.safeMode.restart",
+        _safeModeNoExtensions
+            ? tr("Relaunch in Normal Mode")
+            : tr("Relaunch in Safe Mode (No Extensions)"),
+        [this]() { OnRestartSafeMode(); });
     registerAction("language.autoDetect", tr("Auto Detect Language"), [this]() { OnAutoDetectLanguage(); });
     registerAction("language.lockCurrent", tr("Lock Current Language"), [this]() { OnToggleLexerLock(); });
     _actionsById.at("language.lockCurrent")->setCheckable(true);
@@ -1695,6 +1942,9 @@ bool MainWindow::FormatEditorWithAvailableFormatter(
     bool extensionFormatterSucceeded = false;
     bool allowExtensionFormatter = true;
     bool allowBuiltInFormatter = true;
+    if (_safeModeNoExtensions) {
+        allowExtensionFormatter = false;
+    }
     std::string requiredExtensionId;
     if (formatterProfile == "builtin") {
         allowExtensionFormatter = false;
@@ -2438,6 +2688,14 @@ void MainWindow::StopLspSessionForEditor(ScintillaEditBase *editor) {
 }
 
 void MainWindow::OnInstallExtensionFromDirectory() {
+    if (_safeModeNoExtensions) {
+        QMessageBox::information(
+            this,
+            tr("Install Extension"),
+            tr("Extensions are disabled in safe mode. Relaunch in normal mode to install extensions."));
+        return;
+    }
+
     const QString sourceDir = QFileDialog::getExistingDirectory(
         this,
         tr("Select Extension Folder"),
@@ -2459,7 +2717,297 @@ void MainWindow::OnInstallExtensionFromDirectory() {
     statusBar()->showMessage(tr("Extension installed successfully"), 2000);
 }
 
+void MainWindow::OnOpenExtensionMarketplace() {
+    if (_safeModeNoExtensions) {
+        QMessageBox::information(
+            this,
+            tr("Extension Marketplace"),
+            tr("Extensions are disabled in safe mode. Relaunch in normal mode to use the marketplace."));
+        return;
+    }
+
+    const std::string indexPath = ResolveLocalExtensionMarketplaceIndexPath();
+    if (indexPath.empty()) {
+        QMessageBox::information(
+            this,
+            tr("Extension Marketplace"),
+            tr("No local marketplace index found.\n\nExpected one of:\n"
+               "  - %1/extensions-marketplace-index.json\n"
+               "  - ../share/notepad-plus-plus-linux/extensions/index.json\n"
+               "  - /usr/local/share/notepad-plus-plus-linux/extensions/index.json\n"
+               "  - /usr/share/notepad-plus-plus-linux/extensions/index.json")
+                .arg(ToQString(ConfigRootPath())));
+        return;
+    }
+
+    const auto indexJson = _fileSystemService.ReadTextFile(indexPath);
+    if (!indexJson.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Extension Marketplace"),
+            tr("Unable to read marketplace index:\n%1").arg(ToQString(indexJson.status.message)));
+        return;
+    }
+
+    QString parseError;
+    const std::vector<ExtensionMarketplaceEntry> entries =
+        ParseMarketplaceIndex(*indexJson.value, indexPath, &parseError);
+    if (entries.empty()) {
+        QMessageBox::information(
+            this,
+            tr("Extension Marketplace"),
+            parseError.isEmpty()
+                ? tr("Marketplace index is valid but contains no entries.")
+                : parseError);
+        return;
+    }
+
+    auto installed = _extensionService.DiscoverInstalled();
+    if (!installed.ok()) {
+        QMessageBox::warning(
+            this,
+            tr("Extension Marketplace"),
+            tr("Unable to load installed extensions:\n%1").arg(ToQString(installed.status.message)));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Extension Marketplace (Local Index)"));
+    dialog.resize(760, 520);
+    auto *layout = new QVBoxLayout(&dialog);
+
+    auto *sourceLabel = new QLabel(
+        tr("Index: %1").arg(ToQString(indexPath)),
+        &dialog);
+    sourceLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    sourceLabel->setWordWrap(true);
+    layout->addWidget(sourceLabel);
+
+    auto *entryList = new QListWidget(&dialog);
+    layout->addWidget(entryList, 1);
+
+    auto *detailsLabel = new QLabel(&dialog);
+    detailsLabel->setWordWrap(true);
+    detailsLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    layout->addWidget(detailsLabel);
+
+    auto *buttonRow = new QHBoxLayout();
+    auto *installOrUpdateButton = new QPushButton(tr("Install/Update Selected"), &dialog);
+    auto *updateAllButton = new QPushButton(tr("Update All Installed"), &dialog);
+    auto *openIndexButton = new QPushButton(tr("Open Index File"), &dialog);
+    auto *closeButton = new QPushButton(tr("Close"), &dialog);
+    buttonRow->addWidget(installOrUpdateButton);
+    buttonRow->addWidget(updateAllButton);
+    buttonRow->addStretch(1);
+    buttonRow->addWidget(openIndexButton);
+    buttonRow->addWidget(closeButton);
+    layout->addLayout(buttonRow);
+
+    auto rebuildInstalledMap = [&installed]() {
+        std::map<std::string, npp::platform::InstalledExtension> byId;
+        if (installed.ok()) {
+            for (const npp::platform::InstalledExtension &extension : *installed.value) {
+                byId.insert_or_assign(extension.manifest.id, extension);
+            }
+        }
+        return byId;
+    };
+
+    std::map<std::string, npp::platform::InstalledExtension> installedById = rebuildInstalledMap();
+
+    auto renderList = [&]() {
+        entryList->clear();
+        for (const ExtensionMarketplaceEntry &entry : entries) {
+            QString status = tr("available");
+            auto installedIt = installedById.find(entry.id);
+            if (installedIt != installedById.end()) {
+                const std::string installedVersion = installedIt->second.manifest.version;
+                const int versionCmp = CompareLooseVersion(entry.version, installedVersion);
+                if (versionCmp > 0) {
+                    status = tr("update available (%1 -> %2)")
+                                 .arg(ToQString(installedVersion))
+                                 .arg(ToQString(entry.version));
+                } else {
+                    status = tr("installed (%1)").arg(ToQString(installedVersion));
+                }
+            }
+
+            auto *item = new QListWidgetItem(
+                QStringLiteral("%1 [%2] - %3")
+                    .arg(ToQString(entry.name))
+                    .arg(ToQString(entry.id))
+                    .arg(status));
+            item->setData(Qt::UserRole, ToQString(entry.id));
+            entryList->addItem(item);
+        }
+    };
+
+    auto updateDetails = [&]() {
+        const int row = entryList->currentRow();
+        if (row < 0 || row >= static_cast<int>(entries.size())) {
+            detailsLabel->setText(tr("Select an extension to view details."));
+            return;
+        }
+
+        const ExtensionMarketplaceEntry &entry = entries[static_cast<size_t>(row)];
+        QString installedText = tr("Not installed");
+        auto installedIt = installedById.find(entry.id);
+        if (installedIt != installedById.end()) {
+            const std::string installedVersion = installedIt->second.manifest.version;
+            const int versionCmp = CompareLooseVersion(entry.version, installedVersion);
+            if (versionCmp > 0) {
+                installedText = tr("Installed %1 (update to %2 available)")
+                                    .arg(ToQString(installedVersion))
+                                    .arg(ToQString(entry.version));
+            } else {
+                installedText = tr("Installed %1 (up to date)")
+                                    .arg(ToQString(installedVersion));
+            }
+        }
+
+        detailsLabel->setText(
+            tr("Name: %1\nID: %2\nMarketplace version: %3\nInstall state: %4\nSource: %5\nDescription: %6")
+                .arg(ToQString(entry.name))
+                .arg(ToQString(entry.id))
+                .arg(ToQString(entry.version))
+                .arg(installedText)
+                .arg(ToQString(entry.sourceDirectoryUtf8))
+                .arg(ToQString(entry.description.empty() ? std::string("n/a") : entry.description)));
+    };
+
+    auto installFromEntry = [&](const ExtensionMarketplaceEntry &entry) -> bool {
+        const npp::platform::Status installStatus =
+            _extensionService.InstallFromDirectory(entry.sourceDirectoryUtf8);
+        if (!installStatus.ok()) {
+            QMessageBox::warning(
+                &dialog,
+                tr("Extension Marketplace"),
+                tr("Install/update failed for %1:\n%2")
+                    .arg(ToQString(entry.id))
+                    .arg(ToQString(installStatus.message)));
+            return false;
+        }
+        return true;
+    };
+
+    renderList();
+    if (entryList->count() > 0) {
+        entryList->setCurrentRow(0);
+    } else {
+        detailsLabel->setText(tr("No entries."));
+    }
+    updateDetails();
+
+    connect(entryList, &QListWidget::currentRowChanged, &dialog, [&](int) {
+        updateDetails();
+    });
+    connect(installOrUpdateButton, &QPushButton::clicked, &dialog, [&]() {
+        const int row = entryList->currentRow();
+        if (row < 0 || row >= static_cast<int>(entries.size())) {
+            return;
+        }
+        const ExtensionMarketplaceEntry &entry = entries[static_cast<size_t>(row)];
+        if (!installFromEntry(entry)) {
+            return;
+        }
+        installed = _extensionService.DiscoverInstalled();
+        if (installed.ok()) {
+            installedById = rebuildInstalledMap();
+        }
+        renderList();
+        entryList->setCurrentRow(row);
+        updateDetails();
+        statusBar()->showMessage(
+            tr("Installed/updated extension: %1").arg(ToQString(entry.id)),
+            2500);
+    });
+    connect(updateAllButton, &QPushButton::clicked, &dialog, [&]() {
+        std::vector<const ExtensionMarketplaceEntry *> toUpdate;
+        for (const ExtensionMarketplaceEntry &entry : entries) {
+            const auto installedIt = installedById.find(entry.id);
+            if (installedIt == installedById.end()) {
+                continue;
+            }
+            if (CompareLooseVersion(entry.version, installedIt->second.manifest.version) > 0) {
+                toUpdate.push_back(&entry);
+            }
+        }
+        if (toUpdate.empty()) {
+            QMessageBox::information(
+                &dialog,
+                tr("Extension Marketplace"),
+                tr("No installed extensions have available updates."));
+            return;
+        }
+
+        int updatedCount = 0;
+        for (const ExtensionMarketplaceEntry *entry : toUpdate) {
+            if (entry && installFromEntry(*entry)) {
+                ++updatedCount;
+            }
+        }
+        installed = _extensionService.DiscoverInstalled();
+        if (installed.ok()) {
+            installedById = rebuildInstalledMap();
+        }
+        renderList();
+        updateDetails();
+        statusBar()->showMessage(
+            tr("Updated %1 extension(s) from local marketplace").arg(updatedCount),
+            3000);
+    });
+    connect(openIndexButton, &QPushButton::clicked, &dialog, [&]() {
+        const npp::platform::Status openStatus = _processService.OpenPath(indexPath);
+        if (!openStatus.ok()) {
+            QMessageBox::warning(
+                &dialog,
+                tr("Extension Marketplace"),
+                tr("Unable to open index file:\n%1").arg(ToQString(openStatus.message)));
+        }
+    });
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.exec();
+}
+
+void MainWindow::OnRestartSafeMode() {
+    QStringList forwardedArguments = QCoreApplication::arguments();
+    if (!forwardedArguments.isEmpty()) {
+        forwardedArguments.removeFirst();
+    }
+
+    forwardedArguments.erase(
+        std::remove_if(forwardedArguments.begin(), forwardedArguments.end(), [](const QString &argument) {
+            return argument == QStringLiteral("--safe-mode") ||
+                argument == QStringLiteral("--safe-mode-no-extensions");
+        }),
+        forwardedArguments.end());
+    if (!_safeModeNoExtensions) {
+        forwardedArguments.push_back(QStringLiteral("--safe-mode"));
+    }
+
+    const bool started = QProcess::startDetached(
+        QCoreApplication::applicationFilePath(),
+        forwardedArguments);
+    if (!started) {
+        QMessageBox::warning(
+            this,
+            tr("Safe Mode"),
+            tr("Unable to relaunch the application."));
+        return;
+    }
+    close();
+}
+
 void MainWindow::OnManageExtensions() {
+    if (_safeModeNoExtensions) {
+        QMessageBox::information(
+            this,
+            tr("Manage Extensions"),
+            tr("Extensions are disabled in safe mode. Relaunch in normal mode to manage extensions."));
+        return;
+    }
+
     const auto installed = _extensionService.DiscoverInstalled();
     if (!installed.ok()) {
         QMessageBox::warning(
@@ -2494,7 +3042,82 @@ void MainWindow::OnManageExtensions() {
     }
 
     const QString extensionId = chosen.left(chosen.indexOf(QStringLiteral(" (")));
-    const QStringList operations = {tr("Enable"), tr("Disable"), tr("Reset Permissions"), tr("Remove")};
+    const std::string extensionIdUtf8 = ToUtf8(extensionId);
+    auto selectedExtensionIt = std::find_if(
+        installed.value->begin(),
+        installed.value->end(),
+        [&extensionIdUtf8](const npp::platform::InstalledExtension &extension) {
+            return extension.manifest.id == extensionIdUtf8;
+        });
+    if (selectedExtensionIt == installed.value->end()) {
+        QMessageBox::warning(
+            this,
+            tr("Manage Extensions"),
+            tr("Selected extension is no longer installed."));
+        return;
+    }
+
+    const npp::platform::InstalledExtension &selectedExtension = *selectedExtensionIt;
+    const std::optional<ExtensionDirectoryFootprint> footprint =
+        ComputeDirectoryFootprint(selectedExtension.installPath);
+    const double startupEstimateMs = _extensionStartupEstimateMsById.count(selectedExtension.manifest.id) > 0
+        ? _extensionStartupEstimateMsById.at(selectedExtension.manifest.id)
+        : 0.0;
+    const double manifestScanMs = _extensionManifestScanMsById.count(selectedExtension.manifest.id) > 0
+        ? _extensionManifestScanMsById.at(selectedExtension.manifest.id)
+        : 0.0;
+
+    bool updateAvailable = false;
+    ExtensionMarketplaceEntry marketplaceEntry;
+    const std::string marketplaceIndexPath = ResolveLocalExtensionMarketplaceIndexPath();
+    if (!marketplaceIndexPath.empty()) {
+        const auto indexJson = _fileSystemService.ReadTextFile(marketplaceIndexPath);
+        if (indexJson.ok()) {
+            QString ignoredError;
+            const std::vector<ExtensionMarketplaceEntry> entries =
+                ParseMarketplaceIndex(*indexJson.value, marketplaceIndexPath, &ignoredError);
+            const auto entryIt = std::find_if(entries.begin(), entries.end(), [&selectedExtension](const ExtensionMarketplaceEntry &entry) {
+                return entry.id == selectedExtension.manifest.id;
+            });
+            if (entryIt != entries.end()) {
+                marketplaceEntry = *entryIt;
+                updateAvailable = CompareLooseVersion(
+                    marketplaceEntry.version,
+                    selectedExtension.manifest.version) > 0;
+            }
+        }
+    }
+
+    QString extensionDetails = tr(
+        "Extension: %1\nID: %2\nVersion: %3\nInstall path: %4\nEnabled: %5\n"
+        "Startup impact estimate: %6 ms\nManifest scan: %7 ms\n"
+        "Resource usage: %8 in %9 file(s)")
+            .arg(ToQString(selectedExtension.manifest.name.empty()
+                               ? selectedExtension.manifest.id
+                               : selectedExtension.manifest.name))
+            .arg(ToQString(selectedExtension.manifest.id))
+            .arg(ToQString(selectedExtension.manifest.version))
+            .arg(ToQString(selectedExtension.installPath))
+            .arg(selectedExtension.enabled ? tr("yes") : tr("no"))
+            .arg(QString::number(startupEstimateMs, 'f', 1))
+            .arg(QString::number(manifestScanMs, 'f', 1))
+            .arg(footprint.has_value() ? FormatBytesBinary(footprint->totalBytes) : tr("unknown"))
+            .arg(footprint.has_value() ? static_cast<int>(footprint->fileCount) : 0);
+    if (updateAvailable) {
+        extensionDetails.append(
+            tr("\nUpdate available in local marketplace: %1")
+                .arg(ToQString(marketplaceEntry.version)));
+    } else {
+        extensionDetails.append(tr("\nMarketplace update: none"));
+    }
+
+    QMessageBox::information(this, tr("Extension Details"), extensionDetails);
+
+    const QString updateOperationLabel = tr("Update from Marketplace");
+    QStringList operations = {tr("Enable"), tr("Disable"), tr("Reset Permissions"), tr("Remove")};
+    if (updateAvailable) {
+        operations.push_back(updateOperationLabel);
+    }
     bool operationOk = false;
     const QString operation = QInputDialog::getItem(
         this,
@@ -2509,15 +3132,16 @@ void MainWindow::OnManageExtensions() {
     }
 
     npp::platform::Status operationStatus = npp::platform::Status::Ok();
-    const std::string extensionIdUtf8 = ToUtf8(extensionId);
     if (operation == operations.at(0)) {
         operationStatus = _extensionService.EnableExtension(extensionIdUtf8);
     } else if (operation == operations.at(1)) {
         operationStatus = _extensionService.DisableExtension(extensionIdUtf8);
     } else if (operation == operations.at(2)) {
         operationStatus = _extensionService.ResetPermissions(extensionIdUtf8);
-    } else {
+    } else if (operation == operations.at(3)) {
         operationStatus = _extensionService.RemoveExtension(extensionIdUtf8);
+    } else {
+        operationStatus = _extensionService.InstallFromDirectory(marketplaceEntry.sourceDirectoryUtf8);
     }
 
     if (!operationStatus.ok()) {
@@ -2529,6 +3153,8 @@ void MainWindow::OnManageExtensions() {
     }
     if (operation == operations.at(2)) {
         statusBar()->showMessage(tr("Extension permission decisions reset"), 2000);
+    } else if (operation == updateOperationLabel) {
+        statusBar()->showMessage(tr("Extension updated from local marketplace"), 2000);
     } else {
         statusBar()->showMessage(tr("Extension operation completed"), 2000);
     }
@@ -4691,6 +5317,9 @@ void MainWindow::OpenShortcutConfigFile() {
 }
 
 void MainWindow::InitializeExtensionsWithGuardrails() {
+    _extensionStartupEstimateMsById.clear();
+    _extensionManifestScanMsById.clear();
+
     const auto startupBegin = std::chrono::steady_clock::now();
     const npp::platform::Status initStatus = _extensionService.Initialize();
     const auto afterInit = std::chrono::steady_clock::now();
@@ -4718,6 +5347,17 @@ void MainWindow::InitializeExtensionsWithGuardrails() {
     const double perExtensionMs = extensionCount > 0
         ? static_cast<double>(discoverMs) / static_cast<double>(extensionCount)
         : static_cast<double>(discoverMs);
+    for (const npp::platform::InstalledExtension &extension : *discovered.value) {
+        _extensionStartupEstimateMsById.insert_or_assign(extension.manifest.id, perExtensionMs);
+        const auto manifestStart = std::chrono::steady_clock::now();
+        const auto manifestStatus = _extensionService.LoadManifestFromDirectory(extension.installPath);
+        const auto manifestEnd = std::chrono::steady_clock::now();
+        if (manifestStatus.ok()) {
+            const double scanMs = static_cast<double>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(manifestEnd - manifestStart).count());
+            _extensionManifestScanMsById.insert_or_assign(extension.manifest.id, scanMs);
+        }
+    }
 
     if (!_editorSettings.extensionGuardrailsEnabled) {
         return;
@@ -4753,6 +5393,58 @@ void MainWindow::InitializeExtensionsWithGuardrails() {
         "extension-startup-guardrail-" +
         std::to_string(QDateTime::currentSecsSinceEpoch()) + ".log";
     _diagnosticsService.WriteDiagnostic(kAppName, "logs", fileName, details.str());
+}
+
+void MainWindow::NotifyExtensionUpdatesIfAvailable() {
+    if (_safeModeNoExtensions) {
+        return;
+    }
+
+    const std::string indexPath = ResolveLocalExtensionMarketplaceIndexPath();
+    if (indexPath.empty()) {
+        return;
+    }
+
+    const auto indexJson = _fileSystemService.ReadTextFile(indexPath);
+    if (!indexJson.ok()) {
+        return;
+    }
+
+    QString parseError;
+    const std::vector<ExtensionMarketplaceEntry> entries =
+        ParseMarketplaceIndex(*indexJson.value, indexPath, &parseError);
+    if (entries.empty()) {
+        return;
+    }
+
+    const auto discovered = _extensionService.DiscoverInstalled();
+    if (!discovered.ok()) {
+        return;
+    }
+
+    std::map<std::string, std::string> installedVersionById;
+    for (const npp::platform::InstalledExtension &installed : *discovered.value) {
+        installedVersionById.insert_or_assign(installed.manifest.id, installed.manifest.version);
+    }
+
+    int updatesAvailable = 0;
+    for (const ExtensionMarketplaceEntry &entry : entries) {
+        const auto installedIt = installedVersionById.find(entry.id);
+        if (installedIt == installedVersionById.end()) {
+            continue;
+        }
+        if (CompareLooseVersion(entry.version, installedIt->second) > 0) {
+            ++updatesAvailable;
+        }
+    }
+
+    if (updatesAvailable <= 0) {
+        return;
+    }
+
+    statusBar()->showMessage(
+        tr("%1 extension update(s) available in local marketplace").arg(updatesAvailable),
+        4500);
 }
 
 void MainWindow::StartCrashRecoveryTimer() {
@@ -4893,6 +5585,35 @@ std::string MainWindow::ShortcutFilePath() const {
 
 std::string MainWindow::ThemeFilePath() const {
     return ConfigRootPath() + "/theme-linux.json";
+}
+
+std::string MainWindow::ResolveLocalExtensionMarketplaceIndexPath() const {
+    std::vector<std::string> candidatePaths;
+    const std::string configRoot = ConfigRootPath();
+    if (!configRoot.empty()) {
+        candidatePaths.push_back(configRoot + "/extensions-marketplace-index.json");
+    }
+
+    const std::string appDirUtf8 = ToUtf8(QCoreApplication::applicationDirPath());
+    if (!appDirUtf8.empty()) {
+        const std::filesystem::path appDirPath(appDirUtf8);
+        candidatePaths.push_back(
+            (appDirPath / ".." / "share" / "notepad-plus-plus-linux" / "extensions" / "index.json")
+                .lexically_normal()
+                .string());
+    }
+
+    candidatePaths.push_back("/usr/local/share/notepad-plus-plus-linux/extensions/index.json");
+    candidatePaths.push_back("/usr/share/notepad-plus-plus-linux/extensions/index.json");
+
+    for (const std::string &candidatePath : candidatePaths) {
+        const auto exists = _fileSystemService.Exists(candidatePath);
+        if (exists.ok() && *exists.value) {
+            return candidatePath;
+        }
+    }
+
+    return std::string{};
 }
 
 std::string MainWindow::ResolveDefaultUpdateChannelFromInstall() const {

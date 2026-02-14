@@ -16,6 +16,8 @@ This project uses GitHub as the primary support and collaboration hub.
   - `https://github.com/RossEngineering/notepad-plus-plus-linux/wiki`
 - Project README:
   - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/README.md`
+- Extension authoring guide:
+  - `https://github.com/RossEngineering/notepad-plus-plus-linux/blob/master/docs/extension-authoring-guide.md`
 
 ## Report a bug
 

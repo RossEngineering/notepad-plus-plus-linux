@@ -30,7 +30,7 @@ class MainWindow final : public QMainWindow {
 	Q_OBJECT
 
 public:
-	explicit MainWindow(QWidget *parent = nullptr);
+	explicit MainWindow(bool safeModeNoExtensions = false, QWidget *parent = nullptr);
 	~MainWindow() override = default;
 	bool OpenPathFromCli(const QString &path);
 	bool OpenMostRecentFileFromSession();
@@ -165,6 +165,8 @@ private:
 	void OnRequestFeature();
 	void OnCheckForUpdates();
 	void OnAboutDialog();
+	void OnOpenExtensionMarketplace();
+	void OnRestartSafeMode();
 	void OnInstallExtensionFromDirectory();
 	void OnManageExtensions();
 	void OnAutoDetectLanguage();
@@ -235,6 +237,7 @@ private:
 	void InitializeLspServers();
 	void StopLspSessionForEditor(ScintillaEditBase *editor);
 	void InitializeExtensionsWithGuardrails();
+	void NotifyExtensionUpdatesIfAvailable();
 	void StartCrashRecoveryTimer();
 	void StartAutoSaveTimer();
 	bool AutoSaveEditorIfNeeded(ScintillaEditBase *editor, std::string *savedPathUtf8 = nullptr);
@@ -259,6 +262,7 @@ private:
 	std::string SessionFilePath() const;
 	std::string CrashRecoveryJournalPath() const;
 	std::string ResolveDefaultUpdateChannelFromInstall() const;
+	std::string ResolveLocalExtensionMarketplaceIndexPath() const;
 	static QString EncodingLabel(TextEncoding encoding);
 	static std::string ToUtf8(const QString &value);
 	static QString ToQString(const std::string &value);
@@ -287,6 +291,9 @@ private:
 	std::string _lastFindUtf8;
 	std::string _lastRunCommandUtf8;
 	std::string _lastRunWorkingDirUtf8;
+	std::map<std::string, double> _extensionStartupEstimateMsById;
+	std::map<std::string, double> _extensionManifestScanMsById;
+	bool _safeModeNoExtensions = false;
 	bool _closingApplication = false;
 	bool _suppressAutoCloseHandler = false;
 	QTimer *_crashRecoveryTimer = nullptr;

@@ -58,6 +58,7 @@ Each extension ships as a directory or archive with:
    - `formatters[].args`: argument template list for entrypoint invocation
 
 Reference schema: `docs/schemas/extension-manifest-v1.schema.json`.
+Practical author workflow guide: `docs/extension-authoring-guide.md`.
 
 ## Runtime Boundary
 

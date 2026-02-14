@@ -267,6 +267,11 @@ if(UNIX AND NOT WIN32 AND NPP_BUILD_QT_SHELL)
             "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/default-update-channel"
             DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux"
         )
+
+        install(FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/extensions/index.json"
+            DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/notepad-plus-plus-linux/extensions"
+        )
     else()
         message(STATUS "Skipping npp_linux_shell: Qt Core/Gui/Widgets or prerequisite targets not available")
     endif()

@@ -137,11 +137,11 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 
 ### Extensions ecosystem
 
-- [ ] Publish extension authoring guide for formatter and language contributions.
-- [ ] Add in-app extension marketplace placeholder view (local index first).
-- [ ] Add extension update notifications and one-click update flow.
-- [ ] Add per-extension resource usage and startup impact visibility.
-- [ ] Add safe mode launch option to disable all extensions for troubleshooting.
+- [x] Publish extension authoring guide for formatter and language contributions.
+- [x] Add in-app extension marketplace placeholder view (local index first).
+- [x] Add extension update notifications and one-click update flow.
+- [x] Add per-extension resource usage and startup impact visibility.
+- [x] Add safe mode launch option to disable all extensions for troubleshooting.
 
 ### Linux integration and distribution
 

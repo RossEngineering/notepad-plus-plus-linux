@@ -13,6 +13,7 @@ namespace {
 
 struct StartupOptions {
     bool openRecent = false;
+    bool safeModeNoExtensions = false;
     QStringList filePaths;
 };
 
@@ -25,6 +26,11 @@ StartupOptions ParseStartupOptions(const QStringList &arguments) {
             continue;
         }
         if (argument == QStringLiteral("--new-file")) {
+            continue;
+        }
+        if (argument == QStringLiteral("--safe-mode") ||
+            argument == QStringLiteral("--safe-mode-no-extensions")) {
+            options.safeModeNoExtensions = true;
             continue;
         }
         if (argument.startsWith(QLatin1Char('-'))) {
@@ -50,7 +56,7 @@ int main(int argc, char *argv[]) {
     app.setApplicationName(QStringLiteral("Notepad++ Linux"));
     app.setApplicationVersion(QStringLiteral(NPP_APP_VERSION));
     const StartupOptions startupOptions = ParseStartupOptions(app.arguments());
-    MainWindow mainWindow;
+    MainWindow mainWindow(startupOptions.safeModeNoExtensions);
 
     if (startupOptions.openRecent && startupOptions.filePaths.isEmpty()) {
         mainWindow.OpenMostRecentFileFromSession();
