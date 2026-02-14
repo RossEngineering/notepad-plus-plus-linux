@@ -60,6 +60,7 @@ Action:
    - `docs/tester-coverage-snapshot-2026-02.md`
    - `docs/ga-blockers.md` (if blocker candidate)
    - `docs/ga-ci-continuity-log-2026-02.md` (if related CI evidence changed)
+   - command: `./scripts/ga/update_ci_continuity_log.sh --commit <sha>`
 4. Close duplicates with canonical issue links.
 5. Post daily summary in project thread/notes if needed.
 

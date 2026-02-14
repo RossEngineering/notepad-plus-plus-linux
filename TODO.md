@@ -104,6 +104,7 @@ Completed Beta 1 and Beta 2 details are archived in `docs/todo-archive-beta-1-2.
 - [x] Create `v0.9.9-rc.3a` release checklist and notes stub in `docs/releases/`.
 - [x] Create `v0.9.9-rc.3b` release checklist and notes stub in `docs/releases/`.
 - [x] Create GA blocker tracker and continuity log scaffolding (`docs/ga-blockers.md`, `docs/ga-ci-continuity-log-2026-02.md`).
+- [x] Add one-command GA CI continuity log updater (`scripts/ga/update_ci_continuity_log.sh`).
 - [x] Add tester quickstart and Linux-focused bug intake template for community validation.
 - [x] Add GA issue triage playbook and tester coverage snapshot scaffolding.
 - [ ] Update GA continuity log daily until 7/7 pass window is closed.
